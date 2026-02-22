@@ -3,7 +3,7 @@ import { LayoutGrid, Heart, MessageCircle, Trash2, EyeOff, Send, FileText } from
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePublications } from "@/hooks/usePublications";
-import { updatePublication, deletePublication, toggleLike, addComment } from "@/stores/publicationsStore";
+import { updatePublication, deletePublication, toggleLike, addComment, incrementClicks } from "@/stores/publicationsStore";
 
 export default function MurPage() {
   const publications = usePublications();
@@ -50,11 +50,21 @@ export default function MurPage() {
                 <div className="flex flex-wrap gap-3">
                   {pub.files.map((f, i) =>
                     f.type.startsWith("image/") ? (
-                      <img key={i} src={f.url} alt={f.name} className="w-full max-w-md rounded-xl object-cover border" />
+                      <img
+                        key={i}
+                        src={f.url}
+                        alt={f.name}
+                        className="w-full max-w-md rounded-xl object-cover border cursor-pointer"
+                        onClick={() => { incrementClicks(pub.id); window.open(f.url, "_blank"); }}
+                      />
                     ) : (
-                      <div key={i} className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 text-sm">
+                      <button
+                        key={i}
+                        onClick={() => { incrementClicks(pub.id); window.open(f.url, "_blank"); }}
+                        className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 text-sm hover:bg-muted/70 transition-colors"
+                      >
                         <FileText size={16} /> {f.name}
-                      </div>
+                      </button>
                     )
                   )}
                 </div>
