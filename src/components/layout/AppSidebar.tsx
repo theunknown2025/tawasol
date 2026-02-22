@@ -48,7 +48,7 @@ export default function AppSidebar() {
 
   return (
     <aside
-      className={`flex flex-col h-screen bg-[hsl(var(--sidebar-bg))] border-r border-[hsl(var(--sidebar-border))] transition-all duration-300 ${
+      className={`flex flex-col h-screen sticky top-0 bg-[hsl(var(--sidebar-bg))] border-r border-[hsl(var(--sidebar-border))] transition-all duration-300 shrink-0 ${
         collapsed ? "w-[4.5rem]" : "w-64"
       }`}
     >
