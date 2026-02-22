@@ -39,7 +39,7 @@ export default function MurPage() {
           <p className="text-muted-foreground">Aucune publication pour le moment.</p>
         </div>
       ) : (
-        <div className="space-y-6 max-w-2xl">
+        <div className="space-y-6 w-full">
           {published.map((pub) => (
             <div key={pub.id} className="bg-card rounded-2xl border border-border p-6 shadow-sm space-y-4">
               {/* Content */}
