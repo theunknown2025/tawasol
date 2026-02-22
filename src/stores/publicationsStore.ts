@@ -6,6 +6,7 @@ export interface Publication {
   createdAt: Date;
   publishedAt?: Date;
   likes: number;
+  clicks: number;
   comments: { id: string; author: string; text: string; createdAt: Date }[];
 }
 
@@ -27,13 +28,14 @@ export function getPublications() {
   return publications;
 }
 
-export function addPublication(pub: Omit<Publication, "id" | "createdAt" | "likes" | "comments">) {
+export function addPublication(pub: Omit<Publication, "id" | "createdAt" | "likes" | "comments" | "clicks">) {
   publications = [
     {
       ...pub,
       id: crypto.randomUUID(),
       createdAt: new Date(),
       likes: 0,
+      clicks: 0,
       comments: [],
     },
     ...publications,
@@ -53,6 +55,11 @@ export function deletePublication(id: string) {
 
 export function toggleLike(id: string) {
   publications = publications.map((p) => (p.id === id ? { ...p, likes: p.likes + 1 } : p));
+  notify();
+}
+
+export function incrementClicks(id: string) {
+  publications = publications.map((p) => (p.id === id ? { ...p, clicks: p.clicks + 1 } : p));
   notify();
 }
 
