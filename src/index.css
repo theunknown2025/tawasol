@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @layer base {
   :root {
     --background: 220 20% 97%;
@@ -60,8 +58,48 @@
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  .remess-landing-theme {
+    --background: 35 44% 98%;
+    --foreground: 15 54% 26%;
+    --card: 0 0% 100%;
+    --card-foreground: 15 54% 24%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 15 54% 24%;
+    --primary: 37 93% 49%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 34 54% 94%;
+    --secondary-foreground: 15 54% 28%;
+    --muted: 33 48% 95%;
+    --muted-foreground: 15 30% 40%;
+    --accent: 15 76% 35%;
+    --accent-foreground: 0 0% 100%;
+    --border: 30 41% 84%;
+    --input: 30 41% 84%;
+    --ring: 37 93% 49%;
+    background-image: linear-gradient(
+      180deg,
+      hsl(35 44% 98%) 0%,
+      hsl(34 50% 96%) 55%,
+      hsl(36 58% 95%) 100%
+    );
+  }
+
+  .remess-landing-theme a:not([class*="bg-"]):not([class*="text-"]) {
+    color: hsl(15 76% 35%);
+  }
+
+  .remess-landing-theme a:not([class*="bg-"]):not([class*="text-"]):hover {
+    color: hsl(37 93% 49%);
   }
 }

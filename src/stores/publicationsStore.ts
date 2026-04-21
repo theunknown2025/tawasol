@@ -1,6 +1,7 @@
 export interface Publication {
   id: string;
   text: string;
+  tags?: string[];
   files: { name: string; type: string; url: string }[];
   status: "draft" | "published";
   createdAt: Date;
@@ -29,9 +30,10 @@ export function getPublications() {
 }
 
 export function addPublication(pub: Omit<Publication, "id" | "createdAt" | "likes" | "comments" | "clicks">) {
+  const pubWithTags = { ...pub, tags: pub.tags ?? [] };
   publications = [
     {
-      ...pub,
+      ...pubWithTags,
       id: crypto.randomUUID(),
       createdAt: new Date(),
       likes: 0,
