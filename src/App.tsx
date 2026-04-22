@@ -50,6 +50,7 @@ import FooterEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/
 import PublicLibraryPage from "./pages/public-library/PublicLibraryPage";
 import PublicLandingPage from "./pages/landing/PublicLandingPage";
 import PublicEventRegistrationPage from "./pages/public/PublicEventRegistrationPage";
+import PublicEventsPage from "./pages/public/PublicEventsPage";
 
 // Member pages
 import MemberDashboardPage from "./pages/admin/member/MemberDashboardPage";
@@ -80,6 +81,7 @@ const App = () => (
         >
           <Routes>
             <Route path="/" element={<PublicLandingPage />} />
+            <Route path="/events" element={<PublicEventsPage />} />
             <Route path="/event/:slug" element={<PublicEventRegistrationPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/bibliotheque" element={<PublicLibraryPage />} />

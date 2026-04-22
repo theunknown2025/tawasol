@@ -146,6 +146,19 @@ export async function fetchEvenements(): Promise<Evenement[]> {
   return rows.map((d) => mapDbToEvenement(d, signedUrls));
 }
 
+export async function fetchPublishedEvenementsForPublic(): Promise<Evenement[]> {
+  const { data, error } = await supabase
+    .from("evenements")
+    .select("*, profiles!evenements_author_profile_fkey(full_name)")
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as DbEvenement[];
+  return rows.map((row) => mapDbToEvenement({ ...row, event_files: [] }));
+}
+
 export async function fetchMyEvenements(): Promise<Evenement[]> {
   const {
     data: { user },

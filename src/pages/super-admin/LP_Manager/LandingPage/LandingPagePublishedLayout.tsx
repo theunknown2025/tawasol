@@ -2,6 +2,7 @@ import { ArticlesSection } from "./ArticlesSection";
 import { AProposRemessSection } from "./AProposRemessSection";
 import { EquipeRemessSection } from "./EquipeRemessSection";
 import { NosMembresSection } from "./NosMembresSection";
+import { NosEvenementsSection } from "./NosEvenementsSection";
 import { ContacterNousSection } from "./ContacterNousSection";
 import { HeaderSection } from "./HeaderSection";
 import { HeroSection } from "./HeroSection";
@@ -87,6 +88,13 @@ export function LandingPagePublishedLayout({
       >
         <LandingPageSectionOutlineTitle label="Nos membres" className="py-4 md:py-5" />
         <NosMembresSection content={nosMembres} />
+      </section>
+      <section
+        id={LANDING_PAGE_SECTION_ANCHOR_ID["Nos événements"]}
+        className="border-t border-border"
+      >
+        <LandingPageSectionOutlineTitle label="Nos événements" />
+        <NosEvenementsSection />
       </section>
       <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Articles} className="border-t border-border">
         <LandingPageSectionOutlineTitle label="Articles" />
