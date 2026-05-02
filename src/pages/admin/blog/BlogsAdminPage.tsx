@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { NotebookPen, Eye, Pencil, Trash2, SendHorizontal, EyeOff } from "lucide-react";
+import { NotebookPen, Eye, Pencil, Trash2, SendHorizontal, EyeOff, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBlogs, type Blog } from "@/hooks/useBlogs";
 import { toast } from "sonner";
+import { slugifyTitle } from "@/lib/blogSlug";
+import { BlogBannerField } from "./BlogBannerField";
 
-export default function BlogsPage() {
+export default function BlogsAdminPage() {
   const {
     blogs: myBlogs,
     isLoading: isLoadingMine,
@@ -26,6 +29,7 @@ export default function BlogsPage() {
   const [tab, setTab] = useState<"new" | "mine" | "all">("new");
 
   const [title, setTitle] = useState("");
+  const [slugManual, setSlugManual] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
   const [banner, setBanner] = useState("");
@@ -33,12 +37,14 @@ export default function BlogsPage() {
   const [viewBlog, setViewBlog] = useState<Blog | null>(null);
   const [editBlog, setEditBlog] = useState<Blog | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [editSlug, setEditSlug] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editBanner, setEditBanner] = useState("");
 
   const resetForm = () => {
     setTitle("");
+    setSlugManual("");
     setDescription("");
     setContent("");
     setBanner("");
@@ -56,6 +62,7 @@ export default function BlogsPage() {
         description: description.trim(),
         content: content.trim(),
         banner: banner.trim() || null,
+        slug: slugManual.trim() ? slugifyTitle(slugManual.trim()) : null,
         status,
       });
       resetForm();
@@ -69,6 +76,7 @@ export default function BlogsPage() {
   const openEdit = (blog: Blog) => {
     setEditBlog(blog);
     setEditTitle(blog.title);
+    setEditSlug(blog.slug);
     setEditDescription(blog.description);
     setEditContent(blog.content);
     setEditBanner(blog.banner ?? "");
@@ -80,6 +88,11 @@ export default function BlogsPage() {
       toast.error("Le titre est obligatoire");
       return;
     }
+    const nextSlug = editSlug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
+    if (!nextSlug) {
+      toast.error("L’identifiant d’URL (slug) est obligatoire");
+      return;
+    }
 
     try {
       await updateBlog(editBlog.id, {
@@ -87,6 +100,7 @@ export default function BlogsPage() {
         description: editDescription.trim(),
         content: editContent.trim(),
         banner: editBanner.trim() || null,
+        slug: nextSlug,
       });
       toast.success("Blog mis à jour");
       setEditBlog(null);
@@ -101,7 +115,7 @@ export default function BlogsPage() {
         status: blog.status === "published" ? "draft" : "published",
       });
       toast.success(
-        blog.status === "published" ? "Blog dépublié (brouillon)" : "Blog publié"
+        blog.status === "published" ? "Blog dépublié (brouillon)" : "Blog publié",
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors du changement de statut");
@@ -116,6 +130,9 @@ export default function BlogsPage() {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression du blog");
     }
   };
+
+  const customSlugPreview =
+    slugManual.trim().length > 0 ? slugifyTitle(slugManual.trim()) : null;
 
   return (
     <div className="p-8">
@@ -154,7 +171,6 @@ export default function BlogsPage() {
 
         <TabsContent value="new">
           <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-            {/* Banner preview */}
             <div
               className="h-40 w-full bg-gradient-to-r from-primary/70 via-primary/40 to-primary/10 flex items-center justify-center text-white text-lg font-semibold"
               style={
@@ -184,18 +200,26 @@ export default function BlogsPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
-                    URL de la bannière
+                    Slug URL (optionnel)
                   </label>
                   <Input
-                    placeholder="https://exemple.com/image.jpg"
-                    value={banner}
-                    onChange={(e) => setBanner(e.target.value)}
+                    placeholder="mon-article (laisser vide pour génération auto)"
+                    value={slugManual}
+                    onChange={(e) => setSlugManual(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Ajoutez l&apos;URL d&apos;une image pour l&apos;afficher en bannière de votre blog.
+                    {customSlugPreview ? (
+                      <>
+                        Aperçu : <span className="font-mono text-foreground">/blog/{customSlugPreview}</span>
+                      </>
+                    ) : (
+                      <>Laissé vide : slug généré à partir du titre avec un suffixe unique.</>
+                    )}
                   </p>
                 </div>
               </div>
+
+              <BlogBannerField bannerUrl={banner} onBannerUrlChange={setBanner} disabled={isCreating} />
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
@@ -259,6 +283,7 @@ export default function BlogsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Titre</TableHead>
+                    <TableHead className="hidden lg:table-cell w-[140px]">Slug</TableHead>
                     <TableHead className="hidden md:table-cell">Description</TableHead>
                     <TableHead className="w-[110px]">Date</TableHead>
                     <TableHead className="w-[100px]">Statut</TableHead>
@@ -269,6 +294,9 @@ export default function BlogsPage() {
                   {myBlogs.map((blog) => (
                     <TableRow key={blog.id}>
                       <TableCell className="font-medium">{blog.title}</TableCell>
+                      <TableCell className="hidden lg:table-cell font-mono text-xs text-muted-foreground">
+                        {blog.slug}
+                      </TableCell>
                       <TableCell className="hidden md:table-cell max-w-[260px]">
                         <p className="truncate text-sm text-muted-foreground">
                           {blog.description || "—"}
@@ -287,6 +315,13 @@ export default function BlogsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
+                          {blog.status === "published" ? (
+                            <Button variant="ghost" size="icon" title="Page publique" asChild>
+                              <Link to={`/blog/${encodeURIComponent(blog.slug)}`} target="_blank" rel="noreferrer">
+                                <ExternalLink size={16} />
+                              </Link>
+                            </Button>
+                          ) : null}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -360,6 +395,7 @@ export default function BlogsPage() {
                   <TableRow>
                     <TableHead>Titre</TableHead>
                     <TableHead className="hidden md:table-cell">Auteur</TableHead>
+                    <TableHead className="hidden lg:table-cell w-[140px]">Slug</TableHead>
                     <TableHead className="hidden md:table-cell">Description</TableHead>
                     <TableHead className="w-[110px]">Date</TableHead>
                     <TableHead className="w-[100px]">Statut</TableHead>
@@ -372,6 +408,9 @@ export default function BlogsPage() {
                       <TableCell className="font-medium">{blog.title}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                         {blog.authorName}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell font-mono text-xs text-muted-foreground">
+                        {blog.slug}
                       </TableCell>
                       <TableCell className="hidden md:table-cell max-w-[260px]">
                         <p className="truncate text-sm text-muted-foreground">
@@ -390,7 +429,14 @@ export default function BlogsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-1">
+                          {blog.status === "published" ? (
+                            <Button variant="ghost" size="icon" title="Page publique" asChild>
+                              <Link to={`/blog/${encodeURIComponent(blog.slug)}`} target="_blank" rel="noreferrer">
+                                <ExternalLink size={16} />
+                              </Link>
+                            </Button>
+                          ) : null}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -410,7 +456,6 @@ export default function BlogsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* View dialog */}
       <Dialog open={!!viewBlog} onOpenChange={() => setViewBlog(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -430,7 +475,22 @@ export default function BlogsPage() {
               <p className="text-sm text-muted-foreground">
                 Par <span className="font-medium text-foreground">{viewBlog.authorName}</span> ·{" "}
                 {viewBlog.createdAt.toLocaleDateString("fr-FR")}
+                {viewBlog.status === "published" ? (
+                  <>
+                    {" "}
+                    ·{" "}
+                    <Link
+                      className="text-primary underline-offset-4 hover:underline"
+                      to={`/blog/${encodeURIComponent(viewBlog.slug)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Voir la page publique
+                    </Link>
+                  </>
+                ) : null}
               </p>
+              <p className="font-mono text-xs text-muted-foreground">Slug : {viewBlog.slug}</p>
               {viewBlog.description && (
                 <p className="text-sm text-muted-foreground">{viewBlog.description}</p>
               )}
@@ -444,9 +504,8 @@ export default function BlogsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit dialog */}
       <Dialog open={!!editBlog} onOpenChange={() => setEditBlog(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifier le blog</DialogTitle>
             <DialogDescription className="sr-only">
@@ -465,13 +524,21 @@ export default function BlogsPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">URL de la bannière</label>
+              <label className="text-sm font-medium text-foreground">Slug (URL publique)</label>
               <Input
-                value={editBanner}
-                onChange={(e) => setEditBanner(e.target.value)}
-                placeholder="https://exemple.com/image.jpg"
+                value={editSlug}
+                onChange={(e) => setEditSlug(e.target.value)}
+                placeholder="mon-article"
               />
+              <p className="text-xs text-muted-foreground">
+                Lettres minuscules, chiffres et tirets uniquement. Ex. : <span className="font-mono">/blog/{editSlug || "…"}</span>
+              </p>
             </div>
+            <BlogBannerField
+              bannerUrl={editBanner}
+              onBannerUrlChange={setEditBanner}
+              disabled={isUpdating}
+            />
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
                 Description courte
@@ -504,4 +571,3 @@ export default function BlogsPage() {
     </div>
   );
 }
-

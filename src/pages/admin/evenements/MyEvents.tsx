@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CalendarDays,
   Eye,
@@ -11,6 +12,7 @@ import {
   ChevronUp,
   ClipboardList,
   Share2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,7 @@ import type { Evenement } from "@/hooks/useEvenements";
 import type { EventSubscription } from "@/hooks/useEventSubscriptions";
 import type { EventFormRegistration } from "@/hooks/useEventFormRegistrations";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatEventDateRange } from "./eventDates";
 
 interface MyEventsProps {
   events: Evenement[];
@@ -114,7 +117,8 @@ export function MyEvents({
                     <h3 className="font-semibold">{evt.titre}</h3>
                     <p className="text-xs text-muted-foreground">
                       {evt.createdAt.toLocaleDateString("fr-FR")}
-                      {evt.duree && ` • ${evt.duree}`}
+                      {(evt.eventDateStart || evt.eventDateEnd) &&
+                        ` • ${formatEventDateRange(evt.eventDateStart, evt.eventDateEnd)}`}
                     </p>
                   </div>
                 </div>
@@ -126,6 +130,11 @@ export function MyEvents({
                 {evt.status === "published" ? "Publié" : "Brouillon"}
               </Badge>
               <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="icon" asChild title="Modifier">
+                  <Link to={`/admin/evenements/edit/${evt.id}`}>
+                    <Pencil size={16} />
+                  </Link>
+                </Button>
                 <Button variant="ghost" size="icon" onClick={() => onView(evt)} title="Voir">
                   <Eye size={16} />
                 </Button>

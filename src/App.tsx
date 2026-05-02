@@ -21,8 +21,9 @@ import AdminGestionProjetPage from "./pages/admin/GestionProjetPage";
 import ProjetsPmoRoute from "./pages/admin/ProjetsPmoRoute";
 import AdminPublicationsPage from "./pages/admin/PublicationsPage";
 import AdminEvenementsPage from "./pages/admin/evenements";
+import EditEvenementPage from "./pages/admin/evenements/EditEvenementPage";
 import AdminMessageriePage from "./pages/admin/MessageriePage";
-import AdminBlogsPage from "./pages/admin/BlogsPage";
+import AdminBlogsPage from "./pages/admin/blog/BlogsAdminPage";
 import GestionFormPage from "./pages/admin/gestion-form";
 
 // Super Admin only
@@ -34,6 +35,7 @@ import PMOPage from "./pages/super-admin/PMOPage";
 import LpProfilePage from "./pages/super-admin/LP_Manager/LpProfilePage";
 import LpLibraryPage from "./pages/super-admin/LP_Manager/LibraryManager/LpLibraryPage";
 import LpDashboardPage from "./pages/super-admin/LP_Manager/LpDashboardPage";
+import BarometrePage from "./pages/super-admin/LP_Manager/BarometrePage";
 import LpEditorLayout from "./pages/super-admin/LP_Manager/LpEditorLayout";
 import HeaderEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/HeaderEditorPage";
 import HeroEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/HeroEditorPage";
@@ -48,9 +50,13 @@ import ArticlesEditorPage from "./pages/super-admin/LP_Manager/LPManager/section
 import ContacterNousEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ContacterNousEditorPage";
 import FooterEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/FooterEditorPage";
 import PublicLibraryPage from "./pages/public-library/PublicLibraryPage";
+import PublicArticlePage from "./pages/public-library/PublicArticlePage";
 import PublicLandingPage from "./pages/landing/PublicLandingPage";
 import PublicEventRegistrationPage from "./pages/public/PublicEventRegistrationPage";
 import PublicEventsPage from "./pages/public/PublicEventsPage";
+import PublicBlogsPage from "./pages/public/PublicBlogsPage";
+import PublicBlogPage from "./pages/public/PublicBlogPage";
+import PublicBarometrePage from "./pages/public/PublicBarometrePage";
 
 // Member pages
 import MemberDashboardPage from "./pages/admin/member/MemberDashboardPage";
@@ -85,6 +91,11 @@ const App = () => (
             <Route path="/event/:slug" element={<PublicEventRegistrationPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/bibliotheque" element={<PublicLibraryPage />} />
+            <Route path="/articles" element={<Navigate to="/bibliotheque" replace />} />
+            <Route path="/article/:id" element={<PublicArticlePage />} />
+            <Route path="/blogs" element={<PublicBlogsPage />} />
+            <Route path="/blog/:slug" element={<PublicBlogPage />} />
+            <Route path="/barometre" element={<PublicBarometrePage />} />
             <Route
               path="/admin/portail"
               element={
@@ -105,6 +116,7 @@ const App = () => (
               <Route path="profile" element={<LpProfilePage />} />
               <Route path="library" element={<LpLibraryPage />} />
               <Route path="dashboard" element={<LpDashboardPage />} />
+              <Route path="barometre" element={<BarometrePage />} />
               <Route path="editor" element={<LpEditorLayout />}>
                 <Route index element={<Navigate to="hero" replace />} />
                 <Route path="header" element={<HeaderEditorPage />} />
@@ -140,6 +152,7 @@ const App = () => (
               <Route path="/admin/projets/pmo" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><ProjetsPmoRoute /></ProtectedRoute>} />
               <Route path="/admin/publications" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminPublicationsPage /></ProtectedRoute>} />
               <Route path="/admin/evenements" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminEvenementsPage /></ProtectedRoute>} />
+              <Route path="/admin/evenements/edit/:id" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><EditEvenementPage /></ProtectedRoute>} />
               <Route path="/admin/messagerie" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminMessageriePage /></ProtectedRoute>} />
               <Route path="/admin/blogs" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminBlogsPage /></ProtectedRoute>} />
               <Route path="/admin/gestion-form" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><GestionFormPage /></ProtectedRoute>} />

@@ -22,6 +22,34 @@ export type LibraryBookReview = {
   created_at: string;
 };
 
+export async function fetchPublishedLibraryBookById(id: string): Promise<PublicLibraryBook | null> {
+  const { data, error } = await supabase
+    .from("lp_library_books")
+    .select("id, cover_url, pdf_url, title, author, description, keywords, published_at, created_at")
+    .eq("is_published", true)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as PublicLibraryBook | null;
+}
+
+/** Autres ouvrages publiés (exclut l’article courant), pour suggestions en fin de page. */
+export async function fetchSimilarPublishedBooks(
+  excludeBookId: string,
+  limit: number,
+): Promise<PublicLibraryBook[]> {
+  const { data, error } = await supabase
+    .from("lp_library_books")
+    .select("id, cover_url, pdf_url, title, author, description, keywords, published_at, created_at")
+    .eq("is_published", true)
+    .neq("id", excludeBookId)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as PublicLibraryBook[];
+}
+
 export async function fetchPublishedLibraryBooks(limit?: number): Promise<PublicLibraryBook[]> {
   let q = supabase
     .from("lp_library_books")
@@ -38,9 +66,9 @@ export async function fetchPublishedLibraryBooks(limit?: number): Promise<Public
 }
 
 /**
- * Bloc « Articles » sur la landing : mêmes lignes que la bibliothèque admin (`lp_library_books`),
- * triées par dernière modification. Le filtrage brouillon / publié est assuré par les politiques RLS :
- * visiteur anonyme → uniquement `is_published` ; super admin connecté → toutes les ressources sauvegardées.
+ * Aperçu des ressources sur la page d’accueil (section « Articles » côté éditeur) : mêmes lignes que la
+ * bibliothèque admin (`lp_library_books`), triées par dernière modification. RLS : anonyme → publiées
+ * uniquement ; super admin connecté → toutes les ressources sauvegardées.
  */
 export async function fetchArticlesHighlightBooks(limit: number): Promise<PublicLibraryBook[]> {
   const { data, error } = await supabase

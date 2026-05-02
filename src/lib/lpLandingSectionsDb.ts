@@ -5,11 +5,13 @@ import {
   DEFAULT_EQUIPE_REMESS_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
+  DEFAULT_FOOTER_CONTENT,
   DEFAULT_HEADER_CONTENT,
   DEFAULT_HERO_CONTENT,
   DEFAULT_MOT_DU_PRESIDENT_CONTENT,
   DEFAULT_REMESS_EN_CHIFFRES_CONTENT,
   ensureAProposValeursCount,
+  mergeFooterPayload,
   ensureRemessChiffresStatsCount,
   normalizeEquipeMembers,
   normalizeNosMembresEntries,
@@ -17,6 +19,7 @@ import {
   type EquipeRemessContent,
   type NosMembresContent,
   type ContacterNousContent,
+  type FooterContent,
   type HeaderContent,
   type HeroSectionContent,
   type MotDuPresidentContent,
@@ -346,6 +349,32 @@ export async function upsertLpLandingContacterNous(payload: ContacterNousContent
   if (error) throw error;
 }
 
+export async function fetchLpLandingFooter(): Promise<FooterContent | null> {
+  const { data, error } = await supabase
+    .from("lp_landing_footer")
+    .select("payload")
+    .eq("id", SINGLETON_ID)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.payload) return null;
+  return mergeFooterPayload(data.payload);
+}
+
+export async function upsertLpLandingFooter(payload: FooterContent): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("lp_landing_footer").upsert(
+    {
+      id: SINGLETON_ID,
+      payload,
+      updated_by: user?.id ?? null,
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw error;
+}
+
 export type LpLandingResolvedContent = {
   header: HeaderContent;
   hero: HeroSectionContent;
@@ -355,11 +384,12 @@ export type LpLandingResolvedContent = {
   equipeRemess: EquipeRemessContent;
   nosMembres: NosMembresContent;
   contacterNous: ContacterNousContent;
+  footer: FooterContent;
 };
 
 /** Charge toutes les sections (singleton) ; valeurs par défaut si aucune ligne en base. */
 export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedContent> {
-  const [h, he, m, a, r, eq, nm, cn] = await Promise.all([
+  const [h, he, m, a, r, eq, nm, cn, f] = await Promise.all([
     fetchLpLandingHeader(),
     fetchLpLandingHero(),
     fetchLpLandingMotDuPresident(),
@@ -368,6 +398,7 @@ export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedCont
     fetchLpLandingEquipeRemess(),
     fetchLpLandingNosMembres(),
     fetchLpLandingContacterNous(),
+    fetchLpLandingFooter(),
   ]);
   return {
     header: h ?? DEFAULT_HEADER_CONTENT,
@@ -378,5 +409,6 @@ export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedCont
     equipeRemess: eq ?? DEFAULT_EQUIPE_REMESS_CONTENT,
     nosMembres: nm ?? DEFAULT_NOS_MEMBRES_CONTENT,
     contacterNous: cn ?? DEFAULT_CONTACTER_NOUS_CONTENT,
+    footer: f ?? DEFAULT_FOOTER_CONTENT,
   };
 }

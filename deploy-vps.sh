@@ -27,31 +27,43 @@ set -euo pipefail
 
 APP_NAME="tawasol"
 APP_USER="www-data"
-REPO_URL_DEFAULT="https://github.com/theunknown2025/tawasol.git"
-BRANCH_DEFAULT="main"
 APP_DIR="/opt/${APP_NAME}"
 WEB_ROOT="/var/www/${APP_NAME}"
 NGINX_CONF="/etc/nginx/sites-available/${APP_NAME}"
 NGINX_LINK="/etc/nginx/sites-enabled/${APP_NAME}"
 
-DOMAIN=""
-EMAIL=""
-REPO_URL="${REPO_URL_DEFAULT}"
-BRANCH="${BRANCH_DEFAULT}"
-SUPABASE_URL=""
-SUPABASE_ANON_KEY=""
+# -----------------------------
+# Editable deployment settings
+# -----------------------------
+# You can keep secrets out of this script by creating DEPLOY_ENV_FILE.
+# Example /opt/tawasol/.deploy.env:
+#   DOMAIN=app.example.com
+#   EMAIL=admin@example.com
+#   REPO_URL=https://github.com/theunknown2025/tawasol.git
+#   BRANCH=main
+#   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+#   SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+#   ENABLE_SSL=true
+DOMAIN="remess.ma 187.124.51.78 beta-remess.pro"
+EMAIL="admin@example.com"
+REPO_URL="https://github.com/theunknown2025/tawasol.git"
+BRANCH="main"
+SUPABASE_URL="https://usbdedrhhrxuyfqnwbls.supabase.co"
+SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzYmRlZHJoaHJ4dXlmcW53YmxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NTU5MjYsImV4cCI6MjA4NzMzMTkyNn0.8oho3zcNsPAwA-2kkvIhdmdTGKVfJ9OdCJcl9hox7Gk"
 ENABLE_SSL="true"
+DEPLOY_ENV_FILE="/opt/tawasol/.deploy.env"
 
 print_help() {
   cat <<'EOF'
 Deploy Tawasol to VPS with Nginx.
 
-Required:
+Required (can be set in script config block OR via CLI flags):
   --domain               Public domain name (e.g. app.example.com)
   --supabase-url         Supabase project URL
   --supabase-anon-key    Supabase anon key
 
 Optional:
+  --env-file             Path to deployment env file (default: /opt/tawasol/.deploy.env)
   --email                Email for Let's Encrypt (required if SSL enabled)
   --repo                 Git repository URL
   --branch               Git branch name (default: main)
@@ -60,8 +72,31 @@ Optional:
 EOF
 }
 
+load_env_file() {
+  if [[ ! -f "${DEPLOY_ENV_FILE}" ]]; then
+    return
+  fi
+  echo "Loading deployment settings from ${DEPLOY_ENV_FILE}"
+  # shellcheck disable=SC1090
+  source "${DEPLOY_ENV_FILE}"
+}
+
+# Resolve env-file path first, then load file, then parse all args so
+# explicit CLI flags override any values coming from DEPLOY_ENV_FILE.
+ARGS=("$@")
+for ((i=0; i<${#ARGS[@]}; i++)); do
+  if [[ "${ARGS[$i]}" == "--env-file" ]]; then
+    next=$((i+1))
+    DEPLOY_ENV_FILE="${ARGS[$next]:-}"
+  fi
+done
+
+load_env_file
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --env-file)
+      DEPLOY_ENV_FILE="${2:-}"; shift 2 ;;
     --domain)
       DOMAIN="${2:-}"; shift 2 ;;
     --email)
@@ -86,8 +121,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "${DOMAIN}" || -z "${SUPABASE_URL}" || -z "${SUPABASE_ANON_KEY}" ]]; then
-  echo "Missing required parameters."
+  echo "Missing required deployment values."
+  echo "Set them in ${DEPLOY_ENV_FILE}, in the config block, or via CLI flags."
   print_help
+  exit 1
+fi
+
+if [[ "${DOMAIN}" == "example.com" || "${SUPABASE_URL}" == "https://YOUR_PROJECT.supabase.co" || "${SUPABASE_ANON_KEY}" == "YOUR_SUPABASE_ANON_KEY" ]]; then
+  echo "Please replace placeholder values in deploy-vps.sh before running."
   exit 1
 fi
 

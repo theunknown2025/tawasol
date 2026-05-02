@@ -20,6 +20,7 @@ function fileToDataUrl(file: File): Promise<string> {
 export async function uploadLandingPageImage(
   file: File,
   segment: string,
+  bucket: string = BUCKET,
 ): Promise<{ url: string; usedFallback: boolean }> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Veuillez choisir un fichier image (JPEG, PNG, WebP ou GIF).");
@@ -40,7 +41,7 @@ export async function uploadLandingPageImage(
   const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const path = `${segment}/${user.id}/${crypto.randomUUID()}.${ext}`;
 
-  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: "3600",
     upsert: false,
   });
@@ -50,7 +51,7 @@ export async function uploadLandingPageImage(
     return { url, usedFallback: true };
   }
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return { url: data.publicUrl, usedFallback: false };
 }
 

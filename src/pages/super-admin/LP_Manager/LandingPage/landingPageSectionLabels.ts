@@ -5,11 +5,13 @@ export const LANDING_PAGE_SECTION_LABELS = [
   "Mot du président",
   "À propos du REMESS",
   "REMESS en chiffres",
+  "Baromètre",
   "Équipe REMESS",
   "Nos membres",
   "Nos partenaires",
   "Nos événements",
   "Articles",
+  "Blog",
   "Contacter nous",
   "Footer",
 ] as const;

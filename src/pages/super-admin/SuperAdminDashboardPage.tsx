@@ -27,6 +27,7 @@ import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/compone
 import { useUsers } from "@/hooks/useUsers";
 import { useEvenements } from "@/hooks/useEvenements";
 import { usePublications } from "@/hooks/usePublications";
+import { formatFrDate } from "@/lib/eventDates";
 
 type TimeBucket = {
   label: string;
@@ -403,7 +404,7 @@ export default function SuperAdminDashboardPage() {
                       <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
                         <CalendarDays className="w-3 h-3" />
                         {evt.deadlineInscription
-                          ? evt.deadlineInscription.toLocaleDateString()
+                          ? formatFrDate(evt.deadlineInscription)
                           : "Date à confirmer"}
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 capitalize">

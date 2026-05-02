@@ -20,6 +20,7 @@ export function LandingPagePreviewer({ open, onOpenChange }: LandingPagePreviewe
     equipeRemess,
     nosMembres,
     contacterNous,
+    footer,
   } = useLpLandingContent();
   useEffect(() => {
     if (!open) return;
@@ -71,6 +72,7 @@ export function LandingPagePreviewer({ open, onOpenChange }: LandingPagePreviewe
           equipeRemess={equipeRemess}
           nosMembres={nosMembres}
           contacterNous={contacterNous}
+          footer={footer}
           showSectionOutline
         />
       </div>

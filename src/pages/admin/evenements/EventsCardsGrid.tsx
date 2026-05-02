@@ -2,6 +2,7 @@ import { CalendarDays, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import type { Evenement } from "@/hooks/useEvenements";
+import { formatEventDateRange, formatFrDate } from "./eventDates";
 
 interface EventsCardsGridProps {
   events: Evenement[];
@@ -58,13 +59,14 @@ export function EventsCardsGrid({
             <p className="text-xs text-muted-foreground">
               {evt.createdAt.toLocaleDateString("fr-FR")}
             </p>
-            {evt.duree && (
-              <p className="text-sm text-muted-foreground mt-1">{evt.duree}</p>
+            {(evt.eventDateStart || evt.eventDateEnd) && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {formatEventDateRange(evt.eventDateStart, evt.eventDateEnd)}
+              </p>
             )}
             {evt.deadlineInscription && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Inscription avant le{" "}
-                {evt.deadlineInscription.toLocaleDateString("fr-FR")}
+                Inscription avant le {formatFrDate(evt.deadlineInscription)}
               </p>
             )}
           </CardContent>

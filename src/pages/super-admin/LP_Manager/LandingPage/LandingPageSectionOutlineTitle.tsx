@@ -4,7 +4,9 @@ import {
   Handshake,
   Info,
   Mail,
+  MapPinned,
   Newspaper,
+  NotebookPen,
   PanelBottom,
   Quote,
   type LucideIcon,
@@ -21,11 +23,13 @@ const SECTION_TITLE_ICONS: Record<LandingPageOutlineTitleLabel, LucideIcon> = {
   "Mot du président": Quote,
   "À propos du REMESS": Info,
   "REMESS en chiffres": BarChart3,
+  Baromètre: MapPinned,
   "Équipe REMESS": Users,
   "Nos membres": UserSquare2,
   "Nos partenaires": Handshake,
   "Nos événements": CalendarDays,
   Articles: Newspaper,
+  Blog: NotebookPen,
   "Contacter nous": Mail,
   Footer: PanelBottom,
 };
@@ -36,26 +40,38 @@ const SECTION_TITLE_ICONS: Record<LandingPageOutlineTitleLabel, LucideIcon> = {
 export function LandingPageSectionOutlineTitle({
   label,
   className,
+  subtitle,
 }: {
   label: LandingPageOutlineTitleLabel;
   /** Ex. espacement réduit pour une section avec sous-titre + carrousel serrés */
   className?: string;
+  /** Texte sous le titre (ex. section Événements) */
+  subtitle?: string;
 }) {
   const Icon = SECTION_TITLE_ICONS[label];
+  const subtitleText = subtitle?.trim();
   return (
-    <h2
-      className={cn(
-        "group flex cursor-default select-none items-center justify-center gap-3 px-4 py-8 text-center text-xl font-semibold tracking-tight text-muted-foreground transition-colors duration-200 hover:text-foreground md:gap-3.5 md:py-10 md:text-2xl lg:text-3xl",
-        className,
-      )}
-    >
-      <Icon
-        className="h-7 w-7 shrink-0 opacity-90 transition-all duration-200 group-hover:scale-110 group-hover:text-primary md:h-8 md:w-8 lg:h-9 lg:w-9"
-        aria-hidden
-      />
-      <span className="border-b-[3px] border-transparent pb-1 transition-all duration-200 group-hover:border-primary group-hover:text-foreground">
-        {label}
-      </span>
-    </h2>
+    <>
+      <h2
+        className={cn(
+          "group flex cursor-default select-none items-center justify-center gap-3 px-4 text-center text-xl font-semibold tracking-tight text-muted-foreground transition-colors duration-200 hover:text-foreground md:gap-3.5 md:text-2xl lg:text-3xl",
+          subtitleText ? "pb-3 pt-8 md:pb-4 md:pt-10" : "py-8 md:py-10",
+          className,
+        )}
+      >
+        <Icon
+          className="h-7 w-7 shrink-0 opacity-90 transition-all duration-200 group-hover:scale-110 group-hover:text-primary md:h-8 md:w-8 lg:h-9 lg:w-9"
+          aria-hidden
+        />
+        <span className="border-b-[3px] border-transparent pb-1 transition-all duration-200 group-hover:border-primary group-hover:text-foreground">
+          {label}
+        </span>
+      </h2>
+      {subtitleText ? (
+        <p className="mx-auto max-w-3xl px-4 pb-8 text-center text-pretty text-sm leading-snug text-muted-foreground md:pb-10 md:text-base md:leading-relaxed">
+          {subtitleText}
+        </p>
+      ) : null}
+    </>
   );
 }

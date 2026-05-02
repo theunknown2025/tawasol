@@ -1,14 +1,17 @@
 import { ArticlesSection } from "./ArticlesSection";
+import { BlogsSection } from "./BlogsSection";
 import { AProposRemessSection } from "./AProposRemessSection";
 import { EquipeRemessSection } from "./EquipeRemessSection";
 import { NosMembresSection } from "./NosMembresSection";
 import { NosEvenementsSection } from "./NosEvenementsSection";
 import { ContacterNousSection } from "./ContacterNousSection";
+import { FooterSection } from "./FooterSection";
 import { HeaderSection } from "./HeaderSection";
 import { HeroSection } from "./HeroSection";
 import { LandingPageSectionOutlineTitle } from "./LandingPageSectionOutlineTitle";
 import { MotDuPresidentSection } from "./MotDuPresidentSection";
 import { RemessEnChiffresSection } from "./RemessEnChiffresSection";
+import { BarometreLandingSection } from "./BarometreLandingSection";
 import { LANDING_PAGE_SECTION_ANCHOR_ID } from "./landingPageSectionAnchors";
 import type {
   AProposRemessContent,
@@ -19,6 +22,7 @@ import type {
   EquipeRemessContent,
   NosMembresContent,
   ContacterNousContent,
+  FooterContent,
 } from "../types";
 
 export type LandingPagePublishedLayoutProps = {
@@ -30,6 +34,7 @@ export type LandingPagePublishedLayoutProps = {
   equipeRemess: EquipeRemessContent;
   nosMembres: NosMembresContent;
   contacterNous: ContacterNousContent;
+  footer: FooterContent;
 };
 
 /**
@@ -45,6 +50,7 @@ export function LandingPagePublishedLayout({
   equipeRemess,
   nosMembres,
   contacterNous,
+  footer,
 }: LandingPagePublishedLayoutProps) {
   return (
     <div className="remess-landing-theme min-h-screen w-full scroll-smooth bg-background text-foreground">
@@ -75,6 +81,10 @@ export function LandingPagePublishedLayout({
         <LandingPageSectionOutlineTitle label="REMESS en chiffres" />
         <RemessEnChiffresSection content={remessEnChiffres} hideMainTitle />
       </section>
+      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Baromètre} className="border-t border-border">
+        <LandingPageSectionOutlineTitle label="Baromètre" />
+        <BarometreLandingSection hideMainTitle />
+      </section>
       <section
         id={LANDING_PAGE_SECTION_ANCHOR_ID["Équipe REMESS"]}
         className="border-t border-border"
@@ -93,12 +103,19 @@ export function LandingPagePublishedLayout({
         id={LANDING_PAGE_SECTION_ANCHOR_ID["Nos événements"]}
         className="border-t border-border"
       >
-        <LandingPageSectionOutlineTitle label="Nos événements" />
+        <LandingPageSectionOutlineTitle
+          label="Nos événements"
+          subtitle="Découvrir les événements organisés par nos membres"
+        />
         <NosEvenementsSection />
       </section>
       <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Articles} className="border-t border-border">
         <LandingPageSectionOutlineTitle label="Articles" />
         <ArticlesSection hidePageTitle />
+      </section>
+      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Blog} className="border-t border-border">
+        <LandingPageSectionOutlineTitle label="Blog" />
+        <BlogsSection hidePageTitle />
       </section>
       <section
         id={LANDING_PAGE_SECTION_ANCHOR_ID["Contacter nous"]}
@@ -107,9 +124,9 @@ export function LandingPagePublishedLayout({
         <LandingPageSectionOutlineTitle label="Contacter nous" />
         <ContacterNousSection content={contacterNous} />
       </section>
-      <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} REMESS
-      </footer>
+      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Footer} className="border-t border-border">
+        <FooterSection content={footer} />
+      </section>
     </div>
   );
 }

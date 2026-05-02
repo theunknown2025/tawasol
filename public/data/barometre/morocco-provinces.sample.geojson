@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "province-sample-1",
+        "name": "Province Sample 1",
+        "parentId": "region-center"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-8.7, 33.7],
+            [-7.3, 33.7],
+            [-7.3, 32.8],
+            [-8.7, 32.8],
+            [-8.7, 33.7]
+          ]
+        ]
+      }
+    }
+  ]
+}

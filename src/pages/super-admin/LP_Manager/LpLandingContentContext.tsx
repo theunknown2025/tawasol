@@ -14,6 +14,7 @@ import {
   upsertLpLandingEquipeRemess,
   upsertLpLandingNosMembres,
   upsertLpLandingContacterNous,
+  upsertLpLandingFooter,
   upsertLpLandingHeader,
   upsertLpLandingHero,
   upsertLpLandingMotDuPresident,
@@ -24,6 +25,7 @@ import {
   DEFAULT_EQUIPE_REMESS_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
+  DEFAULT_FOOTER_CONTENT,
   DEFAULT_HEADER_CONTENT,
   DEFAULT_HERO_CONTENT,
   DEFAULT_MOT_DU_PRESIDENT_CONTENT,
@@ -32,6 +34,7 @@ import {
   type EquipeRemessContent,
   type NosMembresContent,
   type ContacterNousContent,
+  type FooterContent,
   type HeaderContent,
   type HeroSectionContent,
   type MotDuPresidentContent,
@@ -108,6 +111,8 @@ type LpLandingContentValue = {
   setContacterNous: (
     next: ContacterNousContent | ((prev: ContacterNousContent) => ContacterNousContent),
   ) => void;
+  footer: FooterContent;
+  setFooter: (next: FooterContent | ((prev: FooterContent) => FooterContent)) => void;
 };
 
 const LpLandingContentContext = createContext<LpLandingContentValue | null>(null);
@@ -134,6 +139,7 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
   const [contacterNous, setContacterNousState] = useState<ContacterNousContent>(
     DEFAULT_CONTACTER_NOUS_CONTENT,
   );
+  const [footer, setFooterState] = useState<FooterContent>(DEFAULT_FOOTER_CONTENT);
 
   const loadFromDb = useCallback(async () => {
     setLpLandingLoadError(null);
@@ -147,6 +153,7 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setEquipeRemessState(merged.equipeRemess);
       setNosMembresState(merged.nosMembres);
       setContacterNousState(merged.contacterNous);
+      setFooterState(merged.footer);
     } catch (e) {
       const msg = formatCaughtError(e);
       setLpLandingLoadError(msg);
@@ -185,6 +192,7 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
         upsertLpLandingEquipeRemess(equipeRemess),
         upsertLpLandingNosMembres(nosMembres),
         upsertLpLandingContacterNous(contacterNous),
+        upsertLpLandingFooter(footer),
       ]);
       toast.success("Modifications enregistrées", {
         description:
@@ -206,6 +214,7 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     equipeRemess,
     nosMembres,
     contacterNous,
+    footer,
   ]);
 
   const setHeader = useCallback((next: HeaderContent | ((prev: HeaderContent) => HeaderContent)) => {
@@ -265,6 +274,10 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     [],
   );
 
+  const setFooter = useCallback((next: FooterContent | ((prev: FooterContent) => FooterContent)) => {
+    setFooterState(next);
+  }, []);
+
   const value = useMemo(
     () => ({
       lpLandingReady,
@@ -288,6 +301,8 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setNosMembres,
       contacterNous,
       setContacterNous,
+      footer,
+      setFooter,
     }),
     [
       lpLandingReady,
@@ -311,6 +326,8 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setNosMembres,
       contacterNous,
       setContacterNous,
+      footer,
+      setFooter,
     ],
   );
 

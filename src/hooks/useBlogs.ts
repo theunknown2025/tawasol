@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchBlogs,
   fetchMyBlogs,
@@ -8,15 +8,26 @@ import {
   type Blog,
   type CreateBlogInput,
 } from "@/lib/blogsApi";
+import { fetchPublishedBlogPosts } from "@/lib/publicBlogsApi";
 
 const QUERY_KEY_ALL = ["blogs", "all"] as const;
 const QUERY_KEY_MINE = ["blogs", "mine"] as const;
+/** Liste publique (landing + pages /blogs) */
+export const QUERY_KEY_PUBLIC_BLOGS = ["blogs", "public"] as const;
 
 type BlogsScope = "all" | "mine";
 
 function invalidateAll(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: QUERY_KEY_ALL });
   queryClient.invalidateQueries({ queryKey: QUERY_KEY_MINE });
+  queryClient.invalidateQueries({ queryKey: QUERY_KEY_PUBLIC_BLOGS });
+}
+
+export function usePublishedBlogPosts(limit?: number) {
+  return useQuery({
+    queryKey: [...QUERY_KEY_PUBLIC_BLOGS, limit ?? "all"],
+    queryFn: () => fetchPublishedBlogPosts(limit),
+  });
 }
 
 export function useBlogs(scope: BlogsScope = "all") {
@@ -45,6 +56,7 @@ export function useBlogs(scope: BlogsScope = "all") {
         description?: string;
         content?: string;
         banner?: string | null;
+        slug?: string;
         status?: "draft" | "published";
       };
     }) => updateBlog(id, data),

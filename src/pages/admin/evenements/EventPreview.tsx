@@ -2,6 +2,7 @@ import { ArrowLeft, FileText, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Evenement } from "@/hooks/useEvenements";
+import { formatEventDateRange, formatFrDate } from "./eventDates";
 
 interface EventPreviewProps {
   event: Evenement;
@@ -47,19 +48,21 @@ export function EventPreview({ event, onBack, onSubscribe }: EventPreviewProps) 
               {event.description || "—"}
             </p>
             <div className="flex flex-wrap gap-6 py-4 border-y border-border">
-              {event.duree && (
+              {(event.eventDateStart || event.eventDateEnd) && (
                 <div>
-                  <span className="text-muted-foreground text-sm block">Durée</span>
-                  <span className="font-medium">{event.duree}</span>
+                  <span className="text-muted-foreground text-sm block">Période</span>
+                  <span className="font-medium">
+                    {formatEventDateRange(event.eventDateStart, event.eventDateEnd)}
+                  </span>
                 </div>
               )}
               {event.deadlineInscription && (
                 <div>
                   <span className="text-muted-foreground text-sm block">
-                    Deadline d'inscription
+                    Date limite d&apos;inscription
                   </span>
                   <span className="font-medium">
-                    {event.deadlineInscription.toLocaleString("fr-FR")}
+                    {formatFrDate(event.deadlineInscription)}
                   </span>
                 </div>
               )}

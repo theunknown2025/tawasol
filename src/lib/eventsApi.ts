@@ -22,8 +22,11 @@ export interface Evenement {
   titre: string;
   description: string;
   bannerUrl: string | null;
-  duree: string;
-  deadlineInscription: Date | null;
+  /** YYYY-MM-DD, période de l’événement */
+  eventDateStart: string | null;
+  eventDateEnd: string | null;
+  /** YYYY-MM-DD, dernier jour d’inscription (sans heure) */
+  deadlineInscription: string | null;
   liens: string[];
   files: EventFile[];
   registrationFormId: string | null;
@@ -40,7 +43,8 @@ interface DbEvenement {
   titre: string;
   description: string | null;
   banner_path: string | null;
-  duree: string | null;
+  event_date_start: string | null;
+  event_date_end: string | null;
   deadline_inscription: string | null;
   liens: string[] | unknown;
   registration_form_id: string | null;
@@ -94,8 +98,9 @@ function mapDbToEvenement(db: DbEvenement, fileUrls?: Map<string, string>): Even
     titre: db.titre,
     description: db.description ?? "",
     bannerUrl: db.banner_path ? getPublicFileUrl(BUCKET_BANNERS, db.banner_path) : null,
-    duree: db.duree ?? "",
-    deadlineInscription: db.deadline_inscription ? new Date(db.deadline_inscription) : null,
+    eventDateStart: db.event_date_start ?? null,
+    eventDateEnd: db.event_date_end ?? null,
+    deadlineInscription: db.deadline_inscription ?? null,
     liens: parseLiens(db.liens),
     files,
     registrationFormId: db.registration_form_id ?? null,
@@ -159,6 +164,20 @@ export async function fetchPublishedEvenementsForPublic(): Promise<Evenement[]> 
   return rows.map((row) => mapDbToEvenement({ ...row, event_files: [] }));
 }
 
+export async function fetchEvenementById(id: string): Promise<Evenement | null> {
+  const { data, error } = await supabase.from("evenements").select(selectFields).eq("id", id).maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as unknown as DbEvenement;
+  const privateFiles = (row.event_files ?? [])
+    .filter((f: { bucket: string }) => f.bucket === BUCKET_FILES)
+    .map((f: { bucket: string; storage_path: string }) => ({ bucket: f.bucket, storage_path: f.storage_path }));
+  const signedUrls = await loadSignedUrls(privateFiles);
+  return mapDbToEvenement(row, signedUrls);
+}
+
 export async function fetchMyEvenements(): Promise<Evenement[]> {
   const {
     data: { user },
@@ -190,7 +209,8 @@ export interface CreateEvenementInput {
   description: string;
   status: "draft" | "published";
   banner?: File | null;
-  duree: string;
+  eventDateStart: string | null;
+  eventDateEnd: string | null;
   deadlineInscription: string | null;
   liens: string[];
   files: { file: File; name: string; type: string }[];
@@ -211,7 +231,8 @@ export async function createEvenement(input: CreateEvenementInput): Promise<Even
       titre: input.titre,
       description: input.description || null,
       banner_path: null,
-      duree: input.duree || null,
+      event_date_start: input.eventDateStart || null,
+      event_date_end: input.eventDateEnd || null,
       deadline_inscription: input.deadlineInscription || null,
       liens: input.liens,
       registration_form_id: input.registrationFormId ?? null,
@@ -263,18 +284,21 @@ export async function updateEvenement(
   data: {
     titre?: string;
     description?: string;
-    duree?: string;
+    eventDateStart?: string | null;
+    eventDateEnd?: string | null;
     deadlineInscription?: string | null;
     liens?: string[];
     registrationFormId?: string | null;
     status?: "draft" | "published";
     banner?: File | null;
+    newFiles?: { file: File; name: string; type: string }[];
   }
 ): Promise<void> {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (data.titre !== undefined) updates.titre = data.titre;
   if (data.description !== undefined) updates.description = data.description;
-  if (data.duree !== undefined) updates.duree = data.duree;
+  if (data.eventDateStart !== undefined) updates.event_date_start = data.eventDateStart || null;
+  if (data.eventDateEnd !== undefined) updates.event_date_end = data.eventDateEnd || null;
   if (data.deadlineInscription !== undefined)
     updates.deadline_inscription = data.deadlineInscription || null;
   if (data.liens !== undefined) updates.liens = data.liens;
@@ -284,6 +308,25 @@ export async function updateEvenement(
 
   const { error } = await supabase.from("evenements").update(updates).eq("id", id);
   if (error) throw error;
+
+  if (data.newFiles?.length) {
+    for (const { file, name, type } of data.newFiles) {
+      const ext = name.split(".").pop() ?? "bin";
+      const path = `${id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_FILES)
+        .upload(path, file, { upsert: false });
+      if (!uploadError) {
+        await supabase.from("event_files").insert({
+          event_id: id,
+          name,
+          mime_type: type,
+          storage_path: path,
+          bucket: BUCKET_FILES,
+        });
+      }
+    }
+  }
 
   if (data.banner) {
     const { data: existing } = await supabase

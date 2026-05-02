@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CalendarDays, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import { AllEvents } from "./AllEvents";
 import { MyEvents } from "./MyEvents";
 import { NouveauEvent } from "./NouveauEvent";
 import { MesInscriptions } from "./MesInscriptions";
+import type { EvenementFormSubmitPayload } from "./EvenementEditorForm";
 
 export default function EvenementsPage() {
   const { evenements: allEvents, isLoading: loadingAll } = useEvenements("all");
@@ -50,8 +52,14 @@ export default function EvenementsPage() {
     isUpdating: isUpdatingRegistrations,
   } = useEventFormRegistrationsForMyEvents();
 
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState("tous");
   const [viewEvt, setViewEvt] = useState<Evenement | null>(null);
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "tous" || t === "mine" || t === "inscriptions" || t === "nouveau") setTab(t);
+  }, [searchParams]);
 
   const publishedEvents = useMemo(
     () => allEvents.filter((e) => e.status === "published"),
@@ -100,22 +108,14 @@ export default function EvenementsPage() {
     }
   };
 
-  const handleSubmit = async (data: {
-    titre: string;
-    description: string;
-    banner?: File | null;
-    duree: string;
-    deadlineInscription: string | null;
-    liens: string[];
-    files: { file: File; name: string; type: string }[];
-    registrationFormId: string | null;
-  }) => {
+  const handleSubmit = async (data: EvenementFormSubmitPayload) => {
     await addEvenement({
       titre: data.titre,
       description: data.description,
       status: "published",
       banner: data.banner,
-      duree: data.duree || undefined,
+      eventDateStart: data.eventDateStart,
+      eventDateEnd: data.eventDateEnd,
       deadlineInscription: data.deadlineInscription,
       liens: data.liens,
       files: data.files,

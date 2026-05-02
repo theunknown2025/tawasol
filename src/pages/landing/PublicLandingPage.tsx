@@ -66,6 +66,7 @@ export default function PublicLandingPage() {
         equipeRemess={data.equipeRemess}
         nosMembres={data.nosMembres}
         contacterNous={data.contacterNous}
+        footer={data.footer}
       />
     </div>
   );

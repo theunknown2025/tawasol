@@ -3,6 +3,7 @@ import {
   DEFAULT_EQUIPE_REMESS_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
+  DEFAULT_FOOTER_CONTENT,
   DEFAULT_HEADER_CONTENT,
   DEFAULT_HERO_CONTENT,
   DEFAULT_MOT_DU_PRESIDENT_CONTENT,
@@ -11,6 +12,7 @@ import {
   type EquipeRemessContent,
   type NosMembresContent,
   type ContacterNousContent,
+  type FooterContent,
   type HeaderContent,
   type HeroSectionContent,
   type MotDuPresidentContent,
@@ -28,6 +30,7 @@ type MainProps = {
   equipeRemess?: EquipeRemessContent;
   nosMembres?: NosMembresContent;
   contacterNous?: ContacterNousContent;
+  footer?: FooterContent;
   /** Aperçu LP : une zone par section avec son titre (hero = carrousel réel). */
   showSectionOutline?: boolean;
 };
@@ -41,6 +44,7 @@ export default function Main({
   equipeRemess = DEFAULT_EQUIPE_REMESS_CONTENT,
   nosMembres = DEFAULT_NOS_MEMBRES_CONTENT,
   contacterNous = DEFAULT_CONTACTER_NOUS_CONTENT,
+  footer = DEFAULT_FOOTER_CONTENT,
   showSectionOutline,
 }: MainProps) {
   if (showSectionOutline) {
@@ -54,6 +58,7 @@ export default function Main({
         equipeRemess={equipeRemess}
         nosMembres={nosMembres}
         contacterNous={contacterNous}
+        footer={footer}
       />
     );
   }
@@ -68,6 +73,7 @@ export default function Main({
       equipeRemess={equipeRemess}
       nosMembres={nosMembres}
       contacterNous={contacterNous}
+      footer={footer}
     />
   );
 }

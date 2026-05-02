@@ -1,58 +1,46 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { BookOpen, FileText, Loader2, Library } from "lucide-react";
-import { HeaderSection } from "@/pages/super-admin/LP_Manager/LandingPage/HeaderSection";
-import { DEFAULT_HEADER_CONTENT } from "@/pages/super-admin/LP_Manager/types";
-import { fetchLpLandingHeader } from "@/lib/lpLandingSectionsDb";
-import { fetchPublishedLibraryBooks, type PublicLibraryBook } from "@/lib/publicLibraryBooksApi";
+import { PublicShell } from "@/components/public/PublicShell";
+import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
+import { PublicPageHero } from "@/components/public/PublicPageHero";
+import { ShareResourceMenu } from "@/components/public/ShareResourceMenu";
+import { fetchPublishedLibraryBooks } from "@/lib/publicLibraryBooksApi";
 import { incrementLibraryBookClicks } from "@/lib/libraryBookAnalyticsApi";
+import { buildLibraryBookShareUrl } from "@/lib/shareLinks";
 import { Button } from "@/components/ui/button";
-import { LibraryResourceDialog } from "./LibraryResourceDialog";
 
 export default function PublicLibraryPage() {
-  const [selected, setSelected] = useState<PublicLibraryBook | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const { data: headerRow } = useQuery({
-    queryKey: ["lp-landing-header-public"],
-    queryFn: async () => {
-      try {
-        return await fetchLpLandingHeader();
-      } catch {
-        return null;
-      }
-    },
-    staleTime: 60_000,
-  });
-
-  const headerContent = headerRow ?? DEFAULT_HEADER_CONTENT;
+  const [searchParams] = useSearchParams();
+  const livreRedirect = searchParams.get("livre")?.trim() ?? "";
 
   const { data: books = [], isLoading } = useQuery({
     queryKey: ["public-library-books", "all"],
     queryFn: () => fetchPublishedLibraryBooks(),
   });
 
-  const openBook = (book: PublicLibraryBook) => {
-    void incrementLibraryBookClicks(book.id);
-    setSelected(book);
-    setDialogOpen(true);
-  };
+  if (livreRedirect) {
+    return <Navigate to={`/article/${encodeURIComponent(livreRedirect)}`} replace />;
+  }
 
   return (
-    <div className="remess-landing-theme min-h-screen bg-background text-foreground">
-      <HeaderSection content={headerContent} suppressSectionNav />
+    <PublicShell>
+      <PublicPageHero
+        title="Bibliothèque"
+        description="Toutes nos ressources publiées. Ouvrez une ressource sur sa page dédiée pour lire le PDF, partager et consulter les avis."
+      />
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 md:py-10 lg:px-8">
+        <PublicBreadcrumbs items={[{ label: "Accueil", to: "/" }, { label: "Bibliothèque" }]} />
 
-      <main className="mx-auto max-w-6xl px-4 py-10 md:py-14 lg:px-8">
-        <header className="mb-10 flex flex-col gap-3 border-b border-border pb-8 sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-3 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="rounded-xl bg-primary/15 p-2.5 ring-1 ring-primary/20">
               <Library className="h-7 w-7 text-primary" aria-hidden />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Bibliothèque</h1>
+              <h2 className="text-lg font-semibold text-foreground md:text-xl">Ressources</h2>
               <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                Toutes nos ressources publiées. Ouvrez un document pour le lire ici, le télécharger ou
-                laisser un avis.
+                Ouvrez une fiche pour lire le document, partager le lien et consulter les avis.
               </p>
             </div>
           </div>
@@ -90,11 +78,24 @@ export default function PublicLibraryPage() {
                   {book.description.trim() && (
                     <p className="line-clamp-3 text-xs text-muted-foreground">{book.description}</p>
                   )}
-                  <div className="mt-auto pt-2">
-                    <Button type="button" className="w-full gap-2" onClick={() => openBook(book)}>
-                      <FileText className="h-4 w-4" aria-hidden />
-                      {book.pdf_url.trim() ? "Lire le document" : "Voir la fiche"}
+                  <div className="mt-auto flex flex-col gap-2 pt-2 sm:flex-row sm:items-center">
+                    <Button type="button" className="w-full flex-1 gap-2 sm:w-auto" asChild>
+                      <Link
+                        to={`/article/${book.id}`}
+                        onClick={() => void incrementLibraryBookClicks(book.id)}
+                      >
+                        <FileText className="h-4 w-4" aria-hidden />
+                        {book.pdf_url.trim() ? "Lire le document" : "Voir la fiche"}
+                      </Link>
                     </Button>
+                    <ShareResourceMenu
+                      title={book.title}
+                      description={book.description?.trim() || undefined}
+                      url={buildLibraryBookShareUrl(book.id)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full shrink-0 sm:w-auto"
+                    />
                   </div>
                 </div>
               </li>
@@ -102,15 +103,6 @@ export default function PublicLibraryPage() {
           </ul>
         )}
       </main>
-
-      <LibraryResourceDialog
-        book={selected}
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setSelected(null);
-        }}
-      />
-    </div>
+    </PublicShell>
   );
 }

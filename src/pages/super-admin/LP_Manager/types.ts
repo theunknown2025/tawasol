@@ -498,6 +498,146 @@ export const DEFAULT_CONTACTER_NOUS_CONTENT: ContacterNousContent = {
   longitude: null,
 };
 
+export const FOOTER_SHORT_TEXT_MAX_CHARS = 250;
+export const FOOTER_NAV_LINKS_MAX = 10;
+export const FOOTER_ELEMENTS_PER_COLUMN_MAX = 8;
+export const FOOTER_SOCIAL_KEYS = [
+  "facebook",
+  "linkedin",
+  "instagram",
+  "youtube",
+  "x",
+] as const;
+
+export type FooterSocialKey = (typeof FOOTER_SOCIAL_KEYS)[number];
+
+export type FooterSocialLink = {
+  key: FooterSocialKey;
+  label: string;
+  url: string;
+};
+
+export type FooterQuickNavLink = {
+  id: string;
+  label: string;
+  href: string;
+};
+
+export type FooterElementColumn = {
+  title: string;
+  items: string[];
+};
+
+export type FooterContent = {
+  logoUrl: string;
+  shortText: string;
+  socialLinks: FooterSocialLink[];
+  quickNavigation: FooterQuickNavLink[];
+  elementsColumns: [FooterElementColumn, FooterElementColumn];
+  copyrightText: string;
+};
+
+function newFooterNavLinkId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `footer-nav-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function clampFooterShortText(value: string): string {
+  const t = typeof value === "string" ? value : "";
+  return t.length > FOOTER_SHORT_TEXT_MAX_CHARS ? t.slice(0, FOOTER_SHORT_TEXT_MAX_CHARS) : t;
+}
+
+function normalizeFooterSocialLinks(raw: unknown[]): FooterSocialLink[] {
+  const input = Array.isArray(raw) ? raw : [];
+  const byKey = new Map<FooterSocialKey, FooterSocialLink>();
+  for (const item of input) {
+    const o = (typeof item === "object" && item !== null ? item : {}) as Partial<FooterSocialLink>;
+    if (!FOOTER_SOCIAL_KEYS.includes(o.key as FooterSocialKey)) continue;
+    const key = o.key as FooterSocialKey;
+    byKey.set(key, {
+      key,
+      label: typeof o.label === "string" && o.label.trim() ? o.label : key.toUpperCase(),
+      url: typeof o.url === "string" ? o.url : "",
+    });
+  }
+  return FOOTER_SOCIAL_KEYS.map((key) => {
+    const current = byKey.get(key);
+    return current ?? { key, label: key.toUpperCase(), url: "" };
+  });
+}
+
+export function normalizeFooterQuickNavigation(raw: unknown[]): FooterQuickNavLink[] {
+  const input = Array.isArray(raw) ? raw : [];
+  return input.slice(0, FOOTER_NAV_LINKS_MAX).map((item, index) => {
+    const o = (typeof item === "object" && item !== null ? item : {}) as Partial<FooterQuickNavLink>;
+    return {
+      id: typeof o.id === "string" && o.id.trim() ? o.id.trim() : newFooterNavLinkId(),
+      label: typeof o.label === "string" ? o.label : `Lien ${index + 1}`,
+      href: typeof o.href === "string" ? o.href : "#",
+    };
+  });
+}
+
+function normalizeFooterColumn(raw: unknown, fallbackTitle: string): FooterElementColumn {
+  const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<FooterElementColumn>;
+  const itemsRaw = Array.isArray(o.items) ? o.items : [];
+  return {
+    title: typeof o.title === "string" && o.title.trim() ? o.title : fallbackTitle,
+    items: itemsRaw
+      .map((x) => (typeof x === "string" ? x.trim() : ""))
+      .filter((x) => x.length > 0)
+      .slice(0, FOOTER_ELEMENTS_PER_COLUMN_MAX),
+  };
+}
+
+export function normalizeFooterColumns(raw: unknown): [FooterElementColumn, FooterElementColumn] {
+  const input = Array.isArray(raw) ? raw : [];
+  const col1 = normalizeFooterColumn(input[0], "Éléments colonne 1");
+  const col2 = normalizeFooterColumn(input[1], "Éléments colonne 2");
+  return [col1, col2];
+}
+
+export function createDefaultFooterQuickNavLink(index: number): FooterQuickNavLink {
+  return {
+    id: newFooterNavLinkId(),
+    label: `Lien rapide ${index + 1}`,
+    href: "#",
+  };
+}
+
+export const DEFAULT_FOOTER_CONTENT: FooterContent = {
+  logoUrl: "",
+  shortText: "",
+  socialLinks: FOOTER_SOCIAL_KEYS.map((key) => ({ key, label: key.toUpperCase(), url: "" })),
+  quickNavigation: [
+    { id: newFooterNavLinkId(), label: "Accueil", href: "#lp-section-hero" },
+    { id: newFooterNavLinkId(), label: "À propos", href: "#lp-section-a-propos-du-remess" },
+    { id: newFooterNavLinkId(), label: "Contacter nous", href: "#lp-section-contacter-nous" },
+  ],
+  elementsColumns: [
+    { title: "Éléments colonne 1", items: [] },
+    { title: "Éléments colonne 2", items: [] },
+  ],
+  copyrightText: "REMESS. Tous droits réservés.",
+};
+
+export function mergeFooterPayload(raw: unknown): FooterContent {
+  const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<FooterContent>;
+  return {
+    logoUrl: typeof o.logoUrl === "string" ? o.logoUrl : DEFAULT_FOOTER_CONTENT.logoUrl,
+    shortText: clampFooterShortText(typeof o.shortText === "string" ? o.shortText : ""),
+    socialLinks: normalizeFooterSocialLinks(o.socialLinks as unknown[]),
+    quickNavigation: normalizeFooterQuickNavigation(o.quickNavigation as unknown[]),
+    elementsColumns: normalizeFooterColumns(o.elementsColumns),
+    copyrightText:
+      typeof o.copyrightText === "string" && o.copyrightText.trim()
+        ? o.copyrightText
+        : DEFAULT_FOOTER_CONTENT.copyrightText,
+  };
+}
+
 export type HeaderAuthCta = {
   label: string;
   href: string;

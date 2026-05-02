@@ -227,7 +227,7 @@ export function NewResource({ onCreated }: NewResourceProps) {
               Publier sur le site
             </Label>
             <p className="text-xs text-muted-foreground">
-              Visible dans Articles et sur la page Bibliothèque publique.
+              Visible sur la page d’accueil (aperçu) et sur la page Bibliothèque publique.
             </p>
           </div>
           <Switch

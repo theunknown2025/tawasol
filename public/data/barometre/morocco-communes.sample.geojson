@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "commune-sample-1",
+        "name": "Commune Sample 1",
+        "parentId": "province-sample-1"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-8.3, 33.4],
+            [-7.8, 33.4],
+            [-7.8, 33.0],
+            [-8.3, 33.0],
+            [-8.3, 33.4]
+          ]
+        ]
+      }
+    }
+  ]
+}

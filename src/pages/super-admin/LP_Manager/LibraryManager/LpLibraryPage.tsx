@@ -145,9 +145,9 @@ export default function LpLibraryPage() {
               </Card>
             </div>
             <p className="text-sm text-muted-foreground">
-              Les ressources publiées apparaissent dans la section Articles de la landing et sur la page
-              publique <span className="font-mono text-xs">/bibliotheque</span>. Les clics et téléchargements
-              sont comptés sur le site public (ressources publiées uniquement).
+              Les ressources publiées apparaissent sur la page d’accueil (aperçu des ressources) et sur la page
+              Bibliothèque publique (<span className="font-mono text-xs">/bibliotheque</span>). Les clics et
+              téléchargements sont comptés sur le site public (ressources publiées uniquement).
             </p>
             <LibraryStatisticsTab books={books} />
           </TabsContent>

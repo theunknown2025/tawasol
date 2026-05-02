@@ -2,28 +2,42 @@ import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Loader2, Newspaper } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ShareResourceMenu } from "@/components/public/ShareResourceMenu";
+import { buildLibraryBookShareUrl } from "@/lib/shareLinks";
 import { fetchArticlesHighlightBooks, type PublicLibraryBook } from "@/lib/publicLibraryBooksApi";
 
 function ArticleBookCard({ book }: { book: PublicLibraryBook }) {
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
-      <div className="relative aspect-[3/4] w-full bg-muted">
-        {book.cover_url.trim() ? (
-          <img src={book.cover_url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <BookOpen className="h-14 w-14 opacity-30" aria-hidden />
-          </div>
-        )}
-      </div>
-      <div className="flex flex-1 flex-col gap-1.5 p-4">
-        <h3 className="line-clamp-2 font-semibold leading-snug text-foreground">{book.title}</h3>
-        {book.author.trim() && (
-          <p className="text-sm text-muted-foreground">{book.author}</p>
-        )}
-        {book.description.trim() && (
-          <p className="line-clamp-2 text-xs text-muted-foreground">{book.description}</p>
-        )}
+      <Link to={`/article/${book.id}`} className="block min-h-0 flex-1 outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring">
+        <div className="relative aspect-[3/4] w-full bg-muted">
+          {book.cover_url.trim() ? (
+            <img src={book.cover_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+              <BookOpen className="h-14 w-14 opacity-30" aria-hidden />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5 p-4">
+          <h3 className="line-clamp-2 font-semibold leading-snug text-foreground">{book.title}</h3>
+          {book.author.trim() && (
+            <p className="text-sm text-muted-foreground">{book.author}</p>
+          )}
+          {book.description.trim() && (
+            <p className="line-clamp-2 text-xs text-muted-foreground">{book.description}</p>
+          )}
+        </div>
+      </Link>
+      <div className="border-t border-border p-4 pt-0">
+        <ShareResourceMenu
+          title={book.title}
+          description={book.description?.trim() || undefined}
+          url={buildLibraryBookShareUrl(book.id)}
+          variant="outline"
+          size="sm"
+          className="w-full"
+        />
       </div>
     </article>
   );
@@ -86,9 +100,9 @@ export function ArticlesSection({ hidePageTitle = false }: ArticlesSectionProps)
         </ul>
       )}
 
-      <div className="flex justify-center">
-        <Button asChild size="lg" className="min-w-[16rem] gap-2">
-          <Link to="/bibliotheque">Naviguer tous nos ressources</Link>
+      <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <Button asChild size="lg" className="min-w-[14rem] gap-2">
+          <Link to="/bibliotheque">Voir la bibliothèque</Link>
         </Button>
       </div>
     </div>
