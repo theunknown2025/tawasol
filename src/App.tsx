@@ -10,7 +10,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AuthPage from "./pages/auth/AuthPage";
 import AdminPortailPage from "./pages/admin/AdminPortailPage";
 import NotFound from "./pages/NotFound";
-import { ROLES } from "@/lib/supabase";
+import { isSupabaseConfigured, ROLES } from "@/lib/supabase";
+import MissingSupabaseConfigPage from "./pages/MissingSupabaseConfigPage";
 
 // Admin pages (super_admin + admin)
 import AdminDashboardPage from "./pages/admin/DashboardPage";
@@ -73,19 +74,24 @@ function AdminEntryRedirect() {
   return <Navigate to="/admin/dashboard" replace />;
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <Routes>
+const App = () => {
+  if (!isSupabaseConfigured) {
+    return <MissingSupabaseConfigPage />;
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <Routes>
             <Route path="/" element={<PublicLandingPage />} />
             <Route path="/events" element={<PublicEventsPage />} />
             <Route path="/event/:slug" element={<PublicEventRegistrationPage />} />
@@ -168,11 +174,12 @@ const App = () => (
               <Route path="/member/profil" element={<ProtectedRoute allowedRoles={[ROLES.MEMBER]}><MemberProfilPage /></ProtectedRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

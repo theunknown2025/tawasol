@@ -5,7 +5,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { supabase, type Profile, type UserRole, isValidRole } from "@/lib/supabase";
+import {
+  supabase,
+  isSupabaseConfigured,
+  type Profile,
+  type UserRole,
+  isValidRole,
+} from "@/lib/supabase";
 
 interface AuthContextType {
   user: { id: string; email?: string } | null;
@@ -82,6 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth
       .getSession()
       .then(({ data: { session }, error }) => {
@@ -147,6 +158,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error("Supabase is not configured.") };
+    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error as Error };
     const u = data.user;
@@ -164,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) return;
     // `local` clears the session in this client immediately; default/global can wait on
     // the network and leave the UI stuck if the request hangs or fails silently.
     const { error } = await supabase.auth.signOut({ scope: "local" });

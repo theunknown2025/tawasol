@@ -6,19 +6,28 @@ const supabaseAnonKey =
     .toString()
     .trim() || "";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Missing Supabase config. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local in the project root, then restart the dev server (npm run dev)."
-  );
-}
+/** True when real project URL + anon/publishable key were present at build time. */
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-});
+/**
+ * Placeholder values keep the client constructible when env was missing (e.g. VPS build without
+ * `.env`). The UI must gate on `isSupabaseConfigured` so we never hit the network with these.
+ */
+const PLACEHOLDER_URL = "https://placeholder-not-configured.supabase.co";
+const PLACEHOLDER_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+
+export const supabase = createClient(
+  isSupabaseConfigured ? supabaseUrl : PLACEHOLDER_URL,
+  isSupabaseConfigured ? supabaseAnonKey : PLACEHOLDER_ANON_KEY,
+  {
+    auth: {
+      autoRefreshToken: isSupabaseConfigured,
+      persistSession: isSupabaseConfigured,
+      detectSessionInUrl: isSupabaseConfigured,
+    },
+  }
+);
 
 export type UserRole = "super_admin" | "admin" | "member";
 
