@@ -92,7 +92,7 @@ export function LandingPagePreviewOutline({
               <AProposRemessSection content={aProposRemess} />
             ) : label === "REMESS en chiffres" ? (
               <RemessEnChiffresSection content={remessEnChiffres} hideMainTitle />
-            ) : label === "Baromètre" ? (
+            ) : label === "Cartographie" ? (
               <BarometreLandingSection hideMainTitle />
             ) : label === "Équipe REMESS" ? (
               <EquipeRemessSection content={equipeRemess} />

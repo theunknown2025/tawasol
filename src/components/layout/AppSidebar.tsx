@@ -21,6 +21,8 @@ import {
   Image,
   NotebookPen,
   FileSpreadsheet,
+  Mail,
+  Phone,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLES, ROLE_LABELS } from "@/lib/supabase";
@@ -44,12 +46,20 @@ const adminProjetsSubBase: ProjetSubItem[] = [
   { label: "PMO", icon: ListChecks, path: "/admin/projets/pmo" },
 ];
 
-const adminBottomNav = [
+const adminBottomNavBeforeMessagerie = [
   { label: "Publications", icon: FileText, path: "/admin/publications" },
   { label: "Événements", icon: CalendarDays, path: "/admin/evenements" },
-  { label: "Messagerie", icon: MessageSquare, path: "/admin/messagerie" },
+];
+
+const adminBottomNavAfterMessagerie = [
   { label: "Blog", icon: NotebookPen, path: "/admin/blogs" },
   { label: "Gestion Form", icon: FileSpreadsheet, path: "/admin/gestion-form" },
+];
+
+const messagerieSubItems = [
+  { label: "Messagerie", icon: MessageSquare, path: "/admin/messagerie" },
+  { label: "Email (Brevo)", icon: Mail, path: "/admin/whatsapp-manager" },
+  { label: "WhatsApp (WAHA)", icon: Phone, path: "/admin/whatsapp-waha" },
 ];
 
 // Super Admin only
@@ -69,6 +79,7 @@ const memberNav = [
 export default function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [projetsOpen, setProjetsOpen] = useState(true);
+  const [messagerieOpen, setMessagerieOpen] = useState(true);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { profile, signOut } = useAuth();
@@ -165,7 +176,51 @@ export default function AppSidebar() {
             </div>
 
             <div className="pt-2 space-y-1">
-              {adminBottomNav.map((item) => (
+              {adminBottomNavBeforeMessagerie.map((item) => (
+                <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
+                  <item.icon size={20} className="shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              ))}
+              {isSuperAdmin ? (
+                <div className="pt-0">
+                  <button
+                    type="button"
+                    onClick={() => setMessagerieOpen(!messagerieOpen)}
+                    className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all duration-200 ${
+                      pathname.startsWith("/admin/messagerie") ||
+                      pathname.startsWith("/admin/whatsapp-manager") ||
+                      pathname.startsWith("/admin/whatsapp-waha")
+                        ? "bg-[hsl(var(--sidebar-active))] text-[hsl(var(--sidebar-active-fg))] shadow-md shadow-[hsl(var(--sidebar-active)/0.25)]"
+                        : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))]"
+                    }`}
+                  >
+                    <MessageSquare size={20} className="shrink-0" />
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 text-left">Messagerie</span>
+                        {messagerieOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </>
+                    )}
+                  </button>
+                  {messagerieOpen && !collapsed && (
+                    <div className="ml-4 pl-3 border-l border-[hsl(var(--sidebar-border))] space-y-1 mt-1">
+                      {messagerieSubItems.map((item) => (
+                        <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
+                          <item.icon size={18} className="shrink-0" />
+                          <span className="text-sm">{item.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <NavLink to="/admin/messagerie" className={({ isActive }) => linkClass(isActive)}>
+                  <MessageSquare size={20} className="shrink-0" />
+                  {!collapsed && <span>Messagerie</span>}
+                </NavLink>
+              )}
+              {adminBottomNavAfterMessagerie.map((item) => (
                 <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
                   <item.icon size={20} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}

@@ -28,7 +28,8 @@ set -euo pipefail
 APP_NAME="tawasol"
 APP_USER="www-data"
 APP_DIR="/opt/${APP_NAME}"
-WEB_ROOT="/var/www/${APP_NAME}"
+# Static files served here (canonical path under /var/www on Debian/Ubuntu).
+WEB_ROOT="/var/www/html"
 NGINX_CONF="/etc/nginx/sites-available/${APP_NAME}"
 NGINX_LINK="/etc/nginx/sites-enabled/${APP_NAME}"
 
@@ -44,12 +45,13 @@ NGINX_LINK="/etc/nginx/sites-enabled/${APP_NAME}"
 #   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 #   SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 #   ENABLE_SSL=true
-DOMAIN="remess.ma 187.124.51.78 beta-remess.pro"
+# Override via /opt/tawasol/.deploy.env or CLI flags (recommended for secrets).
+DOMAIN="beta-remess.pro"
 EMAIL="admin@example.com"
 REPO_URL="https://github.com/theunknown2025/tawasol.git"
 BRANCH="main"
-SUPABASE_URL="https://usbdedrhhrxuyfqnwbls.supabase.co"
-SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzYmRlZHJoaHJ4dXlmcW53YmxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NTU5MjYsImV4cCI6MjA4NzMzMTkyNn0.8oho3zcNsPAwA-2kkvIhdmdTGKVfJ9OdCJcl9hox7Gk"
+SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
 ENABLE_SSL="true"
 DEPLOY_ENV_FILE="/opt/tawasol/.deploy.env"
 

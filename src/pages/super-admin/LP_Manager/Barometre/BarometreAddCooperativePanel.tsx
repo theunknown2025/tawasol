@@ -1,5 +1,5 @@
 import { ChevronsUpDown, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,9 @@ import {
 import type { BoundaryFeature } from "./useAdminBoundaries";
 import {
   insertBarometreCooperative,
+  updateBarometreCooperative,
   uploadBarometreCooperativeImage,
+  type BarometreCooperative,
   type CooperativeLink,
   type PresidentGenre,
 } from "./barometreCooperativesApi";
@@ -44,6 +46,11 @@ type Props = {
   onCoopCommuneChange: (id: string | null) => void;
   coopProvinceLabel: string | null;
   coopCommuneLabel: string | null;
+  /** Édition : même formulaire que l’ajout */
+  mode?: "create" | "edit";
+  editCooperative?: BarometreCooperative | null;
+  editId?: string | null;
+  onCancelEdit?: () => void;
 };
 
 export default function BarometreAddCooperativePanel({
@@ -56,7 +63,14 @@ export default function BarometreAddCooperativePanel({
   onCoopCommuneChange,
   coopProvinceLabel,
   coopCommuneLabel,
+  mode = "create",
+  editCooperative = null,
+  editId = null,
+  onCancelEdit,
 }: Props) {
+  const isEdit = mode === "edit" && Boolean(editId && editCooperative);
+  const editHydratedRef = useRef<string | null>(null);
+
   const { activities, isLoading: activitiesLoading, error: activitiesError } = useBarometreActivities();
 
   const [coopProvinceOpen, setCoopProvinceOpen] = useState(false);
@@ -89,6 +103,50 @@ export default function BarometreAddCooperativePanel({
     setImagePreview(url);
     return () => URL.revokeObjectURL(url);
   }, [imageFile]);
+
+  useEffect(() => {
+    editHydratedRef.current = null;
+  }, [editId]);
+
+  useEffect(() => {
+    if (!isEdit || !editCooperative || !editId || activitiesLoading) return;
+    if (editHydratedRef.current === editId) return;
+    editHydratedRef.current = editId;
+
+    setNom(editCooperative.nom);
+    setTel(editCooperative.tel);
+    setEmail(editCooperative.email);
+    const raw = (editCooperative.adresse ?? "").trim();
+    const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length >= 2) {
+      setAdresseDetail(lines.slice(0, -1).join("\n"));
+    } else {
+      setAdresseDetail(raw);
+    }
+
+    const act = editCooperative.activite.trim();
+    if (act && activities.includes(act)) {
+      setActiviteKey(act);
+      setActiviteAutre("");
+    } else if (act) {
+      setActiviteKey(OTHER_VALUE);
+      setActiviteAutre(act);
+    } else {
+      setActiviteKey("");
+      setActiviteAutre("");
+    }
+
+    setDescription(editCooperative.description);
+    setLinks(editCooperative.links.length > 0 ? editCooperative.links : [{ url: "", label: "" }]);
+    setImageFile(null);
+    setImageInputKey((k) => k + 1);
+    setIsPublished(editCooperative.isPublished);
+    const g = editCooperative.presidentGenre;
+    setPresidentGenre(g === "male" || g === "female" ? g : "");
+    setPresidentNom(editCooperative.presidentNomComplet);
+    setPresidentEmail(editCooperative.presidentEmail);
+    setPresidentTel(editCooperative.presidentTel);
+  }, [isEdit, editCooperative, editId, activities, activitiesLoading]);
 
   const reset = useCallback(() => {
     setNom("");
@@ -180,12 +238,12 @@ export default function BarometreAddCooperativePanel({
 
     setIsSaving(true);
     try {
-      let imageUrl: string | null = null;
+      let imageUrl: string | null = isEdit ? editCooperative?.imageUrl ?? null : null;
       if (imageFile) {
         imageUrl = await uploadBarometreCooperativeImage(imageFile);
       }
 
-      await insertBarometreCooperative({
+      const payload = {
         nom: nameTrim,
         tel: tel.trim(),
         email: email.trim(),
@@ -203,10 +261,16 @@ export default function BarometreAddCooperativePanel({
         presidentNomComplet: hasAnyPresident ? presNom : null,
         presidentEmail: hasAnyPresident ? presEmail : null,
         presidentTel: hasAnyPresident ? (presTel || null) : null,
-      });
+      };
 
-      toast.success("Coopérative enregistrée.");
-      reset();
+      if (isEdit && editId) {
+        await updateBarometreCooperative(editId, payload);
+        toast.success("Coopérative mise à jour.");
+      } else {
+        await insertBarometreCooperative(payload);
+        toast.success("Coopérative enregistrée.");
+        reset();
+      }
       onSaved();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enregistrement impossible.");
@@ -218,7 +282,9 @@ export default function BarometreAddCooperativePanel({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
-        <h2 className="text-sm font-semibold text-foreground">Ajouter une coopérative</h2>
+        <h2 className="text-sm font-semibold text-foreground">
+          {isEdit ? "Modifier la coopérative" : "Ajouter une coopérative"}
+        </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Carte publique : seules les fiches « visibles » sont lisibles sans compte (RLS). Images : bucket{" "}
           <code className="rounded bg-muted px-1 text-[10px]">barometre_cooperative_images</code>.
@@ -496,8 +562,12 @@ export default function BarometreAddCooperativePanel({
                 accept="image/*"
                 onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
               />
-              {imagePreview && (
-                <img src={imagePreview} alt="" className="mt-2 max-h-40 w-auto rounded-md border border-border object-contain" />
+              {(imagePreview || (isEdit && editCooperative?.imageUrl && !imageFile)) && (
+                <img
+                  src={imagePreview ?? editCooperative?.imageUrl ?? ""}
+                  alt=""
+                  className="mt-2 max-h-40 w-auto rounded-md border border-border object-contain"
+                />
               )}
             </div>
           </AccordionContent>
@@ -562,9 +632,16 @@ export default function BarometreAddCooperativePanel({
         </AccordionItem>
       </Accordion>
 
-      <Button type="submit" className="w-full" disabled={isSaving}>
-        {isSaving ? "Enregistrement…" : "Enregistrer la coopérative"}
-      </Button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        {isEdit && onCancelEdit ? (
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onCancelEdit}>
+            Annuler
+          </Button>
+        ) : null}
+        <Button type="submit" className="w-full sm:min-w-[200px]" disabled={isSaving}>
+          {isSaving ? "Enregistrement…" : isEdit ? "Enregistrer les modifications" : "Enregistrer la coopérative"}
+        </Button>
+      </div>
     </form>
   );
 }

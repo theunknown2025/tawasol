@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BarometreAddCooperativePanel from "./BarometreAddCooperativePanel";
+import BarometreDatabaseAccordion from "./BarometreDatabaseAccordion";
 import CooperativePlaceMarker from "./CooperativePlaceMarker";
 import { spreadOffsetsAroundCenter } from "./barometreCoopPlacements";
 import {
@@ -69,8 +70,10 @@ export default function MapPage() {
 
   const [cooperatives, setCooperatives] = useState<BarometreCooperative[]>([]);
   const [coopLoadError, setCoopLoadError] = useState<string | null>(null);
+  const [coopLoading, setCoopLoading] = useState(true);
 
   const reloadCooperatives = useCallback(() => {
+    setCoopLoading(true);
     fetchBarometreCooperatives()
       .then((rows) => {
         setCooperatives(rows);
@@ -79,7 +82,8 @@ export default function MapPage() {
       .catch((err: unknown) => {
         setCooperatives([]);
         setCoopLoadError(err instanceof Error ? err.message : "Chargement des coopératives impossible.");
-      });
+      })
+      .finally(() => setCoopLoading(false));
   }, []);
 
   useEffect(() => {
@@ -169,6 +173,38 @@ export default function MapPage() {
     provincesSorted.find((p) => p.properties.id === selectedProvinceId)?.properties.name ?? null;
   const selectedCommuneLabel =
     communesInSelectedProvince.find((c) => c.properties.id === selectedCommuneId)?.properties.name ?? null;
+
+  const cooperativesMatchingNavSearch = useMemo(() => {
+    if (selectedCommuneId) {
+      return cooperatives.filter((c) => c.communeId === selectedCommuneId);
+    }
+    if (selectedProvinceId) {
+      return cooperatives.filter((c) => {
+        if (c.provinceId === selectedProvinceId) return true;
+        if (c.communeId && communeToProvinceMap.get(c.communeId) === selectedProvinceId) return true;
+        return false;
+      });
+    }
+    return cooperatives;
+  }, [cooperatives, selectedCommuneId, selectedProvinceId, communeToProvinceMap]);
+
+  const tableFilterHint = useMemo(() => {
+    if (selectedCommuneId && selectedCommuneLabel) {
+      const prov = selectedProvinceLabel ? ` · ${selectedProvinceLabel}` : "";
+      return `Recherche : commune « ${selectedCommuneLabel} »${prov}`;
+    }
+    if (selectedProvinceId && selectedProvinceLabel) {
+      return `Recherche : province « ${selectedProvinceLabel} »`;
+    }
+    return null;
+  }, [
+    selectedCommuneId,
+    selectedCommuneLabel,
+    selectedProvinceId,
+    selectedProvinceLabel,
+  ]);
+
+  const tableFilterKey = `${selectedProvinceId ?? ""}|${selectedCommuneId ?? ""}`;
 
   const coopProvinceLabel =
     provincesSorted.find((p) => p.properties.id === coopFormProvinceId)?.properties.name ?? null;
@@ -591,6 +627,15 @@ export default function MapPage() {
           </div>
         </div>
       </div>
+
+      <BarometreDatabaseAccordion
+        cooperatives={cooperativesMatchingNavSearch}
+        isLoading={coopLoading}
+        error={coopLoadError}
+        onRefresh={reloadCooperatives}
+        filterHint={tableFilterHint}
+        filterKey={tableFilterKey}
+      />
     </div>
   );
 }

@@ -33,10 +33,10 @@ export function BarometreLandingSection({ hideMainTitle = false }: BarometreLand
       {!hideMainTitle ? (
         <header className="mx-auto mb-10 max-w-2xl text-center md:mb-12">
           <h2 className="text-balance text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-            Baromètre
+            Cartographie
           </h2>
           <p className="mt-3 text-pretty text-base text-muted-foreground md:text-lg">
-            Vue d’ensemble des coopératives recensées sur la carte du baromètre territorial.
+            Vue d’ensemble des coopératives recensées sur la carte.
           </p>
         </header>
       ) : null}
@@ -48,7 +48,7 @@ export function BarometreLandingSection({ hideMainTitle = false }: BarometreLand
         </div>
       ) : isError || !data ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          Les chiffres du baromètre ne sont pas disponibles pour le moment.
+          Les chiffres de la cartographie ne sont pas disponibles pour le moment.
         </p>
       ) : (
         <>
@@ -92,7 +92,7 @@ export function BarometreLandingSection({ hideMainTitle = false }: BarometreLand
           </ul>
           <div className="mt-8 flex justify-center md:mt-10">
             <Button asChild size="lg" className="min-w-[200px] rounded-full px-8">
-              <Link to="/barometre">Découvrir le baromètre</Link>
+              <Link to="/cartographie">Découvrir la cartographie</Link>
             </Button>
           </div>
         </>

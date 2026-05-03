@@ -364,6 +364,10 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Database Webhooks call this function without a user JWT — disable JWT verification.
+[functions.notify-brevo-published]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

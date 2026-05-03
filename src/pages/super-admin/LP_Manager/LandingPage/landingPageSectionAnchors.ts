@@ -15,7 +15,7 @@ export const LANDING_PAGE_SECTION_ANCHOR_ID: Record<LandingPageSectionLabel, str
   "Mot du président": "lp-section-mot-du-president",
   "À propos du REMESS": "lp-section-a-propos-du-remess",
   "REMESS en chiffres": "lp-section-remess-en-chiffres",
-  Baromètre: "lp-section-barometre",
+  Cartographie: "lp-section-cartographie",
   "Équipe REMESS": "lp-section-equipe-remess",
   "Nos membres": "lp-section-nos-membres",
   "Nos partenaires": "lp-section-nos-partenaires",

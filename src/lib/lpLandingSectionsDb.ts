@@ -28,16 +28,28 @@ import {
 
 const SINGLETON_ID = "default" as const;
 
+function normalizeHeaderNavInclude(raw: unknown): HeaderContent["navIncludeSection"] {
+  const defaults = createDefaultNavIncludeSection();
+  if (!raw || typeof raw !== "object") return defaults;
+  const r = raw as Record<string, boolean | undefined>;
+  const legacyBarometre = r["Baromètre"];
+  const { Baromètre: _drop, ...rest } = r;
+  return {
+    ...defaults,
+    ...rest,
+    ...(!("Cartographie" in rest) && typeof legacyBarometre === "boolean"
+      ? { Cartographie: legacyBarometre }
+      : {}),
+  } as HeaderContent["navIncludeSection"];
+}
+
 function mergeHeaderPayload(raw: unknown): HeaderContent {
   const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<HeaderContent>;
   return {
     ...DEFAULT_HEADER_CONTENT,
     ...o,
     scrollBehavior: o.scrollBehavior ?? DEFAULT_HEADER_CONTENT.scrollBehavior,
-    navIncludeSection: {
-      ...createDefaultNavIncludeSection(),
-      ...o.navIncludeSection,
-    },
+    navIncludeSection: normalizeHeaderNavInclude(o.navIncludeSection),
     loginCta: { ...DEFAULT_HEADER_CONTENT.loginCta, ...o.loginCta },
     signInCta: { ...DEFAULT_HEADER_CONTENT.signInCta, ...o.signInCta },
   };

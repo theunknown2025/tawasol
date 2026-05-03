@@ -24,7 +24,7 @@ const PUBLIC_SITE_NAV = [
   { to: "/bibliotheque", label: "Bibliothèque" },
   { to: "/blogs", label: "Blog" },
   { to: "/events", label: "Événements" },
-  { to: "/barometre", label: "Baromètre" },
+  { to: "/cartographie", label: "Cartographie" },
 ] as const;
 
 function PublicSiteNavLinks() {
@@ -56,7 +56,6 @@ function PublicSiteNavLinks() {
 
 function navLabelShort(label: LandingPageSectionLabel): string {
   if (label === "REMESS en chiffres") return "Chiffres";
-  if (label === "Baromètre") return "Baromètre";
   if (label === "À propos du REMESS") return "À propos";
   if (label === "Équipe REMESS") return "Équipe";
   if (label === "Mot du président") return "Mot du président";

@@ -23,7 +23,7 @@ const SECTION_TITLE_ICONS: Record<LandingPageOutlineTitleLabel, LucideIcon> = {
   "Mot du président": Quote,
   "À propos du REMESS": Info,
   "REMESS en chiffres": BarChart3,
-  Baromètre: MapPinned,
+  Cartographie: MapPinned,
   "Équipe REMESS": Users,
   "Nos membres": UserSquare2,
   "Nos partenaires": Handshake,

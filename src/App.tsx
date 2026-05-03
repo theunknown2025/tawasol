@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AppLayout from "./components/layout/AppLayout";
 import LpManagerLayout from "./pages/super-admin/LP_Manager/LpManagerLayout";
@@ -24,6 +24,8 @@ import AdminPublicationsPage from "./pages/admin/PublicationsPage";
 import AdminEvenementsPage from "./pages/admin/evenements";
 import EditEvenementPage from "./pages/admin/evenements/EditEvenementPage";
 import AdminMessageriePage from "./pages/admin/MessageriePage";
+import WhatsappManagerPage from "./pages/admin/whatsapp-manager/WhatsappManagerPage";
+import WahaManagerPage from "./pages/admin/whatsapp-waha/WahaManagerPage";
 import AdminBlogsPage from "./pages/admin/blog/BlogsAdminPage";
 import GestionFormPage from "./pages/admin/gestion-form";
 
@@ -37,6 +39,8 @@ import LpProfilePage from "./pages/super-admin/LP_Manager/LpProfilePage";
 import LpLibraryPage from "./pages/super-admin/LP_Manager/LibraryManager/LpLibraryPage";
 import LpDashboardPage from "./pages/super-admin/LP_Manager/LpDashboardPage";
 import BarometrePage from "./pages/super-admin/LP_Manager/BarometrePage";
+import BarometreEditCooperativePage from "./pages/super-admin/LP_Manager/Barometre/BarometreEditCooperativePage";
+import BarometreStatsPage from "./pages/super-admin/LP_Manager/BarometreStats/BarometreStatsPage";
 import LpEditorLayout from "./pages/super-admin/LP_Manager/LpEditorLayout";
 import HeaderEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/HeaderEditorPage";
 import HeroEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/HeroEditorPage";
@@ -64,6 +68,12 @@ import MemberDashboardPage from "./pages/admin/member/MemberDashboardPage";
 import MemberProfilPage from "./pages/admin/member/MemberProfilPage";
 
 const queryClient = new QueryClient();
+
+function LegacyAdminBarometreEditRedirect() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to="/admin/remess-landing/cartographie" replace />;
+  return <Navigate to={`/admin/remess-landing/cartographie/edit/${id}`} replace />;
+}
 
 /** Entrée /admin ou /super-admin : portail réservé au super admin */
 function AdminEntryRedirect() {
@@ -101,7 +111,8 @@ const App = () => {
             <Route path="/article/:id" element={<PublicArticlePage />} />
             <Route path="/blogs" element={<PublicBlogsPage />} />
             <Route path="/blog/:slug" element={<PublicBlogPage />} />
-            <Route path="/barometre" element={<PublicBarometrePage />} />
+            <Route path="/cartographie" element={<PublicBarometrePage />} />
+            <Route path="/barometre" element={<Navigate to="/cartographie" replace />} />
             <Route
               path="/admin/portail"
               element={
@@ -122,7 +133,11 @@ const App = () => {
               <Route path="profile" element={<LpProfilePage />} />
               <Route path="library" element={<LpLibraryPage />} />
               <Route path="dashboard" element={<LpDashboardPage />} />
-              <Route path="barometre" element={<BarometrePage />} />
+              <Route path="cartographie" element={<BarometrePage />} />
+              <Route path="cartographie/edit/:id" element={<BarometreEditCooperativePage />} />
+              <Route path="barometre-donnees" element={<BarometreStatsPage />} />
+              <Route path="barometre" element={<Navigate to="/admin/remess-landing/cartographie" replace />} />
+              <Route path="barometre/edit/:id" element={<LegacyAdminBarometreEditRedirect />} />
               <Route path="editor" element={<LpEditorLayout />}>
                 <Route index element={<Navigate to="hero" replace />} />
                 <Route path="header" element={<HeaderEditorPage />} />
@@ -160,6 +175,8 @@ const App = () => {
               <Route path="/admin/evenements" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminEvenementsPage /></ProtectedRoute>} />
               <Route path="/admin/evenements/edit/:id" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><EditEvenementPage /></ProtectedRoute>} />
               <Route path="/admin/messagerie" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminMessageriePage /></ProtectedRoute>} />
+              <Route path="/admin/whatsapp-manager" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><WhatsappManagerPage /></ProtectedRoute>} />
+              <Route path="/admin/whatsapp-waha" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><WahaManagerPage /></ProtectedRoute>} />
               <Route path="/admin/blogs" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminBlogsPage /></ProtectedRoute>} />
               <Route path="/admin/gestion-form" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><GestionFormPage /></ProtectedRoute>} />
               {/* Super Admin only */}

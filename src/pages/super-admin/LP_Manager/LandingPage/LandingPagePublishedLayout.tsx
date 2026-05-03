@@ -81,8 +81,8 @@ export function LandingPagePublishedLayout({
         <LandingPageSectionOutlineTitle label="REMESS en chiffres" />
         <RemessEnChiffresSection content={remessEnChiffres} hideMainTitle />
       </section>
-      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Baromètre} className="border-t border-border">
-        <LandingPageSectionOutlineTitle label="Baromètre" />
+      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Cartographie} className="border-t border-border">
+        <LandingPageSectionOutlineTitle label="Cartographie" />
         <BarometreLandingSection hideMainTitle />
       </section>
       <section

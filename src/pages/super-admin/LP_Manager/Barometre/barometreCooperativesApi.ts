@@ -110,6 +110,14 @@ export async function fetchBarometreCooperatives(): Promise<BarometreCooperative
   return ((data ?? []) as DbRow[]).map(mapRow);
 }
 
+export async function fetchBarometreCooperativeById(id: string): Promise<BarometreCooperative | null> {
+  const { data, error } = await supabase.from("barometre_cooperatives").select(COOP_SELECT).eq("id", id).maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return mapRow(data as DbRow);
+}
+
 export async function uploadBarometreCooperativeImage(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Veuillez choisir une image (JPEG, PNG, WebP ou GIF).");
@@ -197,5 +205,51 @@ export async function insertBarometreCooperative(payload: InsertBarometreCoopera
     president_tel: payload.presidentTel,
   });
 
+  if (error) throw error;
+}
+
+export async function updateBarometreCooperative(id: string, payload: InsertBarometreCooperativeInput): Promise<void> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error("Connexion requise pour modifier une coopérative.");
+  }
+
+  const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
+
+  const { error } = await supabase
+    .from("barometre_cooperatives")
+    .update({
+      nom: payload.nom,
+      tel: payload.tel,
+      email: payload.email,
+      adresse: payload.adresse,
+      description: payload.description,
+      activite: payload.activite,
+      secteur_activite: payload.activite,
+      links: linksJson,
+      liens: linksJson,
+      image_url: payload.imageUrl,
+      province_id: payload.provinceId,
+      commune_id: payload.communeId,
+      province_name: payload.provinceName,
+      commune_name: payload.communeName,
+      province: payload.provinceName,
+      commune: payload.communeName,
+      is_published: payload.isPublished,
+      president_genre: payload.presidentGenre,
+      president_nom_complet: payload.presidentNomComplet,
+      president_email: payload.presidentEmail,
+      president_tel: payload.presidentTel,
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function deleteBarometreCooperative(id: string): Promise<void> {
+  const { error } = await supabase.from("barometre_cooperatives").delete().eq("id", id);
   if (error) throw error;
 }

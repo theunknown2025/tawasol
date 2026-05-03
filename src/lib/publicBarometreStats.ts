@@ -58,7 +58,7 @@ export function computeBarometreLandingStats(rows: PublishedStatRow[]): Barometr
   };
 }
 
-/** Chiffres publics du baromètre (lignes publiées uniquement), pour la section landing. */
+/** Chiffres publics de la cartographie (lignes publiées uniquement), pour la section landing. */
 export async function fetchBarometreLandingStats(): Promise<BarometreLandingStats> {
   const rows = await fetchPublishedStatRows();
   return computeBarometreLandingStats(rows);

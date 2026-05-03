@@ -240,11 +240,11 @@ export default function PublicBarometrePage() {
   return (
     <PublicShell>
       <PublicPageHero
-        title="Baromètre des coopératives"
+        title="Cartographie des coopératives"
         description="Explorez la carte des coopératives publiées et affinez la liste par nom, secteur, province ou commune."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8 md:py-8">
-        <PublicBreadcrumbs items={[{ label: "Accueil", to: "/" }, { label: "Baromètre" }]} />
+        <PublicBreadcrumbs items={[{ label: "Accueil", to: "/" }, { label: "Cartographie" }]} />
 
         <div className="mt-6 rounded-xl border border-border bg-card shadow-sm">
           <div className="flex flex-col gap-6 p-4 lg:flex-row lg:items-stretch lg:gap-0 lg:p-0">
@@ -292,9 +292,9 @@ export default function PublicBarometrePage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="barometre-nom">Nom de la coopérative</Label>
+                <Label htmlFor="cartographie-nom">Nom de la coopérative</Label>
                 <Input
-                  id="barometre-nom"
+                  id="cartographie-nom"
                   value={nomFilter}
                   onChange={(e) => setNomFilter(e.target.value)}
                   placeholder="Rechercher par nom…"

@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
+  BarChart2,
   Compass,
   LayoutDashboard,
   LayoutTemplate,
@@ -17,7 +18,8 @@ const LP_BASE = "/admin/remess-landing";
 const lpNav = [
   { label: "Profil", icon: User, path: `${LP_BASE}/profile`, end: true },
   { label: "Éditeur", icon: LayoutTemplate, path: `${LP_BASE}/editor`, end: false },
-  { label: "Baromètre", icon: Compass, path: `${LP_BASE}/barometre`, end: true },
+  { label: "Cartographie", icon: Compass, path: `${LP_BASE}/cartographie`, end: true },
+  { label: "Baromètre", icon: BarChart2, path: `${LP_BASE}/barometre-donnees`, end: true },
   { label: "Bibliothèque", icon: Library, path: `${LP_BASE}/library`, end: true },
   { label: "Tableau de bord", icon: LayoutDashboard, path: `${LP_BASE}/dashboard`, end: true },
 ] as const;
