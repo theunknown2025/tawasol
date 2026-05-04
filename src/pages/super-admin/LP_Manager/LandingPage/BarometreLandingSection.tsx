@@ -35,11 +35,18 @@ export function BarometreLandingSection({ hideMainTitle = false }: BarometreLand
           <h2 className="text-balance text-2xl font-bold tracking-tight text-foreground md:text-3xl">
             Cartographie
           </h2>
-          <p className="mt-3 text-pretty text-base text-muted-foreground md:text-lg">
+          <p className="mt-3 text-pretty text-base font-medium text-foreground md:text-lg">
+            Découvrir et exploiter notre base de données de coopératives.
+          </p>
+          <p className="mt-2 text-pretty text-base text-muted-foreground md:text-lg">
             Vue d’ensemble des coopératives recensées sur la carte.
           </p>
         </header>
-      ) : null}
+      ) : (
+        <p className="mx-auto mb-8 max-w-2xl text-balance text-center text-base font-medium text-foreground md:mb-10 md:text-lg">
+          Découvrir et exploiter notre base de données de coopératives.
+        </p>
+      )}
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">

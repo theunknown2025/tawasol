@@ -3,8 +3,8 @@ import {
   BarChart3,
   CalendarDays,
   LayoutTemplate,
+  Library,
   Mail,
-  Newspaper,
   PanelBottom,
   PanelTop,
   Quote,
@@ -60,7 +60,7 @@ const sections: SectionItem[] = [
     icon: CalendarDays,
     to: `${EDITOR_BASE}/nos-evenements`,
   },
-  { id: "articles", label: "Articles", icon: Newspaper, to: `${EDITOR_BASE}/articles` },
+  { id: "articles", label: "Bibliothèque", icon: Library, to: `${EDITOR_BASE}/articles` },
   {
     id: "contacter-nous",
     label: "Contacter nous",

@@ -33,12 +33,16 @@ function normalizeHeaderNavInclude(raw: unknown): HeaderContent["navIncludeSecti
   if (!raw || typeof raw !== "object") return defaults;
   const r = raw as Record<string, boolean | undefined>;
   const legacyBarometre = r["Baromètre"];
-  const { Baromètre: _drop, ...rest } = r;
+  const legacyArticlesNav = r["Articles"];
+  const { Baromètre: _drop, Articles: _dropArticles, ...rest } = r;
   return {
     ...defaults,
     ...rest,
     ...(!("Cartographie" in rest) && typeof legacyBarometre === "boolean"
       ? { Cartographie: legacyBarometre }
+      : {}),
+    ...(!("Bibliothèque" in rest) && typeof legacyArticlesNav === "boolean"
+      ? { Bibliothèque: legacyArticlesNav }
       : {}),
   } as HeaderContent["navIncludeSection"];
 }

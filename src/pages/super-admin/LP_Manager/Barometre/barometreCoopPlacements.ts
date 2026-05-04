@@ -1,3 +1,15 @@
+import type { BarometreCooperative } from "./barometreCooperativesApi";
+
+/** Province affichable sur la carte : `province_id` en base ou province dérivée de la commune. */
+export function resolveCooperativeProvinceId(
+  coop: BarometreCooperative,
+  communeToProvinceMap: Map<string, string>,
+): string | null {
+  if (coop.provinceId) return coop.provinceId;
+  if (coop.communeId) return communeToProvinceMap.get(coop.communeId) ?? null;
+  return null;
+}
+
 /**
  * Positions discrètes autour du centre d’une commune pour plusieurs repères (évite le chevauchement exact).
  */

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Loader2, Newspaper } from "lucide-react";
+import { BookOpen, Library, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ShareResourceMenu } from "@/components/public/ShareResourceMenu";
@@ -46,7 +46,7 @@ function ArticleBookCard({ book }: { book: PublicLibraryBook }) {
 type ArticlesSectionProps = {
   /**
    * Quand un titre de section parent est déjà affiché (`LandingPageSectionOutlineTitle`),
-   * masque l’en-tête interne (icône + « Articles » + sous-texte) pour éviter le doublon.
+   * masque l’en-tête interne (icône + « Bibliothèque » + sous-texte) pour éviter le doublon.
    */
   hidePageTitle?: boolean;
 };
@@ -65,13 +65,15 @@ export function ArticlesSection({ hidePageTitle = false }: ArticlesSectionProps)
         <header className="mb-8 text-center md:mb-10">
           <div className="mb-3 flex justify-center">
             <span className="inline-flex rounded-xl bg-primary/10 p-3 text-primary">
-              <Newspaper className="h-7 w-7 md:h-8 md:w-8" aria-hidden />
+              <Library className="h-7 w-7 md:h-8 md:w-8" aria-hidden />
             </span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Articles</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Bibliothèque</h2>
           <p className="mt-2 text-sm text-muted-foreground md:text-base">
-            Les trois dernières ressources enregistrées dans la bibliothèque (visibles publiquement une fois
-            publiées).
+            Consulter une bibliothèque riche en ouvrages et publications.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground md:text-sm">
+            Aperçu des trois dernières ressources publiées.
           </p>
         </header>
       ) : (

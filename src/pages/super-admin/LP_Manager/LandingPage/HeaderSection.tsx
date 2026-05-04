@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { ImageIcon } from "lucide-react";
 import {
@@ -17,6 +17,11 @@ type HeaderSectionProps = {
   suppressSectionNav?: boolean;
   /** Accueil / Bibliothèque / Événements sur la même ligne que le logo et les boutons d’action. */
   showPublicSiteNav?: boolean;
+  /**
+   * `sticky` : reste en haut du conteneur de défilement (éditeur, aperçus).
+   * `viewport-fixed` : fixé à la fenêtre + bloc de retrait pour ne pas masquer le hero (accueil public).
+   */
+  positionMode?: "sticky" | "viewport-fixed";
 };
 
 const PUBLIC_SITE_NAV = [
@@ -68,6 +73,7 @@ export function HeaderSection({
   className,
   suppressSectionNav,
   showPublicSiteNav = false,
+  positionMode = "sticky",
 }: HeaderSectionProps) {
   const hasLogo = content.showLogo && content.logoUrl.trim().length > 0;
   const showAuth = content.showAuthButtons;
@@ -84,8 +90,22 @@ export function HeaderSection({
 
   const [scrollHidden, setScrollHidden] = useState(false);
   const lastScrollY = useRef(0);
+  const headerMeasureRef = useRef<HTMLElement | null>(null);
+  const [viewportFixedSpacerPx, setViewportFixedSpacerPx] = useState(72);
 
   const scrollBehavior = content.scrollBehavior ?? "fixed";
+
+  useLayoutEffect(() => {
+    if (positionMode !== "viewport-fixed" || !headerMeasureRef.current) return;
+    const el = headerMeasureRef.current;
+    const measure = () => {
+      setViewportFixedSpacerPx(Math.max(48, Math.ceil(el.getBoundingClientRect().height)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [positionMode]);
 
   useEffect(() => {
     if (scrollBehavior !== "disappearing") {
@@ -128,10 +148,14 @@ export function HeaderSection({
     );
   }
 
-  return (
+  const headerShell = (
     <header
+      ref={headerMeasureRef}
       className={cn(
-        "sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90",
+        "border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90",
+        positionMode === "viewport-fixed"
+          ? "fixed left-0 right-0 top-0 z-50 w-full"
+          : "sticky top-0 z-40",
         scrollBehavior === "disappearing" &&
           "transition-transform duration-300 ease-out will-change-transform",
         scrollBehavior === "disappearing" && scrollHidden && "-translate-y-[calc(100%+1px)]",
@@ -217,4 +241,15 @@ export function HeaderSection({
       </div>
     </header>
   );
+
+  if (positionMode === "viewport-fixed") {
+    return (
+      <Fragment>
+        {headerShell}
+        <div aria-hidden className="shrink-0" style={{ height: viewportFixedSpacerPx }} />
+      </Fragment>
+    );
+  }
+
+  return headerShell;
 }

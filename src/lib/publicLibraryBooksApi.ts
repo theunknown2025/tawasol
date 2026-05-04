@@ -66,7 +66,7 @@ export async function fetchPublishedLibraryBooks(limit?: number): Promise<Public
 }
 
 /**
- * Aperçu des ressources sur la page d’accueil (section « Articles » côté éditeur) : mêmes lignes que la
+ * Aperçu des ressources sur la page d’accueil (section « Bibliothèque » côté éditeur) : mêmes lignes que la
  * bibliothèque admin (`lp_library_books`), triées par dernière modification. RLS : anonyme → publiées
  * uniquement ; super admin connecté → toutes les ressources sauvegardées.
  */

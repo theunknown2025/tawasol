@@ -83,7 +83,9 @@ export function LandingPagePreviewOutline({
               subtitle={
                 label === "Nos événements"
                   ? "Découvrir les événements organisés par nos membres"
-                  : undefined
+                  : label === "Bibliothèque"
+                    ? "Consulter une bibliothèque riche en ouvrages et publications."
+                    : undefined
               }
             />
             {label === "Mot du président" ? (
@@ -100,7 +102,7 @@ export function LandingPagePreviewOutline({
               <NosMembresSection content={nosMembres} />
             ) : label === "Contacter nous" ? (
               <ContacterNousSection content={contacterNous} />
-            ) : label === "Articles" ? (
+            ) : label === "Bibliothèque" ? (
               <ArticlesSection hidePageTitle />
             ) : label === "Blog" ? (
               <BlogsSection hidePageTitle />

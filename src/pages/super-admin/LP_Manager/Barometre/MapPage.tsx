@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BarometreAddCooperativePanel from "./BarometreAddCooperativePanel";
 import BarometreDatabaseAccordion from "./BarometreDatabaseAccordion";
 import CooperativePlaceMarker from "./CooperativePlaceMarker";
-import { spreadOffsetsAroundCenter } from "./barometreCoopPlacements";
+import { resolveCooperativeProvinceId, spreadOffsetsAroundCenter } from "./barometreCoopPlacements";
 import {
   fetchBarometreCooperatives,
   type BarometreCooperative,
@@ -90,32 +90,6 @@ export default function MapPage() {
     reloadCooperatives();
   }, [reloadCooperatives]);
 
-  const cooperativePlacements = useMemo(() => {
-    const byCommune = new Map<string, BarometreCooperative[]>();
-    for (const c of cooperatives) {
-      if (!c.communeId) continue;
-      const arr = byCommune.get(c.communeId) ?? [];
-      arr.push(c);
-      byCommune.set(c.communeId, arr);
-    }
-    for (const [, arr] of byCommune) {
-      arr.sort((a, b) => a.id.localeCompare(b.id));
-    }
-    const out: { coop: BarometreCooperative; lat: number; lng: number }[] = [];
-    for (const [communeId, coops] of byCommune) {
-      const feature = communes.find((x) => x.properties.id === communeId);
-      if (!feature) continue;
-      const b = L.geoJSON(feature as never).getBounds();
-      if (!b.isValid()) continue;
-      const center = b.getCenter();
-      const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
-      coops.forEach((coop, i) => {
-        out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
-      });
-    }
-    return out;
-  }, [cooperatives, communes]);
-
   const [displayMode, setDisplayMode] = useState<"provinces" | "communes">("provinces");
   const activeFeatures = displayMode === "communes" ? communes : provinces;
   const activeGeoJson = useMemo(
@@ -133,6 +107,59 @@ export default function MapPage() {
     () => buildCommuneToProvinceMap(provinces, communes),
     [provinces, communes],
   );
+
+  const cooperativePlacements = useMemo(() => {
+    const out: { coop: BarometreCooperative; lat: number; lng: number }[] = [];
+
+    if (displayMode === "communes") {
+      const byCommune = new Map<string, BarometreCooperative[]>();
+      for (const c of cooperatives) {
+        if (!c.communeId) continue;
+        const arr = byCommune.get(c.communeId) ?? [];
+        arr.push(c);
+        byCommune.set(c.communeId, arr);
+      }
+      for (const [, arr] of byCommune) {
+        arr.sort((a, b) => a.id.localeCompare(b.id));
+      }
+      for (const [communeId, coops] of byCommune) {
+        const feature = communes.find((x) => x.properties.id === communeId);
+        if (!feature) continue;
+        const b = L.geoJSON(feature as never).getBounds();
+        if (!b.isValid()) continue;
+        const center = b.getCenter();
+        const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
+        coops.forEach((coop, i) => {
+          out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
+        });
+      }
+      return out;
+    }
+
+    const byProvince = new Map<string, BarometreCooperative[]>();
+    for (const c of cooperatives) {
+      const pid = resolveCooperativeProvinceId(c, communeToProvinceMap);
+      if (!pid) continue;
+      const arr = byProvince.get(pid) ?? [];
+      arr.push(c);
+      byProvince.set(pid, arr);
+    }
+    for (const [, arr] of byProvince) {
+      arr.sort((a, b) => a.id.localeCompare(b.id));
+    }
+    for (const [provinceId, coops] of byProvince) {
+      const feature = provinces.find((x) => x.properties.id === provinceId);
+      if (!feature) continue;
+      const b = L.geoJSON(feature as never).getBounds();
+      if (!b.isValid()) continue;
+      const center = b.getCenter();
+      const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
+      coops.forEach((coop, i) => {
+        out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
+      });
+    }
+    return out;
+  }, [displayMode, cooperatives, communes, provinces, communeToProvinceMap]);
 
   const provincesSorted = useMemo(
     () =>
@@ -354,7 +381,7 @@ export default function MapPage() {
                     {displayMode === "communes" ? "Communes" : "Provinces"}
                   </strong>{" "}
                   ({activeCount})
-                  {displayMode === "communes" && cooperativePlacements.length > 0 ? (
+                  {cooperativePlacements.length > 0 ? (
                     <span className="ml-1 text-muted-foreground"> · repères coop.</span>
                   ) : null}
                 </span>
@@ -617,10 +644,9 @@ export default function MapPage() {
                   });
                 }}
               />
-              {displayMode === "communes" &&
-                cooperativePlacements.map(({ coop, lat, lng }) => (
-                  <CooperativePlaceMarker key={coop.id} coop={coop} latitude={lat} longitude={lng} />
-                ))}
+              {cooperativePlacements.map(({ coop, lat, lng }) => (
+                <CooperativePlaceMarker key={coop.id} coop={coop} latitude={lat} longitude={lng} />
+              ))}
             </MapContainer>
           </div>
         )}

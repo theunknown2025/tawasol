@@ -20,7 +20,7 @@ export const LANDING_PAGE_SECTION_ANCHOR_ID: Record<LandingPageSectionLabel, str
   "Nos membres": "lp-section-nos-membres",
   "Nos partenaires": "lp-section-nos-partenaires",
   "Nos événements": "lp-section-nos-evenements",
-  Articles: "lp-section-articles",
+  Bibliothèque: "lp-section-articles",
   Blog: "lp-section-blog",
   "Contacter nous": "lp-section-contacter-nous",
   Footer: "lp-section-footer",

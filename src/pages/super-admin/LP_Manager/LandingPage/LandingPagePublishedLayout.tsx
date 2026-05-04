@@ -35,6 +35,8 @@ export type LandingPagePublishedLayoutProps = {
   nosMembres: NosMembresContent;
   contacterNous: ContacterNousContent;
   footer: FooterContent;
+  /** Accueil public : en-tête fixe à la fenêtre pendant le défilement. */
+  viewportFixedHeader?: boolean;
 };
 
 /**
@@ -51,11 +53,15 @@ export function LandingPagePublishedLayout({
   nosMembres,
   contacterNous,
   footer,
+  viewportFixedHeader = false,
 }: LandingPagePublishedLayoutProps) {
   return (
     <div className="remess-landing-theme min-h-screen w-full scroll-smooth bg-background text-foreground">
       <div id={LANDING_PAGE_SECTION_ANCHOR_ID.Header}>
-        <HeaderSection content={header} />
+        <HeaderSection
+          content={header}
+          positionMode={viewportFixedHeader ? "viewport-fixed" : "sticky"}
+        />
       </div>
       <div id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero}>
         <HeroSection content={hero} />
@@ -109,8 +115,11 @@ export function LandingPagePublishedLayout({
         />
         <NosEvenementsSection />
       </section>
-      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Articles} className="border-t border-border">
-        <LandingPageSectionOutlineTitle label="Articles" />
+      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Bibliothèque} className="border-t border-border">
+        <LandingPageSectionOutlineTitle
+          label="Bibliothèque"
+          subtitle="Consulter une bibliothèque riche en ouvrages et publications."
+        />
         <ArticlesSection hidePageTitle />
       </section>
       <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Blog} className="border-t border-border">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, Maximize2, Newspaper } from "lucide-react";
+import { ExternalLink, Library, Maximize2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArticlesSection } from "../../LandingPage/ArticlesSection";
@@ -13,10 +13,10 @@ export default function ArticlesEditorPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <div className="rounded-xl bg-primary/10 p-2">
-            <Newspaper className="h-6 w-6 text-primary" />
+            <Library className="h-6 w-6 text-primary" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-foreground">Articles</h1>
+            <h1 className="text-2xl font-bold text-foreground">Bibliothèque</h1>
             <p className="text-sm text-muted-foreground">
               La section affiche les trois dernières ressources publiées (bibliothèque). Un bouton
               renvoie vers la page publique{" "}

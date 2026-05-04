@@ -67,6 +67,7 @@ export default function PublicLandingPage() {
         nosMembres={data.nosMembres}
         contacterNous={data.contacterNous}
         footer={data.footer}
+        viewportFixedHeader
       />
     </div>
   );

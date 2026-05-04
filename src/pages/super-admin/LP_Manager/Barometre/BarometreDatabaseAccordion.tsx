@@ -48,6 +48,8 @@ type Props = {
   filterHint?: string | null;
   /** Change quand le filtre change : remet la pagination à la page 1 */
   filterKey?: string;
+  /** Masque la colonne Actions (édition / suppression) — ex. page publique. */
+  readOnly?: boolean;
 };
 
 export default function BarometreDatabaseAccordion({
@@ -57,7 +59,9 @@ export default function BarometreDatabaseAccordion({
   onRefresh,
   filterHint,
   filterKey = "",
+  readOnly = false,
 }: Props) {
+  const colCount = readOnly ? 3 : 4;
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState<5 | 15 | 50>(15);
   const [pageIndex, setPageIndex] = useState(0);
@@ -163,19 +167,21 @@ export default function BarometreDatabaseAccordion({
                     <TableHead>Nom</TableHead>
                     <TableHead className="hidden sm:table-cell">Activité</TableHead>
                     <TableHead className="hidden md:table-cell">Adresse (commune / province)</TableHead>
-                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                    {readOnly ? null : (
+                      <TableHead className="w-[120px] text-right">Actions</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-muted-foreground">
+                      <TableCell colSpan={colCount} className="text-muted-foreground">
                         Chargement…
                       </TableCell>
                     </TableRow>
                   ) : pageRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-muted-foreground">
+                      <TableCell colSpan={colCount} className="text-muted-foreground">
                         Aucune coopérative enregistrée.
                       </TableCell>
                     </TableRow>
@@ -201,32 +207,34 @@ export default function BarometreDatabaseAccordion({
                             <TableCell className="hidden md:table-cell align-top text-sm">
                               {addressSummary(coop)}
                             </TableCell>
-                            <TableCell className="text-right align-top" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="icon" asChild aria-label="Modifier">
-                                  <Link to={`/admin/remess-landing/cartographie/edit/${coop.id}`}>
-                                    <Pencil className="h-4 w-4" />
-                                  </Link>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  aria-label="Supprimer"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setDeleteTarget(coop);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                            {readOnly ? null : (
+                              <TableCell className="text-right align-top" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-end gap-1">
+                                  <Button variant="ghost" size="icon" asChild aria-label="Modifier">
+                                    <Link to={`/admin/remess-landing/cartographie/edit/${coop.id}`}>
+                                      <Pencil className="h-4 w-4" />
+                                    </Link>
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    aria-label="Supprimer"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setDeleteTarget(coop);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                           {open ? (
                             <TableRow className="bg-muted/20 hover:bg-muted/25 border-t border-border">
-                              <TableCell colSpan={4} className="p-4">
+                              <TableCell colSpan={colCount} className="p-4">
                                 <div className="grid gap-6 lg:grid-cols-[minmax(0,200px)_1fr_minmax(0,240px)]">
                                   <div className="flex flex-col gap-2">
                                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -394,31 +402,33 @@ export default function BarometreDatabaseAccordion({
         </AccordionItem>
       </Accordion>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette coopérative ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              « {deleteTarget?.nom} » sera définitivement retirée de la base. Cette action est irréversible.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground"
-              onClick={(e) => {
-                const delId = deleteTarget?.id;
-                if (!delId) return;
-                e.preventDefault();
-                deleteMut.mutate(delId);
-              }}
-              disabled={deleteMut.isPending}
-            >
-              Supprimer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {readOnly ? null : (
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer cette coopérative ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                « {deleteTarget?.nom} » sera définitivement retirée de la base. Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground"
+                onClick={(e) => {
+                  const delId = deleteTarget?.id;
+                  if (!delId) return;
+                  e.preventDefault();
+                  deleteMut.mutate(delId);
+                }}
+                disabled={deleteMut.isPending}
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }

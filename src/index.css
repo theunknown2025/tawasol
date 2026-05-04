@@ -103,3 +103,9 @@
     color: hsl(37 93% 49%);
   }
 }
+
+/* Baromètre cartographie: DivIcon default white box would offset Leaflet’s math vs. transparent SVG */
+.leaflet-div-icon.barometre-coop-place-icon {
+  background: transparent !important;
+  border: none !important;
+}

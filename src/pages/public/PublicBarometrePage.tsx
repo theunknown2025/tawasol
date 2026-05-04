@@ -19,8 +19,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicPageHero } from "@/components/public/PublicPageHero";
+import BarometreDatabaseAccordion from "@/pages/super-admin/LP_Manager/Barometre/BarometreDatabaseAccordion";
 import CooperativePlaceMarker from "@/pages/super-admin/LP_Manager/Barometre/CooperativePlaceMarker";
-import { spreadOffsetsAroundCenter } from "@/pages/super-admin/LP_Manager/Barometre/barometreCoopPlacements";
+import {
+  resolveCooperativeProvinceId,
+  spreadOffsetsAroundCenter,
+} from "@/pages/super-admin/LP_Manager/Barometre/barometreCoopPlacements";
 import {
   fetchBarometreCooperatives,
   type BarometreCooperative,
@@ -60,11 +64,24 @@ export default function PublicBarometrePage() {
   const provinces = boundaries.provinces?.features ?? filteredProvinces;
   const communes = boundaries.communes?.features ?? filteredCommunes;
 
-  const { data: cooperatives = [], isLoading: coopsLoading } = useQuery({
+  const {
+    data: cooperatives = [],
+    isLoading: coopsLoading,
+    isError: coopsQueryError,
+    error: coopsQueryErrorRaw,
+    refetch: refetchCooperatives,
+  } = useQuery({
     queryKey: ["barometre-cooperatives", "public-map"],
     queryFn: fetchBarometreCooperatives,
     staleTime: 60_000,
   });
+
+  const coopLoadError =
+    coopsQueryError && coopsQueryErrorRaw instanceof Error
+      ? coopsQueryErrorRaw.message
+      : coopsQueryError
+        ? "Impossible de charger les coopératives."
+        : null;
 
   const communeToProvinceMap = useMemo(
     () => buildCommuneToProvinceMap(provinces, communes),
@@ -118,19 +135,46 @@ export default function PublicBarometrePage() {
   ]);
 
   const cooperativePlacements = useMemo(() => {
-    const byCommune = new Map<string, BarometreCooperative[]>();
-    for (const c of filteredCooperatives) {
-      if (!c.communeId) continue;
-      const arr = byCommune.get(c.communeId) ?? [];
-      arr.push(c);
-      byCommune.set(c.communeId, arr);
+    const out: { coop: BarometreCooperative; lat: number; lng: number }[] = [];
+
+    if (displayMode === "communes") {
+      const byCommune = new Map<string, BarometreCooperative[]>();
+      for (const c of filteredCooperatives) {
+        if (!c.communeId) continue;
+        const arr = byCommune.get(c.communeId) ?? [];
+        arr.push(c);
+        byCommune.set(c.communeId, arr);
+      }
+      for (const [, arr] of byCommune) {
+        arr.sort((a, b) => a.id.localeCompare(b.id));
+      }
+      for (const [communeId, coops] of byCommune) {
+        const feature = communes.find((x) => x.properties.id === communeId);
+        if (!feature) continue;
+        const b = L.geoJSON(feature as never).getBounds();
+        if (!b.isValid()) continue;
+        const center = b.getCenter();
+        const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
+        coops.forEach((coop, i) => {
+          out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
+        });
+      }
+      return out;
     }
-    for (const [, arr] of byCommune) {
+
+    const byProvince = new Map<string, BarometreCooperative[]>();
+    for (const c of filteredCooperatives) {
+      const pid = resolveCooperativeProvinceId(c, communeToProvinceMap);
+      if (!pid) continue;
+      const arr = byProvince.get(pid) ?? [];
+      arr.push(c);
+      byProvince.set(pid, arr);
+    }
+    for (const [, arr] of byProvince) {
       arr.sort((a, b) => a.id.localeCompare(b.id));
     }
-    const out: { coop: BarometreCooperative; lat: number; lng: number }[] = [];
-    for (const [communeId, coops] of byCommune) {
-      const feature = communes.find((x) => x.properties.id === communeId);
+    for (const [provinceId, coops] of byProvince) {
+      const feature = provinces.find((x) => x.properties.id === provinceId);
       if (!feature) continue;
       const b = L.geoJSON(feature as never).getBounds();
       if (!b.isValid()) continue;
@@ -141,7 +185,7 @@ export default function PublicBarometrePage() {
       });
     }
     return out;
-  }, [filteredCooperatives, communes]);
+  }, [displayMode, filteredCooperatives, communes, provinces, communeToProvinceMap]);
 
   const activeFeatures = displayMode === "communes" ? communes : provinces;
   const activeGeoJson = useMemo(
@@ -169,6 +213,30 @@ export default function PublicBarometrePage() {
   const selectedCommuneLabel =
     communesInSelectedProvince.find((c) => c.properties.id === selectedCommuneId)?.properties.name ??
     null;
+
+  const tableFilterHint = useMemo(() => {
+    const parts: string[] = [];
+    const n = nomFilter.trim();
+    if (n) parts.push(`nom contenant « ${n} »`);
+    if (secteurFilter) parts.push(`secteur « ${secteurFilter} »`);
+    if (selectedCommuneId && selectedCommuneLabel) {
+      const prov = selectedProvinceLabel ? ` · ${selectedProvinceLabel}` : "";
+      parts.push(`commune « ${selectedCommuneLabel} »${prov}`);
+    } else if (selectedProvinceId && selectedProvinceLabel) {
+      parts.push(`province « ${selectedProvinceLabel} »`);
+    }
+    if (parts.length === 0) return null;
+    return `Filtres : ${parts.join(" · ")}`;
+  }, [
+    nomFilter,
+    secteurFilter,
+    selectedCommuneId,
+    selectedCommuneLabel,
+    selectedProvinceId,
+    selectedProvinceLabel,
+  ]);
+
+  const tableFilterKey = `${nomFilter.trim()}|${secteurFilter}|${selectedProvinceId ?? ""}|${selectedCommuneId ?? ""}`;
 
   const selectionBounds = useMemo(() => {
     if (selectedCommuneId) {
@@ -252,8 +320,8 @@ export default function PublicBarometrePage() {
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Filtres</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Nom, secteur d’activité, province et commune. Passez au calque communes pour voir les
-                  repères.
+                  Nom, secteur d’activité, province et commune. Les repères coopératifs suivent le calque
+                  (provinces ou communes).
                 </p>
               </div>
 
@@ -266,7 +334,7 @@ export default function PublicBarometrePage() {
                       {displayMode === "communes" ? "Communes" : "Provinces"}
                     </strong>{" "}
                     ({activeCount})
-                    {displayMode === "communes" && cooperativePlacements.length > 0 ? (
+                    {cooperativePlacements.length > 0 ? (
                       <span className="ml-1 text-muted-foreground"> · repères visibles</span>
                     ) : null}
                   </span>
@@ -554,15 +622,26 @@ export default function PublicBarometrePage() {
                         });
                       }}
                     />
-                    {displayMode === "communes" &&
-                      cooperativePlacements.map(({ coop, lat, lng }) => (
-                        <CooperativePlaceMarker key={coop.id} coop={coop} latitude={lat} longitude={lng} />
-                      ))}
+                    {cooperativePlacements.map(({ coop, lat, lng }) => (
+                      <CooperativePlaceMarker key={coop.id} coop={coop} latitude={lat} longitude={lng} />
+                    ))}
                   </MapContainer>
                 </div>
               )}
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <BarometreDatabaseAccordion
+            cooperatives={filteredCooperatives}
+            isLoading={coopsLoading}
+            error={coopLoadError}
+            onRefresh={() => void refetchCooperatives()}
+            filterHint={tableFilterHint}
+            filterKey={tableFilterKey}
+            readOnly
+          />
         </div>
       </main>
     </PublicShell>

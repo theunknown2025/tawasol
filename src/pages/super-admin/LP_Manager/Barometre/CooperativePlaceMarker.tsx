@@ -1,16 +1,26 @@
 import L from "leaflet";
+import { useMemo } from "react";
 import { Marker, Tooltip } from "react-leaflet";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { BarometreCooperative } from "./barometreCooperativesApi";
 
-const placeIcon = L.divIcon({
-  className: "barometre-coop-place-icon",
-  html:
-    '<div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;margin-left:-15px;margin-top:-30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))">' +
-    '<span style="font-size:28px;line-height:1" aria-hidden="true">📍</span></div>',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-});
+/** SVG pin: tip at bottom center so iconAnchor matches geometry (no extra CSS margins). */
+const PIN_ICON_W = 28;
+const PIN_ICON_H = 36;
+
+function createCooperativePlaceDivIcon() {
+  return L.divIcon({
+    className: "barometre-coop-place-icon",
+    html:
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${PIN_ICON_W}" height="${PIN_ICON_H}" viewBox="0 0 28 36" aria-hidden="true" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">` +
+      `<path fill="#e11d48" stroke="#fff" stroke-width="1.2" d="M14 0C8.5 0 4 4.4 4 9.8c0 6.2 10 26.2 10 26.2S24 16 24 9.8C24 4.4 19.5 0 14 0z"/>` +
+      `<circle cx="14" cy="10" r="3.2" fill="#fff"/>` +
+      `</svg>`,
+    iconSize: [PIN_ICON_W, PIN_ICON_H],
+    iconAnchor: [PIN_ICON_W / 2, PIN_ICON_H],
+    tooltipAnchor: [0, -PIN_ICON_H + 4],
+  });
+}
 
 function presidentGenreLabel(g: BarometreCooperative["presidentGenre"]): string {
   if (g === "male") return "Male";
@@ -25,6 +35,9 @@ type Props = {
 };
 
 export default function CooperativePlaceMarker({ coop, latitude, longitude }: Props) {
+  /** Leaflet must not share one DivIcon across markers — shared icons break position on zoom. */
+  const icon = useMemo(() => createCooperativePlaceDivIcon(), []);
+
   const hasPresident =
     Boolean(coop.presidentGenre) ||
     Boolean(coop.presidentNomComplet.trim()) ||
@@ -32,10 +45,10 @@ export default function CooperativePlaceMarker({ coop, latitude, longitude }: Pr
     Boolean(coop.presidentTel.trim());
 
   return (
-    <Marker position={[latitude, longitude]} icon={placeIcon}>
+    <Marker position={[latitude, longitude]} icon={icon}>
       <Tooltip
         direction="top"
-        offset={[0, -24]}
+        offset={[0, -PIN_ICON_H + 8]}
         opacity={1}
         sticky
         interactive
