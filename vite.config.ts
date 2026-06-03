@@ -18,6 +18,10 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      dompurify: path.resolve(__dirname, "node_modules/dompurify/dist/purify.es.mjs"),
     },
+  },
+  optimizeDeps: {
+    include: ["dompurify"],
   },
 }));
