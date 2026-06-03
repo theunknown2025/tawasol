@@ -13,6 +13,7 @@ import {
   upsertLpLandingAProposRemess,
   upsertLpLandingEquipeRemess,
   upsertLpLandingNosMembres,
+  upsertLpLandingGalerie,
   upsertLpLandingContacterNous,
   upsertLpLandingFooter,
   upsertLpLandingHeader,
@@ -24,6 +25,7 @@ import {
   DEFAULT_A_PROPOS_REMESS_CONTENT,
   DEFAULT_EQUIPE_REMESS_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
+  DEFAULT_GALERIE_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
   DEFAULT_FOOTER_CONTENT,
   DEFAULT_HEADER_CONTENT,
@@ -33,6 +35,7 @@ import {
   type AProposRemessContent,
   type EquipeRemessContent,
   type NosMembresContent,
+  type GalerieContent,
   type ContacterNousContent,
   type FooterContent,
   type HeaderContent,
@@ -107,6 +110,8 @@ type LpLandingContentValue = {
   setNosMembres: (
     next: NosMembresContent | ((prev: NosMembresContent) => NosMembresContent),
   ) => void;
+  galerie: GalerieContent;
+  setGalerie: (next: GalerieContent | ((prev: GalerieContent) => GalerieContent)) => void;
   contacterNous: ContacterNousContent;
   setContacterNous: (
     next: ContacterNousContent | ((prev: ContacterNousContent) => ContacterNousContent),
@@ -136,6 +141,7 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     DEFAULT_EQUIPE_REMESS_CONTENT,
   );
   const [nosMembres, setNosMembresState] = useState<NosMembresContent>(DEFAULT_NOS_MEMBRES_CONTENT);
+  const [galerie, setGalerieState] = useState<GalerieContent>(DEFAULT_GALERIE_CONTENT);
   const [contacterNous, setContacterNousState] = useState<ContacterNousContent>(
     DEFAULT_CONTACTER_NOUS_CONTENT,
   );
@@ -152,6 +158,7 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setRemessEnChiffresState(merged.remessEnChiffres);
       setEquipeRemessState(merged.equipeRemess);
       setNosMembresState(merged.nosMembres);
+      setGalerieState(merged.galerie);
       setContacterNousState(merged.contacterNous);
       setFooterState(merged.footer);
     } catch (e) {
@@ -191,12 +198,13 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
         upsertLpLandingRemessEnChiffres(remessEnChiffres),
         upsertLpLandingEquipeRemess(equipeRemess),
         upsertLpLandingNosMembres(nosMembres),
+        upsertLpLandingGalerie(galerie),
         upsertLpLandingContacterNous(contacterNous),
         upsertLpLandingFooter(footer),
       ]);
       toast.success("Modifications enregistrées", {
         description:
-          "Toutes les sections configurées (dont REMESS en chiffres, l’équipe, nos membres et Contacter nous) ont été sauvegardées.",
+          "Toutes les sections configurées (dont REMESS en chiffres, l’équipe, nos membres, la galerie et Contacter nous) ont été sauvegardées.",
       });
     } catch (e) {
       const msg = formatCaughtError(e);
@@ -213,6 +221,7 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     remessEnChiffres,
     equipeRemess,
     nosMembres,
+    galerie,
     contacterNous,
     footer,
   ]);
@@ -267,6 +276,13 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     [],
   );
 
+  const setGalerie = useCallback(
+    (next: GalerieContent | ((prev: GalerieContent) => GalerieContent)) => {
+      setGalerieState(next);
+    },
+    [],
+  );
+
   const setContacterNous = useCallback(
     (next: ContacterNousContent | ((prev: ContacterNousContent) => ContacterNousContent)) => {
       setContacterNousState(next);
@@ -299,6 +315,8 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setEquipeRemess,
       nosMembres,
       setNosMembres,
+      galerie,
+      setGalerie,
       contacterNous,
       setContacterNous,
       footer,
@@ -324,6 +342,8 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setEquipeRemess,
       nosMembres,
       setNosMembres,
+      galerie,
+      setGalerie,
       contacterNous,
       setContacterNous,
       footer,

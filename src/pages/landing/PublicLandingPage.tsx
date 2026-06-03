@@ -48,7 +48,7 @@ export default function PublicLandingPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min-h-screen">
       {isFetching && !isLoading ? (
         <div
           className="pointer-events-none fixed right-4 top-4 z-50 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-md backdrop-blur"
@@ -65,9 +65,11 @@ export default function PublicLandingPage() {
         remessEnChiffres={data.remessEnChiffres}
         equipeRemess={data.equipeRemess}
         nosMembres={data.nosMembres}
+        galerie={data.galerie}
         contacterNous={data.contacterNous}
         footer={data.footer}
         viewportFixedHeader
+        publicSiteChrome
       />
     </div>
   );

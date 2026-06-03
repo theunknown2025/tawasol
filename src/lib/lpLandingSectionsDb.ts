@@ -4,6 +4,7 @@ import {
   DEFAULT_A_PROPOS_REMESS_CONTENT,
   DEFAULT_EQUIPE_REMESS_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
+  DEFAULT_GALERIE_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
   DEFAULT_FOOTER_CONTENT,
   DEFAULT_HEADER_CONTENT,
@@ -15,9 +16,12 @@ import {
   ensureRemessChiffresStatsCount,
   normalizeEquipeMembers,
   normalizeNosMembresEntries,
+  normalizeGalerieCatalogues,
+  isGalerieDisplayMode,
   type AProposRemessContent,
   type EquipeRemessContent,
   type NosMembresContent,
+  type GalerieContent,
   type ContacterNousContent,
   type FooterContent,
   type HeaderContent,
@@ -125,6 +129,18 @@ function mergeNosMembresPayload(raw: unknown): NosMembresContent {
         ? o.subtitle
         : DEFAULT_NOS_MEMBRES_CONTENT.subtitle,
     entries: normalizeNosMembresEntries(entriesRaw),
+  };
+}
+
+function mergeGaleriePayload(raw: unknown): GalerieContent {
+  const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<GalerieContent>;
+  const cataloguesRaw = Array.isArray(o.catalogues) ? o.catalogues : [];
+  const modeRaw = typeof o.displayMode === "string" ? o.displayMode : DEFAULT_GALERIE_CONTENT.displayMode;
+  return {
+    subtitle:
+      typeof o.subtitle === "string" ? o.subtitle : DEFAULT_GALERIE_CONTENT.subtitle,
+    displayMode: isGalerieDisplayMode(modeRaw) ? modeRaw : DEFAULT_GALERIE_CONTENT.displayMode,
+    catalogues: normalizeGalerieCatalogues(cataloguesRaw),
   };
 }
 
@@ -339,6 +355,32 @@ export async function upsertLpLandingNosMembres(payload: NosMembresContent): Pro
   if (error) throw error;
 }
 
+export async function fetchLpLandingGalerie(): Promise<GalerieContent | null> {
+  const { data, error } = await supabase
+    .from("lp_landing_galerie")
+    .select("payload")
+    .eq("id", SINGLETON_ID)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.payload) return null;
+  return mergeGaleriePayload(data.payload);
+}
+
+export async function upsertLpLandingGalerie(payload: GalerieContent): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("lp_landing_galerie").upsert(
+    {
+      id: SINGLETON_ID,
+      payload,
+      updated_by: user?.id ?? null,
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw error;
+}
+
 export async function fetchLpLandingContacterNous(): Promise<ContacterNousContent | null> {
   const { data, error } = await supabase
     .from("lp_landing_contacter_nous")
@@ -399,13 +441,14 @@ export type LpLandingResolvedContent = {
   remessEnChiffres: RemessEnChiffresContent;
   equipeRemess: EquipeRemessContent;
   nosMembres: NosMembresContent;
+  galerie: GalerieContent;
   contacterNous: ContacterNousContent;
   footer: FooterContent;
 };
 
 /** Charge toutes les sections (singleton) ; valeurs par défaut si aucune ligne en base. */
 export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedContent> {
-  const [h, he, m, a, r, eq, nm, cn, f] = await Promise.all([
+  const [h, he, m, a, r, eq, nm, gal, cn, f] = await Promise.all([
     fetchLpLandingHeader(),
     fetchLpLandingHero(),
     fetchLpLandingMotDuPresident(),
@@ -413,6 +456,7 @@ export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedCont
     fetchLpLandingRemessEnChiffres(),
     fetchLpLandingEquipeRemess(),
     fetchLpLandingNosMembres(),
+    fetchLpLandingGalerie(),
     fetchLpLandingContacterNous(),
     fetchLpLandingFooter(),
   ]);
@@ -424,6 +468,7 @@ export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedCont
     remessEnChiffres: r ?? DEFAULT_REMESS_EN_CHIFFRES_CONTENT,
     equipeRemess: eq ?? DEFAULT_EQUIPE_REMESS_CONTENT,
     nosMembres: nm ?? DEFAULT_NOS_MEMBRES_CONTENT,
+    galerie: gal ?? DEFAULT_GALERIE_CONTENT,
     contacterNous: cn ?? DEFAULT_CONTACTER_NOUS_CONTENT,
     footer: f ?? DEFAULT_FOOTER_CONTENT,
   };

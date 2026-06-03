@@ -19,6 +19,7 @@ export function PublicationCardWithAI({
   const {
     phase,
     analysis,
+    errorMessage,
     runAnalysis,
     reset,
     saveAnalysis,
@@ -37,7 +38,7 @@ export function PublicationCardWithAI({
 
   const handleSave = async (a: Parameters<typeof saveAnalysis>[0]) => {
     await saveAnalysis(a);
-    toast.success("Analyse enregistrée");
+    toast.success("Rapport enregistré");
   };
 
   return (
@@ -59,7 +60,7 @@ export function PublicationCardWithAI({
               size="icon"
               className="absolute top-4 right-4 h-9 w-9 rounded-lg hover:bg-primary/10 text-primary"
               onClick={handleAIClick}
-              title={isExpanded ? "Fermer l'analyse" : "Analyser avec l'IA"}
+              title={isExpanded ? "Fermer le rapport" : "Générer un rapport IA"}
             >
               <Sparkles size={18} />
             </Button>
@@ -75,8 +76,10 @@ export function PublicationCardWithAI({
         <AIAnalysisPanel
           phase={phase}
           analysis={analysis}
+          errorMessage={errorMessage}
           onClose={reset}
           onSave={handleSave}
+          onRetry={() => runAnalysis(publication)}
         />
       )}
     </div>

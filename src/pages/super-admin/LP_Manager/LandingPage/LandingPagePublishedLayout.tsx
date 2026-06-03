@@ -3,15 +3,19 @@ import { BlogsSection } from "./BlogsSection";
 import { AProposRemessSection } from "./AProposRemessSection";
 import { EquipeRemessSection } from "./EquipeRemessSection";
 import { NosMembresSection } from "./NosMembresSection";
+import { GalerieSection } from "./GalerieSection";
 import { NosEvenementsSection } from "./NosEvenementsSection";
 import { ContacterNousSection } from "./ContacterNousSection";
 import { FooterSection } from "./FooterSection";
 import { HeaderSection } from "./HeaderSection";
 import { HeroSection } from "./HeroSection";
 import { LandingPageSectionOutlineTitle } from "./LandingPageSectionOutlineTitle";
+import { LandingWaveSection } from "./LandingWaveSection";
 import { MotDuPresidentSection } from "./MotDuPresidentSection";
 import { RemessEnChiffresSection } from "./RemessEnChiffresSection";
 import { BarometreLandingSection } from "./BarometreLandingSection";
+import { OpportunitesLandingSection } from "./OpportunitesLandingSection";
+import { LandingVerticalSectionNav } from "./LandingVerticalSectionNav";
 import { LANDING_PAGE_SECTION_ANCHOR_ID } from "./landingPageSectionAnchors";
 import type {
   AProposRemessContent,
@@ -21,6 +25,7 @@ import type {
   RemessEnChiffresContent,
   EquipeRemessContent,
   NosMembresContent,
+  GalerieContent,
   ContacterNousContent,
   FooterContent,
 } from "../types";
@@ -33,10 +38,13 @@ export type LandingPagePublishedLayoutProps = {
   remessEnChiffres: RemessEnChiffresContent;
   equipeRemess: EquipeRemessContent;
   nosMembres: NosMembresContent;
+  galerie: GalerieContent;
   contacterNous: ContacterNousContent;
   footer: FooterContent;
   /** Accueil public : en-tête fixe à la fenêtre pendant le défilement. */
   viewportFixedHeader?: boolean;
+  /** Menu site (Accueil, Events, …) + navigation verticale par sections. */
+  publicSiteChrome?: boolean;
 };
 
 /**
@@ -51,91 +59,95 @@ export function LandingPagePublishedLayout({
   remessEnChiffres,
   equipeRemess,
   nosMembres,
+  galerie,
   contacterNous,
   footer,
   viewportFixedHeader = false,
+  publicSiteChrome = false,
 }: LandingPagePublishedLayoutProps) {
   return (
     <div className="remess-landing-theme min-h-screen w-full scroll-smooth bg-background text-foreground">
+      {publicSiteChrome ? <LandingVerticalSectionNav /> : null}
       <div id={LANDING_PAGE_SECTION_ANCHOR_ID.Header}>
         <HeaderSection
           content={header}
           positionMode={viewportFixedHeader ? "viewport-fixed" : "sticky"}
+          showPublicSiteNav={publicSiteChrome}
+          suppressSectionNav={publicSiteChrome}
         />
       </div>
-      <div id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero}>
+      <div id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero} className="scroll-mt-[var(--page-header-height)]">
         <HeroSection content={hero} />
       </div>
-      <section
-        id={LANDING_PAGE_SECTION_ANCHOR_ID["Mot du président"]}
-        className="border-t border-border"
-      >
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["Mot du président"]} variant="warm">
         <LandingPageSectionOutlineTitle label="Mot du président" />
         <MotDuPresidentSection content={motDuPresident} />
-      </section>
-      <section
-        id={LANDING_PAGE_SECTION_ANCHOR_ID["À propos du REMESS"]}
-        className="border-t border-border"
-      >
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["À propos du REMESS"]} variant="white">
         <LandingPageSectionOutlineTitle label="À propos du REMESS" />
         <AProposRemessSection content={aProposRemess} />
-      </section>
-      <section
-        id={LANDING_PAGE_SECTION_ANCHOR_ID["REMESS en chiffres"]}
-        className="border-t border-border"
-      >
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["REMESS en chiffres"]} variant="accent">
         <LandingPageSectionOutlineTitle label="REMESS en chiffres" />
         <RemessEnChiffresSection content={remessEnChiffres} hideMainTitle />
-      </section>
-      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Cartographie} className="border-t border-border">
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Cartographie} variant="warm">
         <LandingPageSectionOutlineTitle label="Cartographie" />
         <BarometreLandingSection hideMainTitle />
-      </section>
-      <section
-        id={LANDING_PAGE_SECTION_ANCHOR_ID["Équipe REMESS"]}
-        className="border-t border-border"
-      >
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["Équipe REMESS"]} variant="cream">
         <LandingPageSectionOutlineTitle label="Équipe REMESS" />
         <EquipeRemessSection content={equipeRemess} />
-      </section>
-      <section
-        id={LANDING_PAGE_SECTION_ANCHOR_ID["Nos membres"]}
-        className="border-t border-border"
-      >
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["Nos membres"]} variant="white">
         <LandingPageSectionOutlineTitle label="Nos membres" className="py-4 md:py-5" />
         <NosMembresSection content={nosMembres} />
-      </section>
-      <section
-        id={LANDING_PAGE_SECTION_ANCHOR_ID["Nos événements"]}
-        className="border-t border-border"
-      >
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["Nos événements"]} variant="warm">
         <LandingPageSectionOutlineTitle
           label="Nos événements"
           subtitle="Découvrir les événements organisés par nos membres"
         />
         <NosEvenementsSection />
-      </section>
-      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Bibliothèque} className="border-t border-border">
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Opportunités} variant="cream">
+        <OpportunitesLandingSection />
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Galerie} variant="white">
+        <LandingPageSectionOutlineTitle label="Galerie" />
+        <GalerieSection content={galerie} />
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Bibliothèque} variant="cream">
         <LandingPageSectionOutlineTitle
           label="Bibliothèque"
           subtitle="Consulter une bibliothèque riche en ouvrages et publications."
         />
         <ArticlesSection hidePageTitle />
-      </section>
-      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Blog} className="border-t border-border">
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Blog} variant="white">
         <LandingPageSectionOutlineTitle label="Blog" />
         <BlogsSection hidePageTitle />
-      </section>
-      <section
-        id={LANDING_PAGE_SECTION_ANCHOR_ID["Contacter nous"]}
-        className="border-t border-border"
-      >
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["Contacter nous"]} variant="accent">
         <LandingPageSectionOutlineTitle label="Contacter nous" />
         <ContacterNousSection content={contacterNous} />
-      </section>
-      <section id={LANDING_PAGE_SECTION_ANCHOR_ID.Footer} className="border-t border-border">
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Footer} variant="deep">
         <FooterSection content={footer} />
-      </section>
+      </LandingWaveSection>
     </div>
   );
 }

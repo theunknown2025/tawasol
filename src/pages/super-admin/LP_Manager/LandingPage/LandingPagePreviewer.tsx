@@ -19,6 +19,7 @@ export function LandingPagePreviewer({ open, onOpenChange }: LandingPagePreviewe
     remessEnChiffres,
     equipeRemess,
     nosMembres,
+    galerie,
     contacterNous,
     footer,
   } = useLpLandingContent();
@@ -71,6 +72,7 @@ export function LandingPagePreviewer({ open, onOpenChange }: LandingPagePreviewe
           remessEnChiffres={remessEnChiffres}
           equipeRemess={equipeRemess}
           nosMembres={nosMembres}
+          galerie={galerie}
           contacterNous={contacterNous}
           footer={footer}
           showSectionOutline

@@ -15,12 +15,7 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
   const hasSignature = content.signature.trim().length > 0;
 
   return (
-    <section
-      className={cn(
-        "border-border/80 bg-gradient-to-b from-muted/40 to-background py-12 md:py-16",
-        className,
-      )}
-    >
+    <section className={cn("py-8 md:py-12", className)}>
       <div className="mx-auto max-w-5xl px-6">
         <div className="grid gap-10 md:grid-cols-[min(280px,100%)_1fr] md:items-start">
           <div className="flex justify-center md:justify-start">

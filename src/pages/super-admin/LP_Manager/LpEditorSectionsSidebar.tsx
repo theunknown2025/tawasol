@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   CalendarDays,
+  Images,
   LayoutTemplate,
   Library,
   Mail,
@@ -60,6 +61,7 @@ const sections: SectionItem[] = [
     icon: CalendarDays,
     to: `${EDITOR_BASE}/nos-evenements`,
   },
+  { id: "galerie", label: "Galerie", icon: Images, to: `${EDITOR_BASE}/galerie` },
   { id: "articles", label: "Bibliothèque", icon: Library, to: `${EDITOR_BASE}/articles` },
   {
     id: "contacter-nous",

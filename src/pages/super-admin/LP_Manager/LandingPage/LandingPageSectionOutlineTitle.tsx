@@ -2,6 +2,7 @@ import {
   BarChart3,
   CalendarDays,
   Handshake,
+  Images,
   Info,
   Mail,
   MapPinned,
@@ -28,6 +29,7 @@ const SECTION_TITLE_ICONS: Record<LandingPageOutlineTitleLabel, LucideIcon> = {
   "Nos membres": UserSquare2,
   "Nos partenaires": Handshake,
   "Nos événements": CalendarDays,
+  Galerie: Images,
   Bibliothèque: Library,
   Blog: NotebookPen,
   "Contacter nous": Mail,
@@ -54,8 +56,8 @@ export function LandingPageSectionOutlineTitle({
     <>
       <h2
         className={cn(
-          "group flex cursor-default select-none items-center justify-center gap-3 px-4 text-center text-xl font-semibold tracking-tight text-muted-foreground transition-colors duration-200 hover:text-foreground md:gap-3.5 md:text-2xl lg:text-3xl",
-          subtitleText ? "pb-3 pt-8 md:pb-4 md:pt-10" : "py-8 md:py-10",
+          "group relative flex cursor-default select-none items-center justify-center gap-3 px-4 text-center text-xl font-semibold tracking-tight text-muted-foreground transition-colors duration-200 hover:text-foreground md:gap-3.5 md:text-2xl lg:text-3xl",
+          subtitleText ? "pb-3 pt-10 md:pb-4 md:pt-12" : "py-10 md:py-12",
           className,
         )}
       >

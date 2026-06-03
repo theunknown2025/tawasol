@@ -2,10 +2,12 @@ export interface PublicationAnalysis {
   id: string;
   publicationId: string;
   generatedAt: string;
+  /** Vue d'ensemble courte de la publication et des échanges */
   summary: string;
-  detailedReport: string;
-  sentiment: "positive" | "neutral" | "negative";
-  sentimentScore: number;
+  /** Rapport sur le contenu principal de la publication */
+  postReport: string;
+  /** Synthèse des commentaires */
+  commentsSummary: string;
   engagement: {
     likes: number;
     comments: number;
@@ -13,7 +15,6 @@ export interface PublicationAnalysis {
     total: number;
   };
   metrics: { name: string; value: number }[];
-  recommendations: string[];
 }
 
 export type AnalysisPhase = "idle" | "analyzing" | "complete" | "error";

@@ -51,6 +51,7 @@ import EquipeRemessEditorPage from "./pages/super-admin/LP_Manager/LPManager/sec
 import NosMembresEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosMembresEditorPage";
 import NosPartenairesEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosPartenairesEditorPage";
 import NosEvenementsEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosEvenementsEditorPage";
+import GalerieEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/GalerieEditorPage";
 import ArticlesEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ArticlesEditorPage";
 import ContacterNousEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ContacterNousEditorPage";
 import FooterEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/FooterEditorPage";
@@ -62,6 +63,12 @@ import PublicEventsPage from "./pages/public/PublicEventsPage";
 import PublicBlogsPage from "./pages/public/PublicBlogsPage";
 import PublicBlogPage from "./pages/public/PublicBlogPage";
 import PublicBarometrePage from "./pages/public/PublicBarometrePage";
+import PublicBarometreComingSoonPage from "./pages/public/PublicBarometreComingSoonPage";
+import PublicOpportunitiesPage from "./pages/public/PublicOpportunitiesPage";
+import PublicOpportunityDetailPage from "./pages/public/PublicOpportunityDetailPage";
+import OpDashboardPage from "./pages/super-admin/Opportunities_Manager/OpDashboardPage";
+import NouvelleOpportunitePage from "./pages/super-admin/Opportunities_Manager/NouvelleOpportunitePage";
+import SuiviCandidaturesPage from "./pages/super-admin/Opportunities_Manager/SuiviCandidaturesPage";
 
 // Member pages
 import MemberDashboardPage from "./pages/admin/member/MemberDashboardPage";
@@ -112,7 +119,9 @@ const App = () => {
             <Route path="/blogs" element={<PublicBlogsPage />} />
             <Route path="/blog/:slug" element={<PublicBlogPage />} />
             <Route path="/cartographie" element={<PublicBarometrePage />} />
-            <Route path="/barometre" element={<Navigate to="/cartographie" replace />} />
+            <Route path="/barometre" element={<PublicBarometreComingSoonPage />} />
+            <Route path="/opportunites" element={<PublicOpportunitiesPage />} />
+            <Route path="/opportunite/:slug" element={<PublicOpportunityDetailPage />} />
             <Route
               path="/admin/portail"
               element={
@@ -149,6 +158,7 @@ const App = () => {
                 <Route path="nos-membres" element={<NosMembresEditorPage />} />
                 <Route path="nos-partenaires" element={<NosPartenairesEditorPage />} />
                 <Route path="nos-evenements" element={<NosEvenementsEditorPage />} />
+                <Route path="galerie" element={<GalerieEditorPage />} />
                 <Route path="articles" element={<ArticlesEditorPage />} />
                 <Route path="contacter-nous" element={<ContacterNousEditorPage />} />
                 <Route path="footer" element={<FooterEditorPage />} />
@@ -185,6 +195,10 @@ const App = () => {
               <Route path="/admin/assistant-ia" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><AssistantIAPage /></ProtectedRoute>} />
               <Route path="/admin/media-manager" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><MediaManagerPage /></ProtectedRoute>} />
               <Route path="/admin/pmo" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><PMOPage /></ProtectedRoute>} />
+              <Route path="/admin/opportunites" element={<Navigate to="/admin/opportunites/dashboard" replace />} />
+              <Route path="/admin/opportunites/dashboard" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><OpDashboardPage /></ProtectedRoute>} />
+              <Route path="/admin/opportunites/nouvelle" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><NouvelleOpportunitePage /></ProtectedRoute>} />
+              <Route path="/admin/opportunites/suivi" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><SuiviCandidaturesPage /></ProtectedRoute>} />
               {/* Member routes */}
               <Route path="/member/dashboard" element={<ProtectedRoute allowedRoles={[ROLES.MEMBER]}><MemberDashboardPage /></ProtectedRoute>} />
               <Route path="/member/mur" element={<ProtectedRoute allowedRoles={[ROLES.MEMBER]}><AdminMurPage /></ProtectedRoute>} />

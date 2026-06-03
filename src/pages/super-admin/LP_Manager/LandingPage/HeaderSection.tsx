@@ -25,11 +25,12 @@ type HeaderSectionProps = {
 };
 
 const PUBLIC_SITE_NAV = [
-  { to: "/", label: "Accueil" },
+  { to: "/", label: "Accueil", end: true },
+  { to: "/events", label: "Events" },
   { to: "/bibliotheque", label: "Bibliothèque" },
-  { to: "/blogs", label: "Blog" },
-  { to: "/events", label: "Événements" },
   { to: "/cartographie", label: "Cartographie" },
+  { to: "/barometre", label: "Baromètre" },
+  { to: "/opportunites", label: "Opportunités" },
 ] as const;
 
 function PublicSiteNavLinks() {
@@ -38,11 +39,11 @@ function PublicSiteNavLinks() {
       className="flex max-w-full flex-1 flex-wrap items-center justify-center gap-1 sm:gap-2 md:px-2"
       aria-label="Navigation du site"
     >
-      {PUBLIC_SITE_NAV.map(({ to, label }) => (
+      {PUBLIC_SITE_NAV.map(({ to, label, ...rest }) => (
         <NavLink
-          key={to}
+          key={`${to}-${label}`}
           to={to}
-          end={to === "/"}
+          end={"end" in rest && rest.end}
           className={({ isActive }) =>
             cn(
               "rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3",
@@ -86,7 +87,7 @@ export function HeaderSection({
     label: navLabelShort(k),
     fullLabel: k,
   }));
-  const hasNav = !suppressSectionNav && navEntries.length > 0;
+  const hasNav = !suppressSectionNav && !showPublicSiteNav && navEntries.length > 0;
 
   const [scrollHidden, setScrollHidden] = useState(false);
   const lastScrollY = useRef(0);

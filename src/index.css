@@ -87,12 +87,12 @@
     --border: 30 41% 84%;
     --input: 30 41% 84%;
     --ring: 37 93% 49%;
-    background-image: linear-gradient(
-      180deg,
-      hsl(35 44% 98%) 0%,
-      hsl(34 50% 96%) 55%,
-      hsl(36 58% 95%) 100%
-    );
+    --lp-cream: 35 44% 98%;
+    --lp-warm: 33 48% 92%;
+    --lp-white: 0 0% 100%;
+    --lp-accent: 38 85% 90%;
+    --lp-deep: 15 42% 20%;
+    background-color: hsl(var(--lp-cream));
   }
 
   .remess-landing-theme a:not([class*="bg-"]):not([class*="text-"]) {
@@ -102,10 +102,98 @@
   .remess-landing-theme a:not([class*="bg-"]):not([class*="text-"]):hover {
     color: hsl(37 93% 49%);
   }
+
+  .lp-section-bg-cream {
+    background: linear-gradient(
+      165deg,
+      hsl(35 44% 98%) 0%,
+      hsl(34 50% 96%) 50%,
+      hsl(35 48% 97%) 100%
+    );
+  }
+
+  .lp-section-bg-warm {
+    background: linear-gradient(
+      165deg,
+      hsl(33 48% 92%) 0%,
+      hsl(32 45% 89%) 55%,
+      hsl(33 46% 91%) 100%
+    );
+  }
+
+  .lp-section-bg-white {
+    background: linear-gradient(
+      180deg,
+      hsl(0 0% 100%) 0%,
+      hsl(35 30% 98%) 100%
+    );
+  }
+
+  .lp-section-bg-accent {
+    background: linear-gradient(
+      155deg,
+      hsl(38 85% 90%) 0%,
+      hsl(37 75% 88%) 45%,
+      hsl(34 52% 93%) 100%
+    );
+  }
+
+  .lp-section-bg-deep {
+    background: linear-gradient(
+      180deg,
+      hsl(15 38% 24%) 0%,
+      hsl(15 42% 20%) 100%
+    );
+  }
+
+  .lp-section-overlay-cream::before,
+  .lp-section-overlay-warm::before,
+  .lp-section-overlay-white::before,
+  .lp-section-overlay-accent::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 10% 20%, hsl(37 93% 49% / 0.1), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 90% 80%, hsl(15 76% 35% / 0.08), transparent 50%);
+  }
+
+  .lp-section-overlay-deep::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% 0%, hsl(37 93% 49% / 0.15), transparent 55%),
+      radial-gradient(ellipse 50% 35% at 85% 100%, hsl(37 80% 55% / 0.1), transparent 50%);
+  }
 }
 
 /* Baromètre cartographie: DivIcon default white box would offset Leaflet’s math vs. transparent SVG */
 .leaflet-div-icon.barometre-coop-place-icon {
   background: transparent !important;
   border: none !important;
+}
+
+.rich-text-editor .ProseMirror {
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.rich-text-content strong,
+.rich-text-content b {
+  font-weight: 600;
+}
+
+.rich-text-content em,
+.rich-text-content i {
+  font-style: italic;
 }

@@ -5,7 +5,8 @@ export type GestionFormFieldType =
   | "number"
   | "date"
   | "select"
-  | "checkbox";
+  | "checkbox"
+  | "file";
 
 export type GestionFormField = {
   id: string;

@@ -10,7 +10,15 @@ export type HeroSlideBackground =
   | { type: "solid"; color: string }
   | { type: "gradient"; from: string; to: string; angleDeg: number }
   /** Image en fond ; opacité du voile sombre (0–100) pour la lisibilité du texte */
-  | { type: "image"; url: string; overlayOpacity?: number };
+  | {
+      type: "image";
+      url: string;
+      overlayOpacity?: number;
+      /** Position verticale 0–100 (haut → bas) */
+      positionY?: number;
+      /** @deprecated ancien cadrage horizontal — migré vers positionY si absent */
+      positionX?: number;
+    };
 
 export type HeroCta = {
   label: string;
@@ -88,9 +96,13 @@ export function slideBackgroundStyle(bg: HeroSlideBackground): CSSProperties {
   }
   const url = bg.url.trim();
   const opacity = Math.min(100, Math.max(0, bg.overlayOpacity ?? 35)) / 100;
+  const positionY = Math.min(
+    100,
+    Math.max(0, bg.positionY ?? bg.positionX ?? 50),
+  );
   const base: CSSProperties = {
     backgroundSize: "cover",
-    backgroundPosition: "center",
+    backgroundPosition: `center ${positionY}%`,
     backgroundRepeat: "no-repeat",
   };
   if (!url) {
@@ -473,6 +485,102 @@ export function createDefaultNosMembresEntry(index: number): NosMembresEntry {
 export const DEFAULT_NOS_MEMBRES_CONTENT: NosMembresContent = {
   subtitle: "Découvrez quelques organisations membres du REMESS et leurs représentants.",
   entries: [],
+};
+
+/** Section « Galerie » (landing) */
+export const GALERIE_DISPLAY_MODES = ["slider", "catalogue", "collage"] as const;
+export type GalerieDisplayMode = (typeof GALERIE_DISPLAY_MODES)[number];
+
+export const GALERIE_CATALOGUES_MAX = 20;
+export const GALERIE_IMAGES_MAX = 50;
+
+export type GalerieImage = {
+  id: string;
+  imageUrl: string;
+  title: string;
+  description: string;
+};
+
+export type GalerieCatalogue = {
+  id: string;
+  name: string;
+  description: string;
+  images: GalerieImage[];
+};
+
+export type GalerieContent = {
+  subtitle: string;
+  displayMode: GalerieDisplayMode;
+  catalogues: GalerieCatalogue[];
+};
+
+function newGalerieCatalogueId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `galerie-cat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function newGalerieImageId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `galerie-img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function isGalerieDisplayMode(x: string): x is GalerieDisplayMode {
+  return (GALERIE_DISPLAY_MODES as readonly string[]).includes(x);
+}
+
+export function normalizeGalerieImages(raw: unknown[]): GalerieImage[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr.slice(0, GALERIE_IMAGES_MAX).map((item, index) => {
+    const o = (typeof item === "object" && item !== null ? item : {}) as Partial<GalerieImage>;
+    return {
+      id: typeof o.id === "string" && o.id.trim().length > 0 ? o.id.trim() : newGalerieImageId(),
+      imageUrl: typeof o.imageUrl === "string" ? o.imageUrl : "",
+      title: typeof o.title === "string" ? o.title : `Photo ${index + 1}`,
+      description: typeof o.description === "string" ? o.description : "",
+    };
+  });
+}
+
+export function normalizeGalerieCatalogues(raw: unknown[]): GalerieCatalogue[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr.slice(0, GALERIE_CATALOGUES_MAX).map((item, index) => {
+    const o = (typeof item === "object" && item !== null ? item : {}) as Partial<GalerieCatalogue>;
+    const imagesRaw = Array.isArray(o.images) ? o.images : [];
+    return {
+      id: typeof o.id === "string" && o.id.trim().length > 0 ? o.id.trim() : newGalerieCatalogueId(),
+      name: typeof o.name === "string" && o.name.trim() ? o.name : `Catalogue ${index + 1}`,
+      description: typeof o.description === "string" ? o.description : "",
+      images: normalizeGalerieImages(imagesRaw),
+    };
+  });
+}
+
+export function createDefaultGalerieImage(index: number): GalerieImage {
+  return {
+    id: newGalerieImageId(),
+    imageUrl: "",
+    title: `Photo ${index + 1}`,
+    description: "",
+  };
+}
+
+export function createDefaultGalerieCatalogue(index: number): GalerieCatalogue {
+  return {
+    id: newGalerieCatalogueId(),
+    name: `Catalogue ${index + 1}`,
+    description: "",
+    images: [],
+  };
+}
+
+export const DEFAULT_GALERIE_CONTENT: GalerieContent = {
+  subtitle: "Parcourez nos albums photos par thème ou consultez l’ensemble de la galerie.",
+  displayMode: "catalogue",
+  catalogues: [],
 };
 
 /** Section « Contacter nous » (landing) */

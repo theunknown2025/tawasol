@@ -11,15 +11,19 @@ import type { PublicationAnalysis, AnalysisPhase } from "./types";
 interface AIAnalysisPanelProps {
   phase: AnalysisPhase;
   analysis: PublicationAnalysis | null;
+  errorMessage?: string | null;
   onClose: () => void;
   onSave: (analysis: PublicationAnalysis) => void;
+  onRetry?: () => void;
 }
 
 export function AIAnalysisPanel({
   phase,
   analysis,
+  errorMessage,
   onClose,
   onSave,
+  onRetry,
 }: AIAnalysisPanelProps) {
   if (phase === "idle") return null;
 
@@ -35,7 +39,7 @@ export function AIAnalysisPanel({
           <div className="p-1.5 rounded-lg bg-primary/10">
             <Sparkles size={18} className="text-primary" />
           </div>
-          <span className="font-semibold text-sm">Analyse IA</span>
+          <span className="font-semibold text-sm">Rapport IA</span>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
           <X size={16} />
@@ -54,9 +58,9 @@ export function AIAnalysisPanel({
               />
             </div>
             <div className="text-center space-y-1">
-              <p className="font-medium text-foreground">Analyse en cours</p>
+              <p className="font-medium text-foreground">Génération du rapport</p>
               <p className="text-sm text-muted-foreground">
-                L&apos;IA analyse la publication...
+                Synthèse de la publication et des commentaires...
               </p>
             </div>
             <div className="flex gap-1.5">
@@ -71,42 +75,47 @@ export function AIAnalysisPanel({
           </div>
         )}
 
+        {phase === "error" && (
+          <div className="flex flex-col items-center justify-center py-10 gap-4 text-center animate-in fade-in duration-300">
+            <p className="font-medium text-destructive">Rapport impossible</p>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
+              {errorMessage ?? "Une erreur est survenue."}
+            </p>
+            {onRetry && (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                Réessayer
+              </Button>
+            )}
+          </div>
+        )}
+
         {phase === "complete" && analysis && (
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
-            {/* Summary */}
             <div>
-              <h4 className="font-semibold text-sm mb-1.5">Résumé global</h4>
+              <h4 className="font-semibold text-sm mb-1.5">Vue d&apos;ensemble</h4>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {analysis.summary}
               </p>
             </div>
 
-            {/* Sentiment */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Ton :</span>
-              <span
-                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  analysis.sentiment === "positive"
-                    ? "bg-green-500/20 text-green-700 dark:text-green-400"
-                    : analysis.sentiment === "negative"
-                      ? "bg-red-500/20 text-red-700 dark:text-red-400"
-                      : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {analysis.sentiment === "positive"
-                  ? "Positif"
-                  : analysis.sentiment === "negative"
-                    ? "Négatif"
-                    : "Neutre"}{" "}
-                ({(analysis.sentimentScore * 100).toFixed(0)}%)
-              </span>
+            <div>
+              <h4 className="font-semibold text-sm mb-1.5">Publication</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {analysis.postReport}
+              </p>
             </div>
 
-            {/* Engagement chart */}
+            <div>
+              <h4 className="font-semibold text-sm mb-1.5">Commentaires</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {analysis.commentsSummary}
+              </p>
+            </div>
+
             <div>
               <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
                 <BarChart3 size={16} />
-                Engagement
+                Statistiques
               </h4>
               <ChartContainer config={chartConfig} className="h-[140px] w-full">
                 <BarChart data={analysis.metrics} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -123,37 +132,10 @@ export function AIAnalysisPanel({
                 </BarChart>
               </ChartContainer>
             </div>
-
-            {/* Detailed report */}
-            <div>
-              <h4 className="font-semibold text-sm mb-1.5">Rapport détaillé</h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {analysis.detailedReport}
-              </p>
-            </div>
-
-            {/* Recommendations */}
-            {analysis.recommendations.length > 0 && (
-              <div>
-                <h4 className="font-semibold text-sm mb-1.5">Recommandations</h4>
-                <ul className="space-y-1.5">
-                  {analysis.recommendations.map((rec, i) => (
-                    <li
-                      key={i}
-                      className="text-sm text-muted-foreground flex gap-2"
-                    >
-                      <span className="text-primary">•</span>
-                      {rec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* Save button - only when complete */}
       {phase === "complete" && analysis && (
         <div className="p-4 border-t border-border">
           <Button
@@ -161,7 +143,7 @@ export function AIAnalysisPanel({
             onClick={() => onSave(analysis)}
           >
             <Save size={16} />
-            Enregistrer l&apos;analyse
+            Enregistrer le rapport
           </Button>
         </div>
       )}

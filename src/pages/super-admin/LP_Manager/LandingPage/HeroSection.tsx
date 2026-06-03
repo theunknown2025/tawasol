@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import HeroLatestPublicationsSlider from "@/components/landing/HeroLatestPublicationsSlider";
 import type { HeroSectionContent } from "../types";
 import { slideBackgroundStyle } from "../types";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ export function HeroSection({ content, className }: HeroSectionProps) {
   const { slides, settings } = content;
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [publicationsVisible, setPublicationsVisible] = useState(false);
 
   const n = slides.length;
   const safeIndex = n > 0 ? Math.min(index, n - 1) : 0;
@@ -117,9 +119,17 @@ export function HeroSection({ content, className }: HeroSectionProps) {
         );
       })}
 
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[clamp(3rem,8vw,6rem)] bg-gradient-to-t from-[#5f2314]/50 via-[#5f2314]/20 to-transparent"
+        aria-hidden
+      />
+
       {n > 1 && (
         <div
-          className="pointer-events-none absolute bottom-6 left-0 right-0 z-10 flex justify-center gap-1.5"
+          className={cn(
+            "pointer-events-none absolute left-0 right-0 z-10 flex justify-center gap-1.5",
+            publicationsVisible ? "bottom-[14.5rem]" : "bottom-6",
+          )}
           aria-hidden
         >
           {slides.map((s, i) => (
@@ -154,6 +164,8 @@ export function HeroSection({ content, className }: HeroSectionProps) {
           </button>
         </>
       )}
+
+      <HeroLatestPublicationsSlider onVisibilityChange={setPublicationsVisible} />
     </section>
   );
 }

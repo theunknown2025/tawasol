@@ -39,6 +39,7 @@ const fieldTypeLabels: Record<GestionFormFieldType, string> = {
   date: "Date",
   select: "Liste deroulante",
   checkbox: "Case a cocher",
+  file: "Fichier / document",
 };
 
 export default function NouvelleFormulaireTab({

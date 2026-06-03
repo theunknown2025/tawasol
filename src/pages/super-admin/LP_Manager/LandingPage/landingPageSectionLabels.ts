@@ -10,6 +10,8 @@ export const LANDING_PAGE_SECTION_LABELS = [
   "Nos membres",
   "Nos partenaires",
   "Nos événements",
+  "Opportunités",
+  "Galerie",
   "Bibliothèque",
   "Blog",
   "Contacter nous",

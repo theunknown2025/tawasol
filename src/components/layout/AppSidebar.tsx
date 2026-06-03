@@ -23,6 +23,10 @@ import {
   FileSpreadsheet,
   Mail,
   Phone,
+  Briefcase,
+  LayoutDashboard,
+  PlusCircle,
+  Wrench,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLES, ROLE_LABELS } from "@/lib/supabase";
@@ -46,6 +50,20 @@ const adminProjetsSubBase: ProjetSubItem[] = [
   { label: "PMO", icon: ListChecks, path: "/admin/projets/pmo" },
 ];
 
+const murSubItems = [
+  { label: "Mur", icon: LayoutGrid, path: "/admin/mur" },
+  { label: "Publications", icon: FileText, path: "/admin/publications" },
+];
+
+const outilsSubItems = [
+  { label: "Gestion Form", icon: FileSpreadsheet, path: "/admin/gestion-form" },
+  { label: "Assistant IA", icon: Bot, path: "/admin/assistant-ia" },
+  { label: "Media Manager", icon: Image, path: "/admin/media-manager" },
+];
+
+const MUR_PATH_PREFIXES = ["/admin/mur", "/admin/publications"];
+const OUTILS_PATH_PREFIXES = ["/admin/gestion-form", "/admin/assistant-ia", "/admin/media-manager"];
+
 const adminBottomNavBeforeMessagerie = [
   { label: "Publications", icon: FileText, path: "/admin/publications" },
   { label: "Événements", icon: CalendarDays, path: "/admin/evenements" },
@@ -62,11 +80,15 @@ const messagerieSubItems = [
   { label: "WhatsApp (WAHA)", icon: Phone, path: "/admin/whatsapp-waha" },
 ];
 
+const opportunitesSubItems = [
+  { label: "Tableau de bord", icon: LayoutDashboard, path: "/admin/opportunites/dashboard" },
+  { label: "Nouvelle Opportunité", icon: PlusCircle, path: "/admin/opportunites/nouvelle" },
+  { label: "Suivi Candidatures", icon: ClipboardList, path: "/admin/opportunites/suivi" },
+];
+
 // Super Admin only
 const superAdminNav = [
   { label: "Gestion des membres", icon: UserCog, path: "/admin/membres" },
-  { label: "Assistant IA", icon: Bot, path: "/admin/assistant-ia" },
-  { label: "Media Manager", icon: Image, path: "/admin/media-manager" },
 ];
 
 // Member nav
@@ -77,9 +99,6 @@ const memberNav = [
 ];
 
 export default function AppSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
-  const [projetsOpen, setProjetsOpen] = useState(true);
-  const [messagerieOpen, setMessagerieOpen] = useState(true);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { profile, signOut } = useAuth();
@@ -88,6 +107,28 @@ export default function AppSidebar() {
   const isMember = pathname.startsWith("/member");
   const role = profile?.role;
   const isSuperAdmin = role === ROLES.SUPER_ADMIN;
+
+  const isMurSectionActive = MUR_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+  const isOutilsSectionActive = OUTILS_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+
+  const [collapsed, setCollapsed] = useState(false);
+  const [projetsOpen, setProjetsOpen] = useState(true);
+  const [murOpen, setMurOpen] = useState(true);
+  const [outilsOpen, setOutilsOpen] = useState(true);
+  const [messagerieOpen, setMessagerieOpen] = useState(true);
+  const [opportunitesOpen, setOpportunitesOpen] = useState(true);
+
+  const adminMainNavItems = isSuperAdmin
+    ? adminMainNav.filter((item) => item.path !== "/admin/mur")
+    : adminMainNav;
+
+  const bottomNavBeforeMessagerie = isSuperAdmin
+    ? adminBottomNavBeforeMessagerie.filter((item) => item.path !== "/admin/publications")
+    : adminBottomNavBeforeMessagerie;
+
+  const bottomNavAfterMessagerie = isSuperAdmin
+    ? adminBottomNavAfterMessagerie.filter((item) => item.path !== "/admin/gestion-form")
+    : adminBottomNavAfterMessagerie;
 
   const linkClass = (isActive: boolean) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -143,12 +184,76 @@ export default function AppSidebar() {
         {/* Admin nav (admin + super_admin) */}
         {(isAdmin || (!isAdmin && !isMember)) && (
           <>
-            {adminMainNav.map((item) => (
+            {adminMainNavItems.map((item) => (
               <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
                 <item.icon size={20} className="shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
               </NavLink>
             ))}
+
+            {isSuperAdmin && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMurOpen(!murOpen)}
+                  className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isMurSectionActive
+                      ? "bg-[hsl(var(--sidebar-active))] text-[hsl(var(--sidebar-active-fg))] shadow-md shadow-[hsl(var(--sidebar-active)/0.25)]"
+                      : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))]"
+                  }`}
+                >
+                  <LayoutGrid size={20} className="shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">MUR</span>
+                      {murOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </>
+                  )}
+                </button>
+                {murOpen && !collapsed && (
+                  <div className="ml-4 pl-3 border-l border-[hsl(var(--sidebar-border))] space-y-1 mt-1">
+                    {murSubItems.map((item) => (
+                      <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
+                        <item.icon size={18} className="shrink-0" />
+                        <span className="text-sm">{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isSuperAdmin && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOutilsOpen(!outilsOpen)}
+                  className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isOutilsSectionActive
+                      ? "bg-[hsl(var(--sidebar-active))] text-[hsl(var(--sidebar-active-fg))] shadow-md shadow-[hsl(var(--sidebar-active)/0.25)]"
+                      : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))]"
+                  }`}
+                >
+                  <Wrench size={20} className="shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">Outils</span>
+                      {outilsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </>
+                  )}
+                </button>
+                {outilsOpen && !collapsed && (
+                  <div className="ml-4 pl-3 border-l border-[hsl(var(--sidebar-border))] space-y-1 mt-1">
+                    {outilsSubItems.map((item) => (
+                      <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
+                        <item.icon size={18} className="shrink-0" />
+                        <span className="text-sm">{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="pt-2">
               <button
@@ -176,7 +281,7 @@ export default function AppSidebar() {
             </div>
 
             <div className="pt-2 space-y-1">
-              {adminBottomNavBeforeMessagerie.map((item) => (
+              {bottomNavBeforeMessagerie.map((item) => (
                 <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
                   <item.icon size={20} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
@@ -220,7 +325,7 @@ export default function AppSidebar() {
                   {!collapsed && <span>Messagerie</span>}
                 </NavLink>
               )}
-              {adminBottomNavAfterMessagerie.map((item) => (
+              {bottomNavAfterMessagerie.map((item) => (
                 <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
                   <item.icon size={20} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
@@ -232,6 +337,35 @@ export default function AppSidebar() {
                     <Users size={20} className="shrink-0" />
                     {!collapsed && <span>Utilisateurs</span>}
                   </NavLink>
+                  <div className="pt-0">
+                    <button
+                      type="button"
+                      onClick={() => setOpportunitesOpen(!opportunitesOpen)}
+                      className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all duration-200 ${
+                        pathname.startsWith("/admin/opportunites")
+                          ? "bg-[hsl(var(--sidebar-active))] text-[hsl(var(--sidebar-active-fg))] shadow-md shadow-[hsl(var(--sidebar-active)/0.25)]"
+                          : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))]"
+                      }`}
+                    >
+                      <Briefcase size={20} className="shrink-0" />
+                      {!collapsed && (
+                        <>
+                          <span className="flex-1 text-left">Opportunités Manager</span>
+                          {opportunitesOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </>
+                      )}
+                    </button>
+                    {opportunitesOpen && !collapsed && (
+                      <div className="ml-4 pl-3 border-l border-[hsl(var(--sidebar-border))] space-y-1 mt-1">
+                        {opportunitesSubItems.map((item) => (
+                          <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
+                            <item.icon size={18} className="shrink-0" />
+                            <span className="text-sm">{item.label}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   {superAdminNav.map((item) => (
                     <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive)}>
                       <item.icon size={20} className="shrink-0" />
