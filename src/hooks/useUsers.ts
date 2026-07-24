@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { createUser, type CreateUserPayload } from "@/lib/usersApi";
+import { createUser, deleteUser, type CreateUserPayload } from "@/lib/usersApi";
+import { adminSetProfileActive } from "@/lib/adminProfileApi";
 import type { Profile, UserRole } from "@/lib/supabase";
 
 async function listAllProfiles(): Promise<Profile[]> {
@@ -32,6 +33,18 @@ async function adminUpdateProfile(input: {
   });
   if (error) throw error;
   return (data ?? {}) as Profile;
+}
+
+/** Returns true if a profile with this email already exists. */
+export async function checkUserEmailExists(email: string): Promise<boolean> {
+  const normalized = email.trim();
+  if (!normalized) return false;
+  const { count, error } = await supabase
+    .from("profiles")
+    .select("user_id", { count: "exact", head: true })
+    .ilike("email", normalized);
+  if (error) throw error;
+  return (count ?? 0) > 0;
 }
 
 export function useUsers() {
@@ -72,6 +85,33 @@ export function useUsers() {
     },
   });
 
+  const suspendUserMutation = useMutation({
+    mutationFn: async ({ user_id, is_active }: { user_id: string; is_active: boolean }) => {
+      return adminSetProfileActive(user_id, is_active);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profiles", "all"] });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !session?.access_token) {
+        throw new Error("Non connecté");
+      }
+      const { data, error } = await deleteUser(session.access_token, userId);
+      if (error) throw new Error(error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profiles", "all"] });
+    },
+  });
+
   return {
     profiles,
     loading: isLoading,
@@ -83,5 +123,10 @@ export function useUsers() {
     updateUser: updateUserMutation.mutateAsync,
     updateUserLoading: updateUserMutation.isPending,
     updateUserError: updateUserMutation.error instanceof Error ? updateUserMutation.error.message : null,
+    suspendUser: suspendUserMutation.mutateAsync,
+    suspendUserLoading: suspendUserMutation.isPending,
+    deleteUser: deleteUserMutation.mutateAsync,
+    deleteUserLoading: deleteUserMutation.isPending,
+    checkUserEmailExists,
   };
 }

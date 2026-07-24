@@ -25,8 +25,10 @@ const INITIAL_FORM = {
 };
 
 export function CreerUtilisateurTab() {
-  const { createUser, createUserLoading, createUserError, refetch } = useUsers();
+  const { createUser, createUserLoading, createUserError, refetch, checkUserEmailExists } =
+    useUsers();
   const [form, setForm] = useState(INITIAL_FORM);
+  const [checkingEmail, setCheckingEmail] = useState(false);
 
   const resetForm = () => {
     setForm(INITIAL_FORM);
@@ -46,6 +48,23 @@ export function CreerUtilisateurTab() {
       toast.error("Sélectionnez un rôle");
       return;
     }
+
+    setCheckingEmail(true);
+    try {
+      const exists = await checkUserEmailExists(form.email);
+      if (exists) {
+        toast.error("Un utilisateur avec cet email existe déjà");
+        return;
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Impossible de vérifier l'email"
+      );
+      return;
+    } finally {
+      setCheckingEmail(false);
+    }
+
     try {
       await createUser({
         email: form.email,
@@ -152,8 +171,12 @@ export function CreerUtilisateurTab() {
             />
           </div>
           <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" disabled={createUserLoading}>
-              {createUserLoading ? "Création..." : "Créer l'utilisateur"}
+            <Button type="submit" disabled={createUserLoading || checkingEmail}>
+              {checkingEmail
+                ? "Vérification email..."
+                : createUserLoading
+                  ? "Création..."
+                  : "Créer l'utilisateur"}
             </Button>
             <Button type="button" variant="outline" onClick={resetForm}>
               Réinitialiser

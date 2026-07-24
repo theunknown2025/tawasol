@@ -1,6 +1,6 @@
 /**
  * Notifications publication → Email (Brevo) + WhatsApp (WAHA), même webhook DB.
- * Tests : { test_brevo: true } | { test_waha: true } — JWT super_admin.
+ * Tests : { test_brevo: true } | { test_waha: true } | { list_waha_groups: true } — JWT super_admin.
  *
  * Secrets : BREVO_* , WAHA_BASE_URL, WAHA_SESSION, WAHA_API_KEY, PUBLIC_SITE_URL,
  *           WEBHOOK_SECRET | WHATSAPP_WEBHOOK_SECRET (optionnel)
@@ -97,6 +97,23 @@ function isTestBrevo(raw: unknown): raw is { test_brevo: true } {
 function isTestWaha(raw: unknown): raw is { test_waha: true } {
   return typeof raw === "object" && raw !== null && "test_waha" in raw &&
     (raw as { test_waha?: unknown }).test_waha === true;
+}
+
+function isListWahaGroups(raw: unknown): raw is { list_waha_groups: true } {
+  return typeof raw === "object" && raw !== null && "list_waha_groups" in raw &&
+    (raw as { list_waha_groups?: unknown }).list_waha_groups === true;
+}
+
+async function wahaFetch(
+  baseUrl: string,
+  apiKey: string | undefined,
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const url = `${baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+  const headers = new Headers(init?.headers);
+  if (apiKey) headers.set("X-Api-Key", apiKey);
+  return await fetch(url, { ...init, headers });
 }
 
 async function requireSuperAdmin(req: Request): Promise<
@@ -204,6 +221,78 @@ async function handleTestBrevo(req: Request): Promise<Response> {
         }
         : undefined,
     }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
+
+async function handleListWahaGroups(req: Request): Promise<Response> {
+  const gate = await requireSuperAdmin(req);
+  if (!gate.ok) return gate.response;
+
+  const wahaBase = optionalEnv("WAHA_BASE_URL");
+  if (!wahaBase) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "WAHA_BASE_URL manquant dans les secrets Edge Function." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const session = optionalEnv("WAHA_SESSION") ?? "default";
+  const apiKey = optionalEnv("WAHA_API_KEY");
+
+  let res = await wahaFetch(wahaBase, apiKey, `/api/${encodeURIComponent(session)}/groups`, {
+    method: "GET",
+  });
+  if (!res.ok) {
+    res = await wahaFetch(
+      wahaBase,
+      apiKey,
+      `/api/groups?session=${encodeURIComponent(session)}`,
+      { method: "GET" },
+    );
+  }
+  const bodyText = await res.text();
+  if (!res.ok) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        mode: "list_waha_groups",
+        error: `WAHA ${res.status}`,
+        detail: bodyText.slice(0, 800),
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    return new Response(
+      JSON.stringify({ ok: false, mode: "list_waha_groups", error: "Réponse WAHA invalide (JSON)" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const rawList = Array.isArray(parsed)
+    ? parsed
+    : typeof parsed === "object" && parsed !== null && Array.isArray((parsed as { groups?: unknown }).groups)
+    ? (parsed as { groups: unknown[] }).groups
+    : [];
+
+  const groups = rawList
+    .map((g) => {
+      if (typeof g !== "object" || g === null) return null;
+      const row = g as Record<string, unknown>;
+      const id = String(row.id ?? row.jid ?? row.chatId ?? "").trim();
+      if (!id) return null;
+      const name = String(row.name ?? row.subject ?? row.title ?? "").trim() || undefined;
+      return { id, name };
+    })
+    .filter((g): g is { id: string; name?: string } => g !== null);
+
+  return new Response(
+    JSON.stringify({ ok: true, mode: "list_waha_groups", groups }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 }
@@ -327,6 +416,9 @@ Deno.serve(async (req) => {
     }
     if (isTestWaha(rawBody)) {
       return await handleTestWaha(req);
+    }
+    if (isListWahaGroups(rawBody)) {
+      return await handleListWahaGroups(req);
     }
 
     const webhookSecret = optionalEnv("WEBHOOK_SECRET") ?? optionalEnv("WHATSAPP_WEBHOOK_SECRET");

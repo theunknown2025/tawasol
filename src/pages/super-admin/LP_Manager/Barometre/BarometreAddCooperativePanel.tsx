@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -28,13 +27,28 @@ import {
   insertBarometreCooperative,
   updateBarometreCooperative,
   uploadBarometreCooperativeImage,
+  MAX_COOP_PHONES,
   type BarometreCooperative,
   type CooperativeLink,
   type PresidentGenre,
 } from "./barometreCooperativesApi";
 import { useBarometreActivities } from "./useBarometreActivities";
+import { getActivityMarkerStyle } from "./barometreActivityIcons";
+import {
+  isValidMoroccoPhone,
+  MOROCCO_PHONE_ERROR,
+  MOROCCO_PHONE_HINT,
+  sanitizeMoroccoPhoneInput,
+} from "./barometrePhone";
+import { normalizeCooperativeLatLng, parseCoordValue } from "./barometreCoords";
 
 const OTHER_VALUE = "__autre__";
+
+export type CoopFormMapPreview = {
+  lat: number;
+  lng: number;
+  activite: string;
+};
 
 type Props = {
   onSaved: () => void;
@@ -51,7 +65,15 @@ type Props = {
   editCooperative?: BarometreCooperative | null;
   editId?: string | null;
   onCancelEdit?: () => void;
+  /** Aperçu live du pin sur la carte (X/Y). */
+  onMapPreviewChange?: (preview: CoopFormMapPreview | null) => void;
 };
+
+function parseOptionalCoord(raw: string): number | null {
+  const n = parseCoordValue(raw);
+  if (n == null && raw.trim()) return Number.NaN;
+  return n;
+}
 
 export default function BarometreAddCooperativePanel({
   onSaved,
@@ -67,6 +89,7 @@ export default function BarometreAddCooperativePanel({
   editCooperative = null,
   editId = null,
   onCancelEdit,
+  onMapPreviewChange,
 }: Props) {
   const isEdit = mode === "edit" && Boolean(editId && editCooperative);
   const editHydratedRef = useRef<string | null>(null);
@@ -77,9 +100,11 @@ export default function BarometreAddCooperativePanel({
   const [coopCommuneOpen, setCoopCommuneOpen] = useState(false);
 
   const [nom, setNom] = useState("");
-  const [tel, setTel] = useState("");
+  const [phones, setPhones] = useState<string[]>([""]);
   const [email, setEmail] = useState("");
   const [adresseDetail, setAdresseDetail] = useState("");
+  const [coordX, setCoordX] = useState("");
+  const [coordY, setCoordY] = useState("");
   const [activiteKey, setActiviteKey] = useState<string>("");
   const [activiteAutre, setActiviteAutre] = useState("");
   const [description, setDescription] = useState("");
@@ -88,11 +113,39 @@ export default function BarometreAddCooperativePanel({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageInputKey, setImageInputKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const [isPublished, setIsPublished] = useState(true);
   const [presidentGenre, setPresidentGenre] = useState<PresidentGenre | "">("");
   const [presidentNom, setPresidentNom] = useState("");
   const [presidentEmail, setPresidentEmail] = useState("");
   const [presidentTel, setPresidentTel] = useState("");
+
+  const resolvedActivite =
+    activiteKey === OTHER_VALUE ? activiteAutre.trim() : activiteKey;
+
+  useEffect(() => {
+    if (!onMapPreviewChange) return;
+    const lngRaw = parseCoordValue(coordX);
+    const latRaw = parseCoordValue(coordY);
+    if (lngRaw == null || latRaw == null) {
+      onMapPreviewChange(null);
+      return;
+    }
+    const normalized = normalizeCooperativeLatLng(latRaw, lngRaw);
+    if (!normalized) {
+      onMapPreviewChange(null);
+      return;
+    }
+    onMapPreviewChange({
+      lat: normalized.latitude,
+      lng: normalized.longitude,
+      activite: resolvedActivite || "Autre",
+    });
+  }, [coordX, coordY, resolvedActivite, onMapPreviewChange]);
+
+  useEffect(() => {
+    return () => {
+      onMapPreviewChange?.(null);
+    };
+  }, [onMapPreviewChange]);
 
   useEffect(() => {
     if (!imageFile) {
@@ -114,7 +167,15 @@ export default function BarometreAddCooperativePanel({
     editHydratedRef.current = editId;
 
     setNom(editCooperative.nom);
-    setTel(editCooperative.tel);
+    const loadedPhones =
+      editCooperative.phones.length > 0
+        ? editCooperative.phones
+        : editCooperative.tel
+          ? [editCooperative.tel]
+          : [""];
+    setPhones(
+      (loadedPhones.length > 0 ? loadedPhones : [""]).map((p) => sanitizeMoroccoPhoneInput(p) || p),
+    );
     setEmail(editCooperative.email);
     const raw = (editCooperative.adresse ?? "").trim();
     const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -123,6 +184,17 @@ export default function BarometreAddCooperativePanel({
     } else {
       setAdresseDetail(raw);
     }
+
+    setCoordX(
+      editCooperative.longitude != null && Number.isFinite(editCooperative.longitude)
+        ? String(editCooperative.longitude)
+        : "",
+    );
+    setCoordY(
+      editCooperative.latitude != null && Number.isFinite(editCooperative.latitude)
+        ? String(editCooperative.latitude)
+        : "",
+    );
 
     const act = editCooperative.activite.trim();
     if (act && activities.includes(act)) {
@@ -140,36 +212,36 @@ export default function BarometreAddCooperativePanel({
     setLinks(editCooperative.links.length > 0 ? editCooperative.links : [{ url: "", label: "" }]);
     setImageFile(null);
     setImageInputKey((k) => k + 1);
-    setIsPublished(editCooperative.isPublished);
     const g = editCooperative.presidentGenre;
     setPresidentGenre(g === "male" || g === "female" ? g : "");
     setPresidentNom(editCooperative.presidentNomComplet);
     setPresidentEmail(editCooperative.presidentEmail);
-    setPresidentTel(editCooperative.presidentTel);
+    setPresidentTel(sanitizeMoroccoPhoneInput(editCooperative.presidentTel) || editCooperative.presidentTel);
   }, [isEdit, editCooperative, editId, activities, activitiesLoading]);
 
   const reset = useCallback(() => {
     setNom("");
-    setTel("");
+    setPhones([""]);
     setEmail("");
     setAdresseDetail("");
+    setCoordX("");
+    setCoordY("");
     setActiviteKey("");
     setActiviteAutre("");
     setDescription("");
     setLinks([{ url: "", label: "" }]);
     setImageFile(null);
     setImageInputKey((k) => k + 1);
-    setIsPublished(true);
     setPresidentGenre("");
     setPresidentNom("");
     setPresidentEmail("");
     setPresidentTel("");
     onCoopProvinceChange(null);
     onCoopCommuneChange(null);
-  }, [onCoopCommuneChange, onCoopProvinceChange]);
+    onMapPreviewChange?.(null);
+  }, [onCoopCommuneChange, onCoopProvinceChange, onMapPreviewChange]);
 
-  const resolvedActivite =
-    activiteKey === OTHER_VALUE ? activiteAutre.trim() : activiteKey;
+  const markerPreview = getActivityMarkerStyle(resolvedActivite || "Autre");
 
   const onImageChange = (file: File | null) => {
     if (!file) {
@@ -183,8 +255,7 @@ export default function BarometreAddCooperativePanel({
     setImageFile(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveWithPublish = async (publish: boolean) => {
     const nameTrim = nom.trim();
     if (!nameTrim) {
       toast.error("Le nom est obligatoire.");
@@ -198,18 +269,68 @@ export default function BarometreAddCooperativePanel({
       toast.error("Précisez l'activité pour « Autre ».");
       return;
     }
-    if (!coopProvinceId) {
-      toast.error("Sélectionnez une province pour l'adresse.");
+
+    const lngRaw = parseOptionalCoord(coordX);
+    const latRaw = parseOptionalCoord(coordY);
+    if (Number.isNaN(lngRaw) || Number.isNaN(latRaw)) {
+      toast.error("Coordonnées X/Y invalides. Ex. X (longitude): -8.03 · Y (latitude): 31.51");
       return;
     }
-    if (!coopCommuneId) {
-      toast.error("Sélectionnez une commune pour l'adresse.");
+    if ((lngRaw == null) !== (latRaw == null)) {
+      toast.error("Renseignez X et Y ensemble, ou laissez les deux vides.");
       return;
+    }
+
+    let lng = lngRaw;
+    let lat = latRaw;
+    if (latRaw != null && lngRaw != null) {
+      const normalized = normalizeCooperativeLatLng(latRaw, lngRaw);
+      if (!normalized) {
+        toast.error(
+          "Coordonnées hors WGS84. Latitude entre -90 et 90, longitude entre -180 et 180 (Maroc : Y≈21–36, X≈-17–-1).",
+        );
+        return;
+      }
+      lat = normalized.latitude;
+      lng = normalized.longitude;
+      if (normalized.swapped) {
+        toast.info("X/Y semblaient inversés : latitude/longitude ont été corrigées automatiquement.");
+        setCoordX(String(lng));
+        setCoordY(String(lat));
+      }
+    }
+
+    const hasCoords = lat != null && lng != null;
+    if (!hasCoords) {
+      if (!coopProvinceId) {
+        toast.error("Sans X/Y : sélectionnez une province, ou renseignez les coordonnées.");
+        return;
+      }
+      if (!coopCommuneId) {
+        toast.error("Sans X/Y : sélectionnez une commune, ou renseignez les coordonnées.");
+        return;
+      }
+    }
+
+    const phonesOut = phones.map((p) => sanitizeMoroccoPhoneInput(p)).filter(Boolean);
+    if (phonesOut.length > MAX_COOP_PHONES) {
+      toast.error(`Maximum ${MAX_COOP_PHONES} numéros de téléphone.`);
+      return;
+    }
+    for (let i = 0; i < phonesOut.length; i++) {
+      if (!isValidMoroccoPhone(phonesOut[i]!)) {
+        toast.error(
+          phonesOut.length > 1
+            ? `Téléphone ${i + 1} : ${MOROCCO_PHONE_ERROR}`
+            : MOROCCO_PHONE_ERROR,
+        );
+        return;
+      }
     }
 
     const presNom = presidentNom.trim();
     const presEmail = presidentEmail.trim();
-    const presTel = presidentTel.trim();
+    const presTel = sanitizeMoroccoPhoneInput(presidentTel);
     const hasAnyPresident = Boolean(presidentGenre || presNom || presEmail || presTel);
     if (hasAnyPresident) {
       if (presidentGenre !== "male" && presidentGenre !== "female") {
@@ -222,6 +343,10 @@ export default function BarometreAddCooperativePanel({
       }
       if (!presEmail) {
         toast.error("Email du ou de la président(e) requis.");
+        return;
+      }
+      if (presTel && !isValidMoroccoPhone(presTel)) {
+        toast.error(`Tél. président(e) : ${MOROCCO_PHONE_ERROR}`);
         return;
       }
     }
@@ -245,7 +370,7 @@ export default function BarometreAddCooperativePanel({
 
       const payload = {
         nom: nameTrim,
-        tel: tel.trim(),
+        phones: phonesOut,
         email: email.trim(),
         adresse: adresseComposed,
         activite: resolvedActivite,
@@ -256,7 +381,9 @@ export default function BarometreAddCooperativePanel({
         communeId: coopCommuneId,
         provinceName: coopProvinceLabel,
         communeName: coopCommuneLabel,
-        isPublished,
+        longitude: lng,
+        latitude: lat,
+        isPublished: publish,
         presidentGenre: hasAnyPresident ? (presidentGenre as PresidentGenre) : null,
         presidentNomComplet: hasAnyPresident ? presNom : null,
         presidentEmail: hasAnyPresident ? presEmail : null,
@@ -265,10 +392,10 @@ export default function BarometreAddCooperativePanel({
 
       if (isEdit && editId) {
         await updateBarometreCooperative(editId, payload);
-        toast.success("Coopérative mise à jour.");
+        toast.success(publish ? "Coopérative publiée." : "Brouillon enregistré.");
       } else {
         await insertBarometreCooperative(payload);
-        toast.success("Coopérative enregistrée.");
+        toast.success(publish ? "Coopérative publiée sur la carte." : "Brouillon enregistré.");
         reset();
       }
       onSaved();
@@ -280,14 +407,19 @@ export default function BarometreAddCooperativePanel({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+      }}
+      className="flex flex-col gap-4"
+    >
       <div>
         <h2 className="text-sm font-semibold text-foreground">
           {isEdit ? "Modifier la coopérative" : "Ajouter une coopérative"}
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Carte publique : seules les fiches « visibles » sont lisibles sans compte (RLS). Images : bucket{" "}
-          <code className="rounded bg-muted px-1 text-[10px]">barometre_cooperative_images</code>.
+          Enregistrez en brouillon ou publiez directement sur la carte publique. Le symbole sur la carte
+          suit l&apos;activité choisie.
         </p>
       </div>
 
@@ -303,26 +435,55 @@ export default function BarometreAddCooperativePanel({
             Coopérative
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pb-4">
-            <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/20 px-3 py-2">
-              <div className="space-y-0.5">
-                <Label htmlFor="coop-published" className="text-xs font-medium">
-                  Visible sur la carte publique
-                </Label>
-                <p className="text-[10px] text-muted-foreground">
-                  Désactiver pour masquer la fiche aux visiteurs (données toujours visibles ici).
-                </p>
-              </div>
-              <Switch id="coop-published" checked={isPublished} onCheckedChange={setIsPublished} />
-            </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="coop-nom">Nom</Label>
               <Input id="coop-nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom de la coopérative" />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="coop-tel">Tél</Label>
-              <Input id="coop-tel" value={tel} onChange={(e) => setTel(e.target.value)} placeholder="+212 …" inputMode="tel" />
+            <div className="space-y-2">
+              <Label>Téléphones (max {MAX_COOP_PHONES})</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Format : {MOROCCO_PHONE_HINT}
+              </p>
+              {phones.map((phone, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    value={phone}
+                    onChange={(e) => {
+                      const next = [...phones];
+                      next[index] = sanitizeMoroccoPhoneInput(e.target.value);
+                      setPhones(next);
+                    }}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    maxLength={13}
+                  />
+                  {phones.length > 1 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-destructive"
+                      onClick={() => setPhones(phones.filter((_, i) => i !== index))}
+                      aria-label="Supprimer ce numéro"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+              {phones.length < MAX_COOP_PHONES ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => setPhones([...phones, ""])}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ajouter un numéro
+                </Button>
+              ) : null}
             </div>
 
             <div className="space-y-1.5">
@@ -338,10 +499,56 @@ export default function BarometreAddCooperativePanel({
 
             <div className="space-y-3 rounded-md border border-border bg-muted/10 p-3">
               <Label className="text-foreground">Adresse</Label>
-              <p className="text-xs text-muted-foreground">Repère sur la carte selon la commune choisie.</p>
+              <p className="text-xs text-muted-foreground">
+                Indiquez <span className="font-medium text-foreground">X et Y</span>, ou bien province +
+                commune. Avec X/Y, province et commune sont facultatifs — le pin apparaît en direct sur la
+                carte.
+              </p>
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Position (X / Y)</p>
+                <p className="text-[11px] text-muted-foreground">
+                  X = longitude (ouest, négatif au Maroc) · Y = latitude (nord). Ex. X -8.03 · Y 31.51
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="coop-coord-x" className="text-[10px] text-muted-foreground">
+                      X — longitude
+                    </Label>
+                    <Input
+                      id="coop-coord-x"
+                      value={coordX}
+                      onChange={(e) => setCoordX(e.target.value)}
+                      inputMode="decimal"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="coop-coord-y" className="text-[10px] text-muted-foreground">
+                      Y — latitude
+                    </Label>
+                    <Input
+                      id="coop-coord-y"
+                      value={coordY}
+                      onChange={(e) => setCoordY(e.target.value)}
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+                {parseCoordValue(coordX) != null &&
+                parseCoordValue(coordY) != null &&
+                normalizeCooperativeLatLng(parseCoordValue(coordY)!, parseCoordValue(coordX)!) ? (
+                  <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                    Pin affiché sur la carte
+                  </p>
+                ) : coordX.trim() || coordY.trim() ? (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                    Saisissez X et Y valides pour afficher le pin
+                  </p>
+                ) : null}
+              </div>
 
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground">Province</p>
+                <p className="text-xs font-medium text-muted-foreground">Province (optionnel avec X/Y)</p>
                 <Popover open={coopProvinceOpen} onOpenChange={setCoopProvinceOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -394,7 +601,7 @@ export default function BarometreAddCooperativePanel({
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground">Commune</p>
+                <p className="text-xs font-medium text-muted-foreground">Commune (optionnel avec X/Y)</p>
                 <Popover open={coopCommuneOpen} onOpenChange={setCoopCommuneOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -488,6 +695,18 @@ export default function BarometreAddCooperativePanel({
                   placeholder="Précisez l'activité"
                 />
               )}
+              {activiteKey ? (
+                <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5">
+                  <span
+                    className="inline-block h-3 w-3 shrink-0 rounded-full border border-white shadow-sm"
+                    style={{ backgroundColor: markerPreview.pinFill }}
+                    aria-hidden
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Symbole carte : couleur / icône « {markerPreview.label} »
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-1.5">
@@ -623,23 +842,39 @@ export default function BarometreAddCooperativePanel({
               <Input
                 id="pres-tel"
                 value={presidentTel}
-                onChange={(e) => setPresidentTel(e.target.value)}
-                placeholder="+212 …"
+                onChange={(e) => setPresidentTel(sanitizeMoroccoPhoneInput(e.target.value))}
                 inputMode="tel"
+                autoComplete="tel"
+                maxLength={13}
               />
+              <p className="text-[11px] text-muted-foreground">Format : {MOROCCO_PHONE_HINT}</p>
             </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
         {isEdit && onCancelEdit ? (
           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onCancelEdit}>
             Annuler
           </Button>
         ) : null}
-        <Button type="submit" className="w-full sm:min-w-[200px]" disabled={isSaving}>
-          {isSaving ? "Enregistrement…" : isEdit ? "Enregistrer les modifications" : "Enregistrer la coopérative"}
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full sm:min-w-[160px]"
+          disabled={isSaving}
+          onClick={() => void saveWithPublish(false)}
+        >
+          {isSaving ? "Enregistrement…" : "Enregistrer en brouillon"}
+        </Button>
+        <Button
+          type="button"
+          className="w-full sm:min-w-[160px]"
+          disabled={isSaving}
+          onClick={() => void saveWithPublish(true)}
+        >
+          {isSaving ? "Enregistrement…" : isEdit ? "Enregistrer et publier" : "Publier sur la carte"}
         </Button>
       </div>
     </form>

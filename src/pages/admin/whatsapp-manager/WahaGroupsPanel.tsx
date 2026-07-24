@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,6 +42,7 @@ import {
   listWhatsappGroups,
   updateWhatsappGroup,
 } from "./whatsappGroupsApi";
+import { listWahaGroupsFromServer, type WahaGroupFromServer } from "./wahaEdgeApi";
 
 const QUERY_KEY = ["whatsapp-groups"] as const;
 
@@ -67,6 +68,9 @@ export default function WahaGroupsPanel() {
   const [editGroup, setEditGroup] = useState<WhatsappGroup | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WhatsappGroup | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [wahaPickerOpen, setWahaPickerOpen] = useState(false);
+  const [wahaPickerLoading, setWahaPickerLoading] = useState(false);
+  const [wahaRemoteGroups, setWahaRemoteGroups] = useState<WahaGroupFromServer[]>([]);
 
   const { data: groups = [], isLoading, error } = useQuery({
     queryKey: QUERY_KEY,
@@ -74,6 +78,37 @@ export default function WahaGroupsPanel() {
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+
+  const openWahaPicker = async () => {
+    setWahaPickerOpen(true);
+    setWahaPickerLoading(true);
+    setWahaRemoteGroups([]);
+    const { data, error } = await listWahaGroupsFromServer();
+    setWahaPickerLoading(false);
+    if (error) {
+      toast.error(error.slice(0, 240));
+      return;
+    }
+    if (!data?.ok || data.error) {
+      toast.error(data?.error ?? "Impossible de lister les groupes WAHA");
+      return;
+    }
+    const list = data.groups ?? [];
+    setWahaRemoteGroups(list);
+    if (list.length === 0) {
+      toast.warning("Aucun groupe retourné par WAHA — vérifiez la session et que le bot est dans les groupes.");
+    }
+  };
+
+  const applyWahaGroup = (g: WahaGroupFromServer) => {
+    setForm((f) => ({
+      ...f,
+      wa_group_jid: g.id,
+      name: f.name.trim() ? f.name : (g.name ?? g.id),
+    }));
+    setWahaPickerOpen(false);
+    toast.success("JID appliqué — enregistrez le groupe.");
+  };
 
   const createMut = useMutation({
     mutationFn: () =>
@@ -181,7 +216,13 @@ export default function WahaGroupsPanel() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="wg-jid">JID du groupe WhatsApp</Label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label htmlFor="wg-jid">JID du groupe WhatsApp</Label>
+          <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => void openWahaPicker()}>
+            <RefreshCw className="size-3.5 mr-1.5" />
+            Choisir depuis WAHA
+          </Button>
+        </div>
         <Input
           id="wg-jid"
           value={form.wa_group_jid}
@@ -189,7 +230,8 @@ export default function WahaGroupsPanel() {
           placeholder="Ex. 120363…@g.us — requis pour l’envoi WAHA"
         />
         <p className="text-xs text-muted-foreground">
-          Renseignez le JID une fois le groupe relié à WAHA ; sans JID, seules les listes Brevo peuvent notifier.
+          Utilisez « Choisir depuis WAHA » après connexion de la session (secret WAHA_BASE_URL). Sans JID, aucun envoi
+          WhatsApp.
         </p>
       </div>
       <div className="space-y-2">
@@ -255,10 +297,16 @@ export default function WahaGroupsPanel() {
         <p className="text-sm text-muted-foreground max-w-xl">
           Lien d’invitation et JID pour WAHA. Les ID de listes Brevo se gèrent dans l’onglet Email.
         </p>
-        <Button type="button" onClick={() => { setForm(emptyForm()); setCreateOpen(true); }} className="gap-2 shrink-0">
-          <Plus size={18} />
-          Nouveau groupe
-        </Button>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Button type="button" variant="outline" onClick={() => void openWahaPicker()} className="gap-2">
+            <RefreshCw size={18} />
+            Groupes WAHA
+          </Button>
+          <Button type="button" onClick={() => { setForm(emptyForm()); setCreateOpen(true); }} className="gap-2">
+            <Plus size={18} />
+            Nouveau groupe
+          </Button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error instanceof Error ? error.message : "Erreur"}</p>}
@@ -399,6 +447,48 @@ export default function WahaGroupsPanel() {
               disabled={updateMut.isPending}
             >
               {updateMut.isPending ? "…" : "Mettre à jour"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={wahaPickerOpen} onOpenChange={setWahaPickerOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Groupes WhatsApp (WAHA)</DialogTitle>
+            <DialogDescription>
+              Sélectionnez un groupe pour remplir le JID. Ouvrez d’abord la création ou la modification d’un groupe REMESS.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto min-h-0 py-2 space-y-2">
+            {wahaPickerLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+                <Loader2 className="size-4 animate-spin" />
+                Connexion à WAHA…
+              </div>
+            ) : wahaRemoteGroups.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Aucun groupe ou erreur de connexion.</p>
+            ) : (
+              wahaRemoteGroups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className="w-full text-left rounded-lg border border-border px-3 py-2 hover:bg-muted/60 transition-colors"
+                  onClick={() => applyWahaGroup(g)}
+                  disabled={!createOpen && !editGroup}
+                >
+                  <p className="font-medium text-sm truncate">{g.name ?? g.id}</p>
+                  <p className="font-mono text-xs text-muted-foreground truncate">{g.id}</p>
+                </button>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setWahaPickerOpen(false)}>
+              Fermer
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => void openWahaPicker()} disabled={wahaPickerLoading}>
+              Actualiser
             </Button>
           </DialogFooter>
         </DialogContent>

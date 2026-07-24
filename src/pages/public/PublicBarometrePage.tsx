@@ -19,15 +19,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicPageHero } from "@/components/public/PublicPageHero";
+import { CartographieLogos } from "@/components/public/logoscarto/CartographieLogos";
 import BarometreDatabaseAccordion from "@/pages/super-admin/LP_Manager/Barometre/BarometreDatabaseAccordion";
 import CooperativePlaceMarker from "@/pages/super-admin/LP_Manager/Barometre/CooperativePlaceMarker";
-import {
-  resolveCooperativeProvinceId,
-  spreadOffsetsAroundCenter,
-} from "@/pages/super-admin/LP_Manager/Barometre/barometreCoopPlacements";
+import { placeCooperativesOnMap } from "@/pages/super-admin/LP_Manager/Barometre/barometreCoopPlacements";
 import {
   fetchBarometreCooperatives,
-  type BarometreCooperative,
 } from "@/pages/super-admin/LP_Manager/Barometre/barometreCooperativesApi";
 import { buildCommuneToProvinceMap } from "@/pages/super-admin/LP_Manager/Barometre/barometreSpatial";
 import { useAdminBoundaries } from "@/pages/super-admin/LP_Manager/Barometre/useAdminBoundaries";
@@ -134,58 +131,16 @@ export default function PublicBarometrePage() {
     communeToProvinceMap,
   ]);
 
-  const cooperativePlacements = useMemo(() => {
-    const out: { coop: BarometreCooperative; lat: number; lng: number }[] = [];
-
-    if (displayMode === "communes") {
-      const byCommune = new Map<string, BarometreCooperative[]>();
-      for (const c of filteredCooperatives) {
-        if (!c.communeId) continue;
-        const arr = byCommune.get(c.communeId) ?? [];
-        arr.push(c);
-        byCommune.set(c.communeId, arr);
-      }
-      for (const [, arr] of byCommune) {
-        arr.sort((a, b) => a.id.localeCompare(b.id));
-      }
-      for (const [communeId, coops] of byCommune) {
-        const feature = communes.find((x) => x.properties.id === communeId);
-        if (!feature) continue;
-        const b = L.geoJSON(feature as never).getBounds();
-        if (!b.isValid()) continue;
-        const center = b.getCenter();
-        const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
-        coops.forEach((coop, i) => {
-          out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
-        });
-      }
-      return out;
-    }
-
-    const byProvince = new Map<string, BarometreCooperative[]>();
-    for (const c of filteredCooperatives) {
-      const pid = resolveCooperativeProvinceId(c, communeToProvinceMap);
-      if (!pid) continue;
-      const arr = byProvince.get(pid) ?? [];
-      arr.push(c);
-      byProvince.set(pid, arr);
-    }
-    for (const [, arr] of byProvince) {
-      arr.sort((a, b) => a.id.localeCompare(b.id));
-    }
-    for (const [provinceId, coops] of byProvince) {
-      const feature = provinces.find((x) => x.properties.id === provinceId);
-      if (!feature) continue;
-      const b = L.geoJSON(feature as never).getBounds();
-      if (!b.isValid()) continue;
-      const center = b.getCenter();
-      const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
-      coops.forEach((coop, i) => {
-        out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
-      });
-    }
-    return out;
-  }, [displayMode, filteredCooperatives, communes, provinces, communeToProvinceMap]);
+  const cooperativePlacements = useMemo(
+    () =>
+      placeCooperativesOnMap(filteredCooperatives, {
+        displayMode,
+        communes,
+        provinces,
+        communeToProvinceMap,
+      }),
+    [displayMode, filteredCooperatives, communes, provinces, communeToProvinceMap],
+  );
 
   const activeFeatures = displayMode === "communes" ? communes : provinces;
   const activeGeoJson = useMemo(
@@ -642,6 +597,7 @@ export default function PublicBarometrePage() {
             filterKey={tableFilterKey}
             readOnly
           />
+          <CartographieLogos />
         </div>
       </main>
     </PublicShell>

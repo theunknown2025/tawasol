@@ -3,19 +3,15 @@ import { useMemo } from "react";
 import { Marker, Tooltip } from "react-leaflet";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { BarometreCooperative } from "./barometreCooperativesApi";
+import { ACTIVITY_PIN_SIZE, buildActivityPinHtml } from "./barometreActivityIcons";
 
-/** SVG pin: tip at bottom center so iconAnchor matches geometry (no extra CSS margins). */
-const PIN_ICON_W = 28;
-const PIN_ICON_H = 36;
+const PIN_ICON_W = ACTIVITY_PIN_SIZE.width;
+const PIN_ICON_H = ACTIVITY_PIN_SIZE.height;
 
-function createCooperativePlaceDivIcon() {
+function createCooperativePlaceDivIcon(activite: string) {
   return L.divIcon({
     className: "barometre-coop-place-icon",
-    html:
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${PIN_ICON_W}" height="${PIN_ICON_H}" viewBox="0 0 28 36" aria-hidden="true" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">` +
-      `<path fill="#e11d48" stroke="#fff" stroke-width="1.2" d="M14 0C8.5 0 4 4.4 4 9.8c0 6.2 10 26.2 10 26.2S24 16 24 9.8C24 4.4 19.5 0 14 0z"/>` +
-      `<circle cx="14" cy="10" r="3.2" fill="#fff"/>` +
-      `</svg>`,
+    html: buildActivityPinHtml(activite),
     iconSize: [PIN_ICON_W, PIN_ICON_H],
     iconAnchor: [PIN_ICON_W / 2, PIN_ICON_H],
     tooltipAnchor: [0, -PIN_ICON_H + 4],
@@ -36,7 +32,9 @@ type Props = {
 
 export default function CooperativePlaceMarker({ coop, latitude, longitude }: Props) {
   /** Leaflet must not share one DivIcon across markers — shared icons break position on zoom. */
-  const icon = useMemo(() => createCooperativePlaceDivIcon(), []);
+  const icon = useMemo(() => createCooperativePlaceDivIcon(coop.activite), [coop.activite]);
+
+  const phones = coop.phones.length > 0 ? coop.phones : coop.tel ? [coop.tel] : [];
 
   const hasPresident =
     Boolean(coop.presidentGenre) ||
@@ -45,7 +43,7 @@ export default function CooperativePlaceMarker({ coop, latitude, longitude }: Pr
     Boolean(coop.presidentTel.trim());
 
   return (
-    <Marker position={[latitude, longitude]} icon={icon}>
+    <Marker position={[latitude, longitude]} icon={icon} zIndexOffset={650}>
       <Tooltip
         direction="top"
         offset={[0, -PIN_ICON_H + 8]}
@@ -57,7 +55,7 @@ export default function CooperativePlaceMarker({ coop, latitude, longitude }: Pr
         <div className="w-[min(90vw,260px)] text-left">
           {!coop.isPublished ? (
             <p className="border-b border-border bg-amber-500/10 px-3 py-1.5 text-[10px] font-medium text-amber-900 dark:text-amber-200">
-              Fiche non publique (visible admin uniquement)
+              Brouillon (visible admin uniquement)
             </p>
           ) : null}
           <Accordion type="multiple" defaultValue={["cooperative", ...(hasPresident ? ["president"] : [])]} className="px-0">
@@ -80,11 +78,17 @@ export default function CooperativePlaceMarker({ coop, latitude, longitude }: Pr
                     </p>
                   </div>
                 ) : null}
-                {coop.tel ? (
-                  <p className="mt-2 text-xs">
-                    <span className="text-muted-foreground">Tél. </span>
-                    {coop.tel}
-                  </p>
+                {phones.length > 0 ? (
+                  <div className="mt-2 space-y-1 text-xs">
+                    {phones.map((phone, i) => (
+                      <p key={`${phone}-${i}`}>
+                        <span className="text-muted-foreground">
+                          {phones.length > 1 ? `Tél. ${i + 1} ` : "Tél. "}
+                        </span>
+                        {phone}
+                      </p>
+                    ))}
+                  </div>
                 ) : null}
                 {coop.email ? (
                   <p className="mt-1 break-all text-xs">

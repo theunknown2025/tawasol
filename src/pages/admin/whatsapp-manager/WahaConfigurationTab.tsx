@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FunctionsHttpError } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
 import { getWahaIntegrationConfig, upsertWahaIntegrationConfig } from "./wahaIntegrationConfigApi";
+import { testWahaConnection } from "./wahaEdgeApi";
 
 const CONFIG_QUERY_KEY = ["waha-integration-config"] as const;
 
@@ -50,32 +49,27 @@ export default function WahaConfigurationTab() {
     setTestLoading(true);
     setTestResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("notify-brevo-published", {
-        body: { test_waha: true },
-      });
+      const { data, error } = await testWahaConnection();
       if (error) {
-        let detail = error.message ?? "Erreur lors de l’appel à la fonction Edge.";
-        if (error instanceof FunctionsHttpError) {
-          try {
-            const ctx = await error.context.json();
-            detail = typeof ctx === "object" ? JSON.stringify(ctx) : String(ctx);
-          } catch {
-            /* ignore */
-          }
-        }
-        setTestResult(JSON.stringify({ ok: false, error: detail }, null, 2));
-        toast.error(detail.slice(0, 200));
-        setTestLoading(false);
+        setTestResult(JSON.stringify({ ok: false, error }, null, 2));
+        toast.error(error.slice(0, 200));
         return;
       }
       setTestResult(JSON.stringify(data ?? {}, null, 2));
-      const parsed = data as { ok?: boolean; error?: string; waha?: { ok?: boolean } };
-      if (parsed?.ok === false || parsed?.error) {
-        toast.error(parsed.error ?? "Échec du test WAHA");
-      } else if (parsed?.waha?.ok === false) {
-        toast.error("WAHA : erreur dans la réponse");
+      if (data?.ok === false || data?.error) {
+        toast.error(data.error ?? "Échec du test WAHA");
+        return;
+      }
+      const sent = data?.sent ?? 0;
+      const failed = (data?.results ?? []).filter((r) => !r.ok);
+      if (sent === 0) {
+        toast.warning(
+          failed.length > 0
+            ? "Aucun message envoyé — vérifiez les JID (onglet Groupes) et WAHA_BASE_URL."
+            : "Aucun groupe actif avec JID — configurez l’onglet Groupes.",
+        );
       } else {
-        toast.success("Test WAHA terminé");
+        toast.success(`Test WAHA : ${sent} message(s) envoyé(s)`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -104,6 +98,21 @@ export default function WahaConfigurationTab() {
           <code className="text-xs bg-muted px-1 rounded">WAHA_BASE_URL</code> (Edge Functions → Secrets). Les notes
           ci‑dessous sont uniquement pour la documentation interne.
         </p>
+        <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1 mt-2">
+          <li>
+            Secrets requis : <code className="bg-muted px-1 rounded">WAHA_BASE_URL</code>, optionnel{" "}
+            <code className="bg-muted px-1 rounded">WAHA_SESSION</code> (défaut : default),{" "}
+            <code className="bg-muted px-1 rounded">WAHA_API_KEY</code>,{" "}
+            <code className="bg-muted px-1 rounded">PUBLIC_SITE_URL</code>
+          </li>
+          <li>Le serveur WAHA doit être joignable depuis Supabase (pas localhost sans tunnel).</li>
+          <li>Session WhatsApp connectée (QR) sur l’instance WAHA.</li>
+          <li>Les publications déclenchent automatiquement l’envoi (triggers base de données).</li>
+          <li>
+            Si vous utilisez <code className="bg-muted px-1 rounded">WEBHOOK_SECRET</code>, les triggers DB ne l’envoient pas
+            encore — laissez ce secret vide ou contactez l’équipe pour l’aligner.
+          </li>
+        </ul>
       </div>
 
       <div className="space-y-4">

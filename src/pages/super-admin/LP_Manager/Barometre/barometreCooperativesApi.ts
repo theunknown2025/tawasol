@@ -1,7 +1,9 @@
 import { supabase } from "@/lib/supabase";
+import { hasUsableMapCoordinates, parseCoordValue } from "./barometreCoords";
 
 const BUCKET = "barometre_cooperative_images";
 const MAX_BYTES = 5 * 1024 * 1024;
+export const MAX_COOP_PHONES = 3;
 
 export type CooperativeLink = { url: string; label: string };
 
@@ -11,7 +13,10 @@ export type BarometreCooperative = {
   id: string;
   createdAt: string;
   nom: string;
+  /** Premier numéro (rétrocompat affichage). */
   tel: string;
+  /** Jusqu’à 3 numéros. */
+  phones: string[];
   email: string;
   adresse: string;
   activite: string;
@@ -22,6 +27,9 @@ export type BarometreCooperative = {
   provinceId: string | null;
   provinceName: string;
   communeName: string;
+  /** X = longitude, Y = latitude (WGS84). */
+  longitude: number | null;
+  latitude: number | null;
   isPublished: boolean;
   presidentGenre: PresidentGenre | null;
   presidentNomComplet: string;
@@ -34,6 +42,7 @@ type DbRow = {
   created_at: string;
   nom: string;
   tel: string | null;
+  phones: unknown;
   email: string | null;
   adresse: string | null;
   activite: string | null;
@@ -46,6 +55,8 @@ type DbRow = {
   province_id: string | null;
   province_name: string | null;
   commune_name: string | null;
+  longitude: number | null;
+  latitude: number | null;
   is_published: boolean | null;
   president_genre: string | null;
   president_nom_complet: string | null;
@@ -67,6 +78,23 @@ function parseLinks(raw: unknown): CooperativeLink[] {
   return out;
 }
 
+export function normalizePhones(raw: unknown, fallbackTel?: string | null): string[] {
+  const out: string[] = [];
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item !== "string") continue;
+      const t = item.trim();
+      if (!t || out.includes(t)) continue;
+      out.push(t);
+      if (out.length >= MAX_COOP_PHONES) break;
+    }
+  }
+  if (out.length === 0 && fallbackTel?.trim()) {
+    out.push(fallbackTel.trim());
+  }
+  return out;
+}
+
 function parsePresidentGenre(raw: string | null): PresidentGenre | null {
   if (raw === "male" || raw === "female") return raw;
   return null;
@@ -74,11 +102,13 @@ function parsePresidentGenre(raw: string | null): PresidentGenre | null {
 
 function mapRow(row: DbRow): BarometreCooperative {
   const links = parseLinks(row.links ?? row.liens);
+  const phones = normalizePhones(row.phones, row.tel);
   return {
     id: row.id,
     createdAt: row.created_at,
     nom: row.nom,
-    tel: row.tel ?? "",
+    tel: phones[0] ?? row.tel ?? "",
+    phones,
     email: row.email ?? "",
     adresse: row.adresse ?? "",
     activite: (row.activite ?? row.secteur_activite ?? "").trim(),
@@ -89,6 +119,8 @@ function mapRow(row: DbRow): BarometreCooperative {
     provinceId: row.province_id ?? null,
     provinceName: row.province_name ?? "",
     communeName: row.commune_name ?? "",
+    longitude: parseCoordValue(row.longitude),
+    latitude: parseCoordValue(row.latitude),
     isPublished: row.is_published !== false,
     presidentGenre: parsePresidentGenre(row.president_genre ?? null),
     presidentNomComplet: row.president_nom_complet ?? "",
@@ -98,7 +130,7 @@ function mapRow(row: DbRow): BarometreCooperative {
 }
 
 const COOP_SELECT =
-  "id, created_at, nom, tel, email, adresse, activite, secteur_activite, description, links, liens, image_url, commune_id, province_id, province_name, commune_name, is_published, president_genre, president_nom_complet, president_email, president_tel";
+  "id, created_at, nom, tel, phones, email, adresse, activite, secteur_activite, description, links, liens, image_url, commune_id, province_id, province_name, commune_name, longitude, latitude, is_published, president_genre, president_nom_complet, president_email, president_tel";
 
 /** Données visibles selon RLS (admin : tout ; anon / public : is_published uniquement). */
 export async function fetchBarometreCooperatives(): Promise<BarometreCooperative[]> {
@@ -149,7 +181,7 @@ export async function uploadBarometreCooperativeImage(file: File): Promise<strin
 
 export type InsertBarometreCooperativeInput = {
   nom: string;
-  tel: string;
+  phones: string[];
   email: string;
   adresse: string;
   activite: string;
@@ -160,12 +192,19 @@ export type InsertBarometreCooperativeInput = {
   communeId: string | null;
   provinceName: string | null;
   communeName: string | null;
+  longitude: number | null;
+  latitude: number | null;
   isPublished: boolean;
   presidentGenre: PresidentGenre | null;
   presidentNomComplet: string | null;
   presidentEmail: string | null;
   presidentTel: string | null;
 };
+
+function phonesPayload(phones: string[]): { phones: string[]; tel: string | null } {
+  const cleaned = normalizePhones(phones);
+  return { phones: cleaned, tel: cleaned[0] ?? null };
+}
 
 export async function insertBarometreCooperative(payload: InsertBarometreCooperativeInput): Promise<void> {
   const {
@@ -177,10 +216,12 @@ export async function insertBarometreCooperative(payload: InsertBarometreCoopera
   }
 
   const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
+  const { phones, tel } = phonesPayload(payload.phones);
 
   const { error } = await supabase.from("barometre_cooperatives").insert({
     nom: payload.nom,
-    tel: payload.tel,
+    tel,
+    phones,
     email: payload.email,
     adresse: payload.adresse,
     description: payload.description,
@@ -189,8 +230,8 @@ export async function insertBarometreCooperative(payload: InsertBarometreCoopera
     links: linksJson,
     liens: linksJson,
     image_url: payload.imageUrl,
-    longitude: null,
-    latitude: null,
+    longitude: payload.longitude,
+    latitude: payload.latitude,
     province_id: payload.provinceId,
     commune_id: payload.communeId,
     province_name: payload.provinceName,
@@ -218,12 +259,14 @@ export async function updateBarometreCooperative(id: string, payload: InsertBaro
   }
 
   const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
+  const { phones, tel } = phonesPayload(payload.phones);
 
   const { error } = await supabase
     .from("barometre_cooperatives")
     .update({
       nom: payload.nom,
-      tel: payload.tel,
+      tel,
+      phones,
       email: payload.email,
       adresse: payload.adresse,
       description: payload.description,
@@ -232,6 +275,8 @@ export async function updateBarometreCooperative(id: string, payload: InsertBaro
       links: linksJson,
       liens: linksJson,
       image_url: payload.imageUrl,
+      longitude: payload.longitude,
+      latitude: payload.latitude,
       province_id: payload.provinceId,
       commune_id: payload.communeId,
       province_name: payload.provinceName,
@@ -249,7 +294,26 @@ export async function updateBarometreCooperative(id: string, payload: InsertBaro
   if (error) throw error;
 }
 
+/** Publie une fiche brouillon sur la carte publique. */
+export async function publishBarometreCooperative(id: string): Promise<void> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error("Connexion requise pour publier une coopérative.");
+  }
+
+  const { error } = await supabase.from("barometre_cooperatives").update({ is_published: true }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteBarometreCooperative(id: string): Promise<void> {
   const { error } = await supabase.from("barometre_cooperatives").delete().eq("id", id);
   if (error) throw error;
 }
+
+export function hasSavedCoordinates(coop: Pick<BarometreCooperative, "latitude" | "longitude">): boolean {
+  return hasUsableMapCoordinates(coop.latitude, coop.longitude);
+}
+

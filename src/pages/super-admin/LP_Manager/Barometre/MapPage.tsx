@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import BarometreAddCooperativePanel from "./BarometreAddCooperativePanel";
+import BarometreAddCooperativePanel, { type CoopFormMapPreview } from "./BarometreAddCooperativePanel";
 import BarometreDatabaseAccordion from "./BarometreDatabaseAccordion";
 import CooperativePlaceMarker from "./CooperativePlaceMarker";
-import { resolveCooperativeProvinceId, spreadOffsetsAroundCenter } from "./barometreCoopPlacements";
+import { placeCooperativesOnMap } from "./barometreCoopPlacements";
 import {
   fetchBarometreCooperatives,
   type BarometreCooperative,
 } from "./barometreCooperativesApi";
+import { normalizeCooperativeLatLng } from "./barometreCoords";
+import { ACTIVITY_PIN_SIZE, buildActivityPinHtml } from "./barometreActivityIcons";
 import {
   Command,
   CommandEmpty,
@@ -108,58 +110,16 @@ export default function MapPage() {
     [provinces, communes],
   );
 
-  const cooperativePlacements = useMemo(() => {
-    const out: { coop: BarometreCooperative; lat: number; lng: number }[] = [];
-
-    if (displayMode === "communes") {
-      const byCommune = new Map<string, BarometreCooperative[]>();
-      for (const c of cooperatives) {
-        if (!c.communeId) continue;
-        const arr = byCommune.get(c.communeId) ?? [];
-        arr.push(c);
-        byCommune.set(c.communeId, arr);
-      }
-      for (const [, arr] of byCommune) {
-        arr.sort((a, b) => a.id.localeCompare(b.id));
-      }
-      for (const [communeId, coops] of byCommune) {
-        const feature = communes.find((x) => x.properties.id === communeId);
-        if (!feature) continue;
-        const b = L.geoJSON(feature as never).getBounds();
-        if (!b.isValid()) continue;
-        const center = b.getCenter();
-        const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
-        coops.forEach((coop, i) => {
-          out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
-        });
-      }
-      return out;
-    }
-
-    const byProvince = new Map<string, BarometreCooperative[]>();
-    for (const c of cooperatives) {
-      const pid = resolveCooperativeProvinceId(c, communeToProvinceMap);
-      if (!pid) continue;
-      const arr = byProvince.get(pid) ?? [];
-      arr.push(c);
-      byProvince.set(pid, arr);
-    }
-    for (const [, arr] of byProvince) {
-      arr.sort((a, b) => a.id.localeCompare(b.id));
-    }
-    for (const [provinceId, coops] of byProvince) {
-      const feature = provinces.find((x) => x.properties.id === provinceId);
-      if (!feature) continue;
-      const b = L.geoJSON(feature as never).getBounds();
-      if (!b.isValid()) continue;
-      const center = b.getCenter();
-      const positions = spreadOffsetsAroundCenter(coops.length, center.lat, center.lng);
-      coops.forEach((coop, i) => {
-        out.push({ coop, lat: positions[i].lat, lng: positions[i].lng });
-      });
-    }
-    return out;
-  }, [displayMode, cooperatives, communes, provinces, communeToProvinceMap]);
+  const cooperativePlacements = useMemo(
+    () =>
+      placeCooperativesOnMap(cooperatives, {
+        displayMode,
+        communes,
+        provinces,
+        communeToProvinceMap,
+      }),
+    [displayMode, cooperatives, communes, provinces, communeToProvinceMap],
+  );
 
   const provincesSorted = useMemo(
     () =>
@@ -177,6 +137,25 @@ export default function MapPage() {
   const [sidebarTab, setSidebarTab] = useState<"naviguer" | "ajouter">("naviguer");
   const [coopFormProvinceId, setCoopFormProvinceId] = useState<string | null>(null);
   const [coopFormCommuneId, setCoopFormCommuneId] = useState<string | null>(null);
+  const [formMapPreview, setFormMapPreview] = useState<CoopFormMapPreview | null>(null);
+
+  const onFormMapPreviewChange = useCallback((preview: CoopFormMapPreview | null) => {
+    setFormMapPreview(preview);
+  }, []);
+
+  useEffect(() => {
+    if (sidebarTab !== "ajouter") setFormMapPreview(null);
+  }, [sidebarTab]);
+
+  const formPreviewIcon = useMemo(() => {
+    if (!formMapPreview) return null;
+    return L.divIcon({
+      className: "barometre-coop-place-icon",
+      html: buildActivityPinHtml(formMapPreview.activite),
+      iconSize: [ACTIVITY_PIN_SIZE.width, ACTIVITY_PIN_SIZE.height],
+      iconAnchor: [ACTIVITY_PIN_SIZE.width / 2, ACTIVITY_PIN_SIZE.height],
+    });
+  }, [formMapPreview?.activite, formMapPreview != null]);
 
   const communesInSelectedProvince = useMemo(() => {
     if (!selectedProvinceId) return [];
@@ -323,15 +302,21 @@ export default function MapPage() {
   const [xInput, setXInput] = useState("");
   const [yInput, setYInput] = useState("");
 
-  const parsedLongitude = Number.parseFloat(xInput);
-  const parsedLatitude = Number.parseFloat(yInput);
-  const hasValidPoint =
-    Number.isFinite(parsedLongitude) &&
-    Number.isFinite(parsedLatitude) &&
-    parsedLongitude >= -180 &&
-    parsedLongitude <= 180 &&
-    parsedLatitude >= -90 &&
-    parsedLatitude <= 90;
+  const parsedLongitudeRaw = Number.parseFloat(xInput.replace(",", "."));
+  const parsedLatitudeRaw = Number.parseFloat(yInput.replace(",", "."));
+  const naviguerNormalized =
+    Number.isFinite(parsedLongitudeRaw) && Number.isFinite(parsedLatitudeRaw)
+      ? normalizeCooperativeLatLng(parsedLatitudeRaw, parsedLongitudeRaw)
+      : null;
+  const parsedLongitude = naviguerNormalized?.longitude ?? parsedLongitudeRaw;
+  const parsedLatitude = naviguerNormalized?.latitude ?? parsedLatitudeRaw;
+  const hasValidPoint = naviguerNormalized != null;
+
+  const hasFormPreview =
+    sidebarTab === "ajouter" && formMapPreview != null && formPreviewIcon != null;
+  const cameraHasPoint = sidebarTab === "naviguer" ? hasValidPoint : hasFormPreview;
+  const cameraLat = sidebarTab === "naviguer" ? parsedLatitude : (formMapPreview?.lat ?? 0);
+  const cameraLng = sidebarTab === "naviguer" ? parsedLongitude : (formMapPreview?.lng ?? 0);
 
   const positionIcon = useMemo(
     () =>
@@ -564,6 +549,7 @@ export default function MapPage() {
                   onCoopCommuneChange={setCoopFormCommuneId}
                   coopProvinceLabel={coopProvinceLabel}
                   coopCommuneLabel={coopCommuneLabel}
+                  onMapPreviewChange={onFormMapPreviewChange}
                 />
               </TabsContent>
             </Tabs>
@@ -582,17 +568,17 @@ export default function MapPage() {
           <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
             <MapContainer center={[31.7, -6]} zoom={5} scrollWheelZoom className="h-full min-h-[min(70vh,620px)] w-full lg:min-h-[620px]">
               <MapCameraController
-                hasManualPoint={hasValidPoint}
-                manualLat={parsedLatitude}
-                manualLng={parsedLongitude}
-                selectionBounds={effectiveSelectionBounds}
+                hasManualPoint={cameraHasPoint}
+                manualLat={cameraLat}
+                manualLng={cameraLng}
+                selectionBounds={hasFormPreview || hasValidPoint ? null : effectiveSelectionBounds}
                 layerBounds={mapBounds}
               />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {hasValidPoint && (
+              {sidebarTab === "naviguer" && hasValidPoint && (
                 <Marker position={[parsedLatitude, parsedLongitude]} icon={positionIcon}>
                   <Popup>
                     X: {parsedLongitude.toFixed(6)}
@@ -601,6 +587,22 @@ export default function MapPage() {
                   </Popup>
                 </Marker>
               )}
+              {hasFormPreview && formMapPreview && formPreviewIcon ? (
+                <Marker
+                  key="form-coop-preview"
+                  position={[formMapPreview.lat, formMapPreview.lng]}
+                  icon={formPreviewIcon}
+                  zIndexOffset={800}
+                >
+                  <Popup>
+                    Aperçu coopérative
+                    <br />
+                    X: {formMapPreview.lng.toFixed(6)}
+                    <br />
+                    Y: {formMapPreview.lat.toFixed(6)}
+                  </Popup>
+                </Marker>
+              ) : null}
               <GeoJSON
                 key={`${displayMode}-${activeCount}-${sidebarTab}-${coopFormCommuneId ?? ""}-${coopFormProvinceId ?? ""}-${selectedCommuneId ?? ""}-${selectedProvinceId ?? ""}`}
                 data={activeGeoJson as never}
