@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Database, Pencil, Send, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, Eye, Pencil, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -106,7 +106,7 @@ function CoopTable({
           <TableHeader>
             <TableRow>
               <TableHead>Nom</TableHead>
-              <TableHead className="hidden sm:table-cell">Activité</TableHead>
+              <TableHead className="hidden sm:table-cell">Secteur</TableHead>
               <TableHead className="hidden md:table-cell">Adresse (commune / province)</TableHead>
               {readOnly ? null : (
                 <TableHead className="w-[160px] text-right">Actions</TableHead>
@@ -220,6 +220,15 @@ function CoopTable({
                                   <Badge variant="outline">Brouillon</Badge>
                                 )}
                               </div>
+                              <Button variant="outline" size="sm" className="w-fit" asChild>
+                                <Link
+                                  to={`/cartographie/cooperative/${coop.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" aria-hidden />
+                                  Voir Détails
+                                </Link>
+                              </Button>
                               {coop.activite ? (
                                 <p className="text-sm text-muted-foreground">{coop.activite}</p>
                               ) : null}

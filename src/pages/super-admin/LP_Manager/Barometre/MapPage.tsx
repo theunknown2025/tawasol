@@ -1,4 +1,4 @@
-import { ChevronsUpDown, MapPinned } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, MapPinned } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GeoJSON as GeoJSONTypes } from "geojson";
 import L from "leaflet";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import BarometreAddCooperativePanel, { type CoopFormMapPreview } from "./BarometreAddCooperativePanel";
 import BarometreDatabaseAccordion from "./BarometreDatabaseAccordion";
 import CooperativePlaceMarker from "./CooperativePlaceMarker";
@@ -135,9 +136,13 @@ export default function MapPage() {
   const [communeOpen, setCommuneOpen] = useState(false);
 
   const [sidebarTab, setSidebarTab] = useState<"naviguer" | "ajouter">("naviguer");
+  /** Sur l’onglet Ajouter : masquer la carte pour élargir le formulaire. */
+  const [mapPanelOpen, setMapPanelOpen] = useState(true);
   const [coopFormProvinceId, setCoopFormProvinceId] = useState<string | null>(null);
   const [coopFormCommuneId, setCoopFormCommuneId] = useState<string | null>(null);
   const [formMapPreview, setFormMapPreview] = useState<CoopFormMapPreview | null>(null);
+
+  const showMapPanel = sidebarTab === "naviguer" || mapPanelOpen;
 
   const onFormMapPreviewChange = useCallback((preview: CoopFormMapPreview | null) => {
     setFormMapPreview(preview);
@@ -333,7 +338,14 @@ export default function MapPage() {
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card shadow-sm">
         <div className="flex flex-col gap-6 p-4 lg:flex-row lg:items-stretch lg:gap-0 lg:p-0">
-          <aside className="flex w-full shrink-0 flex-col gap-4 lg:max-h-[min(100vh-6rem,900px)] lg:max-w-[380px] lg:overflow-y-auto lg:border-r lg:border-border lg:bg-muted/30 lg:p-5 xl:max-w-[400px]">
+          <aside
+            className={cn(
+              "relative flex w-full shrink-0 flex-col gap-4 lg:max-h-[min(100vh-6rem,900px)] lg:overflow-y-auto lg:bg-muted/30 lg:p-5",
+              showMapPanel
+                ? "lg:max-w-[380px] lg:border-r lg:border-border xl:max-w-[400px]"
+                : "lg:max-w-none lg:flex-1",
+            )}
+          >
             {coopLoadError && (
               <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
                 {coopLoadError}
@@ -341,13 +353,36 @@ export default function MapPage() {
             )}
             <Tabs
               value={sidebarTab}
-              onValueChange={(v) => setSidebarTab(v as "naviguer" | "ajouter")}
+              onValueChange={(v) => {
+                const next = v as "naviguer" | "ajouter";
+                setSidebarTab(next);
+                if (next === "naviguer") setMapPanelOpen(true);
+              }}
               className="flex w-full flex-col gap-0"
             >
-              <TabsList className="grid h-10 w-full grid-cols-2">
-                <TabsTrigger value="naviguer">Naviguer</TabsTrigger>
-                <TabsTrigger value="ajouter">Ajouter</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center gap-2">
+                <TabsList className="grid h-10 min-w-0 flex-1 grid-cols-2">
+                  <TabsTrigger value="naviguer">Naviguer</TabsTrigger>
+                  <TabsTrigger value="ajouter">Ajouter</TabsTrigger>
+                </TabsList>
+                {sidebarTab === "ajouter" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 shrink-0"
+                    onClick={() => setMapPanelOpen((open) => !open)}
+                    aria-label={mapPanelOpen ? "Masquer la carte" : "Afficher la carte"}
+                    title={mapPanelOpen ? "Masquer la carte" : "Afficher la carte"}
+                  >
+                    {mapPanelOpen ? (
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <ChevronLeft className="h-4 w-4" aria-hidden />
+                    )}
+                  </Button>
+                ) : null}
+              </div>
 
               <TabsContent value="naviguer" className="mt-4 flex flex-col gap-4 focus-visible:ring-0">
             <div>
@@ -550,11 +585,13 @@ export default function MapPage() {
                   coopProvinceLabel={coopProvinceLabel}
                   coopCommuneLabel={coopCommuneLabel}
                   onMapPreviewChange={onFormMapPreviewChange}
+                  wideLayout={!showMapPanel}
                 />
               </TabsContent>
             </Tabs>
           </aside>
 
+          {showMapPanel ? (
           <div className="flex min-h-[min(70vh,620px)] min-w-0 flex-1 flex-col lg:min-h-[620px] lg:p-4">
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -653,6 +690,7 @@ export default function MapPage() {
           </div>
         )}
           </div>
+          ) : null}
         </div>
       </div>
 

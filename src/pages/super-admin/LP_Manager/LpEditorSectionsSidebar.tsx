@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   CalendarDays,
+  FolderKanban,
   Images,
   LayoutTemplate,
   Library,
@@ -61,6 +62,7 @@ const sections: SectionItem[] = [
     icon: CalendarDays,
     to: `${EDITOR_BASE}/nos-evenements`,
   },
+  { id: "projets", label: "Projets", icon: FolderKanban, to: `${EDITOR_BASE}/projets` },
   { id: "galerie", label: "Galerie", icon: Images, to: `${EDITOR_BASE}/galerie` },
   { id: "articles", label: "Bibliothèque", icon: Library, to: `${EDITOR_BASE}/articles` },
   {

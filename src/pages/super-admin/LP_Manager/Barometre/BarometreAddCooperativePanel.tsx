@@ -22,6 +22,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import type { BoundaryFeature } from "./useAdminBoundaries";
 import {
   insertBarometreCooperative,
@@ -41,6 +42,16 @@ import {
   sanitizeMoroccoPhoneInput,
 } from "./barometrePhone";
 import { normalizeCooperativeLatLng, parseCoordValue } from "./barometreCoords";
+import {
+  emptyEvaluation,
+  EVALUATION_CRITERIA,
+  EVALUATION_SCORE_MAX,
+  EVALUATION_SCORE_MIN,
+  TEMPS_DE_TRAVAIL_OPTIONS,
+  type CooperativeEvaluation,
+  type EvaluationCriterionKey,
+} from "./barometreEvaluation";
+import BarometreAddFormToolsMenu from "./BarometreAddFormToolsMenu";
 
 const OTHER_VALUE = "__autre__";
 
@@ -67,6 +78,8 @@ type Props = {
   onCancelEdit?: () => void;
   /** Aperçu live du pin sur la carte (X/Y). */
   onMapPreviewChange?: (preview: CoopFormMapPreview | null) => void;
+  /** Formulaire élargi (carte masquée). */
+  wideLayout?: boolean;
 };
 
 function parseOptionalCoord(raw: string): number | null {
@@ -90,6 +103,7 @@ export default function BarometreAddCooperativePanel({
   editId = null,
   onCancelEdit,
   onMapPreviewChange,
+  wideLayout = false,
 }: Props) {
   const isEdit = mode === "edit" && Boolean(editId && editCooperative);
   const editHydratedRef = useRef<string | null>(null);
@@ -118,7 +132,13 @@ export default function BarometreAddCooperativePanel({
   const [presidentEmail, setPresidentEmail] = useState("");
   const [presidentTel, setPresidentTel] = useState("");
 
-  const resolvedActivite =
+  const [sousSecteur, setSousSecteur] = useState("");
+  const [tempsDeTravail, setTempsDeTravail] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [evaluation, setEvaluation] = useState<CooperativeEvaluation>(() => emptyEvaluation());
+
+  const resolvedSecteur =
     activiteKey === OTHER_VALUE ? activiteAutre.trim() : activiteKey;
 
   useEffect(() => {
@@ -137,9 +157,9 @@ export default function BarometreAddCooperativePanel({
     onMapPreviewChange({
       lat: normalized.latitude,
       lng: normalized.longitude,
-      activite: resolvedActivite || "Autre",
+      activite: resolvedSecteur || "Autre",
     });
-  }, [coordX, coordY, resolvedActivite, onMapPreviewChange]);
+  }, [coordX, coordY, resolvedSecteur, onMapPreviewChange]);
 
   useEffect(() => {
     return () => {
@@ -196,7 +216,7 @@ export default function BarometreAddCooperativePanel({
         : "",
     );
 
-    const act = editCooperative.activite.trim();
+    const act = (editCooperative.activite || editCooperative.secteur).trim();
     if (act && activities.includes(act)) {
       setActiviteKey(act);
       setActiviteAutre("");
@@ -217,6 +237,11 @@ export default function BarometreAddCooperativePanel({
     setPresidentNom(editCooperative.presidentNomComplet);
     setPresidentEmail(editCooperative.presidentEmail);
     setPresidentTel(sanitizeMoroccoPhoneInput(editCooperative.presidentTel) || editCooperative.presidentTel);
+    setSousSecteur(editCooperative.sousSecteur ?? "");
+    setTempsDeTravail(editCooperative.tempsDeTravail ?? "");
+    setFacebookUrl(editCooperative.facebookUrl ?? "");
+    setInstagramUrl(editCooperative.instagramUrl ?? "");
+    setEvaluation({ ...emptyEvaluation(), ...editCooperative.evaluation });
   }, [isEdit, editCooperative, editId, activities, activitiesLoading]);
 
   const reset = useCallback(() => {
@@ -236,12 +261,17 @@ export default function BarometreAddCooperativePanel({
     setPresidentNom("");
     setPresidentEmail("");
     setPresidentTel("");
+    setSousSecteur("");
+    setTempsDeTravail("");
+    setFacebookUrl("");
+    setInstagramUrl("");
+    setEvaluation(emptyEvaluation());
     onCoopProvinceChange(null);
     onCoopCommuneChange(null);
     onMapPreviewChange?.(null);
   }, [onCoopCommuneChange, onCoopProvinceChange, onMapPreviewChange]);
 
-  const markerPreview = getActivityMarkerStyle(resolvedActivite || "Autre");
+  const markerPreview = getActivityMarkerStyle(resolvedSecteur || "Autre");
 
   const onImageChange = (file: File | null) => {
     if (!file) {
@@ -262,11 +292,11 @@ export default function BarometreAddCooperativePanel({
       return;
     }
     if (!activiteKey) {
-      toast.error("Choisissez une activité.");
+      toast.error("Choisissez un secteur.");
       return;
     }
     if (activiteKey === OTHER_VALUE && !activiteAutre.trim()) {
-      toast.error("Précisez l'activité pour « Autre ».");
+      toast.error("Précisez le secteur pour « Autre ».");
       return;
     }
 
@@ -373,7 +403,7 @@ export default function BarometreAddCooperativePanel({
         phones: phonesOut,
         email: email.trim(),
         adresse: adresseComposed,
-        activite: resolvedActivite,
+        activite: resolvedSecteur,
         description: description.trim(),
         links: linksOut,
         imageUrl,
@@ -388,6 +418,12 @@ export default function BarometreAddCooperativePanel({
         presidentNomComplet: hasAnyPresident ? presNom : null,
         presidentEmail: hasAnyPresident ? presEmail : null,
         presidentTel: hasAnyPresident ? (presTel || null) : null,
+        secteur: resolvedSecteur || null,
+        sousSecteur: sousSecteur.trim() || null,
+        tempsDeTravail: tempsDeTravail.trim() || null,
+        facebookUrl: facebookUrl.trim() || null,
+        instagramUrl: instagramUrl.trim() || null,
+        evaluation,
       };
 
       if (isEdit && editId) {
@@ -413,14 +449,17 @@ export default function BarometreAddCooperativePanel({
       }}
       className="flex flex-col gap-4"
     >
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          {isEdit ? "Modifier la coopérative" : "Ajouter une coopérative"}
-        </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Enregistrez en brouillon ou publiez directement sur la carte publique. Le symbole sur la carte
-          suit l&apos;activité choisie.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-foreground">
+            {isEdit ? "Modifier la coopérative" : "Ajouter une coopérative"}
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Enregistrez en brouillon ou publiez directement sur la carte publique. Le symbole sur la
+            carte suit le secteur choisi.
+          </p>
+        </div>
+        {!isEdit ? <BarometreAddFormToolsMenu onImported={onSaved} /> : null}
       </div>
 
       {activitiesError && (
@@ -429,18 +468,27 @@ export default function BarometreAddCooperativePanel({
         </p>
       )}
 
-      <Accordion type="multiple" defaultValue={["cooperative", "president"]} className="rounded-md border border-border px-2">
+      <Accordion
+        type="multiple"
+        defaultValue={["cooperative", "coordonnees", "evaluation"]}
+        className={cn(
+          "rounded-md border border-border px-2",
+          wideLayout && "lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6",
+        )}
+      >
         <AccordionItem value="cooperative" className="border-b-0">
           <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
             Coopérative
           </AccordionTrigger>
-          <AccordionContent className="space-y-4 pb-4">
+          <AccordionContent
+            className={cn("pb-4", wideLayout ? "grid gap-4 sm:grid-cols-2 [&>.coop-span-full]:sm:col-span-2" : "space-y-4")}
+          >
             <div className="space-y-1.5">
               <Label htmlFor="coop-nom">Nom</Label>
               <Input id="coop-nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom de la coopérative" />
             </div>
 
-            <div className="space-y-2">
+            <div className="coop-span-full space-y-2">
               <Label>Téléphones (max {MAX_COOP_PHONES})</Label>
               <p className="text-[11px] text-muted-foreground">
                 Format : {MOROCCO_PHONE_HINT}
@@ -497,7 +545,7 @@ export default function BarometreAddCooperativePanel({
               />
             </div>
 
-            <div className="space-y-3 rounded-md border border-border bg-muted/10 p-3">
+            <div className="coop-span-full space-y-3 rounded-md border border-border bg-muted/10 p-3">
               <Label className="text-foreground">Adresse</Label>
               <p className="text-xs text-muted-foreground">
                 Indiquez <span className="font-medium text-foreground">X et Y</span>, ou bien province +
@@ -668,48 +716,123 @@ export default function BarometreAddCooperativePanel({
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Activité</Label>
-              <Select
-                value={activiteKey}
-                onValueChange={(v) => setActiviteKey(v)}
-                disabled={activitiesLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={activitiesLoading ? "Chargement…" : "Choisir une activité"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {activities.map((a) => (
-                    <SelectItem key={a} value={a}>
-                      {a}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={OTHER_VALUE}>Autre</SelectItem>
-                </SelectContent>
-              </Select>
-              {activiteKey === OTHER_VALUE && (
-                <Input
-                  className="mt-2"
-                  value={activiteAutre}
-                  onChange={(e) => setActiviteAutre(e.target.value)}
-                  placeholder="Précisez l'activité"
-                />
+            <div
+              className={cn(
+                "coop-span-full rounded-md border border-border bg-muted/10 p-3",
+                wideLayout ? "grid gap-4 sm:grid-cols-2" : "space-y-3",
               )}
-              {activiteKey ? (
-                <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5">
-                  <span
-                    className="inline-block h-3 w-3 shrink-0 rounded-full border border-white shadow-sm"
-                    style={{ backgroundColor: markerPreview.pinFill }}
-                    aria-hidden
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Symbole carte : couleur / icône « {markerPreview.label} »
-                  </p>
-                </div>
-              ) : null}
+            >
+              <div className={cn(wideLayout && "sm:col-span-2")}>
+                <Label className="text-foreground">Président(e)</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Optionnel. Si un champ est renseigné, genre, nom complet et email deviennent
+                  obligatoires (téléphone facultatif).
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Genre</Label>
+                <Select
+                  value={presidentGenre || "__none__"}
+                  onValueChange={(v) =>
+                    setPresidentGenre(v === "__none__" ? "" : (v as PresidentGenre))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">—</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pres-nom">Nom complet</Label>
+                <Input
+                  id="pres-nom"
+                  value={presidentNom}
+                  onChange={(e) => setPresidentNom(e.target.value)}
+                  placeholder="Prénom et nom"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pres-email">Email</Label>
+                <Input
+                  id="pres-email"
+                  type="email"
+                  value={presidentEmail}
+                  onChange={(e) => setPresidentEmail(e.target.value)}
+                  placeholder="president@…"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pres-tel">Tél (optionnel)</Label>
+                <Input
+                  id="pres-tel"
+                  value={presidentTel}
+                  onChange={(e) => setPresidentTel(sanitizeMoroccoPhoneInput(e.target.value))}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  maxLength={13}
+                />
+                <p className="text-[11px] text-muted-foreground">Format : {MOROCCO_PHONE_HINT}</p>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="coop-span-full grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Secteur</Label>
+                <Select
+                  value={activiteKey}
+                  onValueChange={(v) => setActiviteKey(v)}
+                  disabled={activitiesLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={activitiesLoading ? "Chargement…" : "Choisir un secteur"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activities.map((a) => (
+                      <SelectItem key={a} value={a}>
+                        {a}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_VALUE}>Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+                {activiteKey === OTHER_VALUE && (
+                  <Input
+                    className="mt-2"
+                    value={activiteAutre}
+                    onChange={(e) => setActiviteAutre(e.target.value)}
+                    placeholder="Précisez le secteur"
+                  />
+                )}
+                {activiteKey ? (
+                  <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5">
+                    <span
+                      className="inline-block h-3 w-3 shrink-0 rounded-full border border-white shadow-sm"
+                      style={{ backgroundColor: markerPreview.pinFill }}
+                      aria-hidden
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Symbole carte : couleur / icône « {markerPreview.label} »
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="coop-sous-secteur">Sous-secteur</Label>
+                <Input
+                  id="coop-sous-secteur"
+                  value={sousSecteur}
+                  onChange={(e) => setSousSecteur(e.target.value)}
+                  placeholder="Saisir le sous-secteur"
+                />
+              </div>
+            </div>
+
+            <div className="coop-span-full space-y-1.5">
               <Label htmlFor="coop-desc">Description</Label>
               <Textarea
                 id="coop-desc"
@@ -721,7 +844,7 @@ export default function BarometreAddCooperativePanel({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="coop-span-full space-y-2">
               <Label>Liens</Label>
               {links.map((link, index) => (
                 <div key={index} className="flex flex-col gap-2 rounded-md border border-border bg-background p-2 sm:flex-row sm:items-end">
@@ -792,62 +915,107 @@ export default function BarometreAddCooperativePanel({
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="president" className="border-b-0">
+        <AccordionItem value="coordonnees" className={cn("border-b-0", wideLayout && "lg:col-span-2")}>
           <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-            Président(e)
+            Coordonnées générales
           </AccordionTrigger>
-          <AccordionContent className="space-y-4 pb-4">
-            <p className="text-xs text-muted-foreground">
-              Optionnel. Si un champ est renseigné, genre, nom complet et email deviennent obligatoires (téléphone facultatif).
+          <AccordionContent
+            className={cn("pb-4", wideLayout ? "grid gap-4 sm:grid-cols-2" : "space-y-4")}
+          >
+            <p className={cn("text-xs text-muted-foreground", wideLayout && "sm:col-span-2")}>
+              Compléments (réseaux). Nom, secteur, sous-secteur, président(e), email, téléphone, adresse et
+              localisation restent dans les sections ci-dessus.
             </p>
             <div className="space-y-1.5">
-              <Label>Genre</Label>
+              <Label>Temps de travail</Label>
               <Select
-                value={presidentGenre || "__none__"}
-                onValueChange={(v) =>
-                  setPresidentGenre(v === "__none__" ? "" : (v as PresidentGenre))
-                }
+                value={tempsDeTravail || "__none__"}
+                onValueChange={(v) => setTempsDeTravail(v === "__none__" ? "" : v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Choisir…" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">—</SelectItem>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
+                  {TEMPS_DE_TRAVAIL_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={opt}>
+                      {opt}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pres-nom">Nom complet</Label>
+              <Label htmlFor="coop-facebook">Facebook</Label>
               <Input
-                id="pres-nom"
-                value={presidentNom}
-                onChange={(e) => setPresidentNom(e.target.value)}
-                placeholder="Prénom et nom"
+                id="coop-facebook"
+                value={facebookUrl}
+                onChange={(e) => setFacebookUrl(e.target.value)}
+                placeholder="https://facebook.com/… ou @page"
+                inputMode="url"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pres-email">Email</Label>
+              <Label htmlFor="coop-instagram">Instagram</Label>
               <Input
-                id="pres-email"
-                type="email"
-                value={presidentEmail}
-                onChange={(e) => setPresidentEmail(e.target.value)}
-                placeholder="president@…"
+                id="coop-instagram"
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                placeholder="https://instagram.com/… ou @compte"
+                inputMode="url"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pres-tel">Tél (optionnel)</Label>
-              <Input
-                id="pres-tel"
-                value={presidentTel}
-                onChange={(e) => setPresidentTel(sanitizeMoroccoPhoneInput(e.target.value))}
-                inputMode="tel"
-                autoComplete="tel"
-                maxLength={13}
-              />
-              <p className="text-[11px] text-muted-foreground">Format : {MOROCCO_PHONE_HINT}</p>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="evaluation" className={cn("border-b-0", wideLayout && "lg:col-span-2")}>
+          <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
+            Évaluation coopérative
+          </AccordionTrigger>
+          <AccordionContent className="pb-4">
+            <p className="mb-4 text-xs text-muted-foreground">
+              Notez chaque critère de {EVALUATION_SCORE_MIN} à {EVALUATION_SCORE_MAX} (optionnel).
+            </p>
+            <div
+              className={cn(
+                "grid gap-3",
+                wideLayout ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1",
+              )}
+            >
+              {EVALUATION_CRITERIA.map((criterion) => (
+                <div key={criterion.key} className="space-y-1.5">
+                  <Label htmlFor={`eval-${criterion.key}`}>{criterion.label}</Label>
+                  <Select
+                    value={
+                      evaluation[criterion.key] != null
+                        ? String(evaluation[criterion.key])
+                        : "__none__"
+                    }
+                    onValueChange={(v) => {
+                      const key = criterion.key as EvaluationCriterionKey;
+                      setEvaluation((prev) => ({
+                        ...prev,
+                        [key]: v === "__none__" ? null : Number.parseInt(v, 10),
+                      }));
+                    }}
+                  >
+                    <SelectTrigger id={`eval-${criterion.key}`}>
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      {Array.from(
+                        { length: EVALUATION_SCORE_MAX - EVALUATION_SCORE_MIN + 1 },
+                        (_, i) => EVALUATION_SCORE_MIN + i,
+                      ).map((score) => (
+                        <SelectItem key={score} value={String(score)}>
+                          {score}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
             </div>
           </AccordionContent>
         </AccordionItem>

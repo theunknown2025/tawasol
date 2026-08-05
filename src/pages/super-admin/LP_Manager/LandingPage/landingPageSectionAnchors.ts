@@ -21,6 +21,7 @@ export const LANDING_PAGE_SECTION_ANCHOR_ID: Record<LandingPageSectionLabel, str
   "Nos partenaires": "lp-section-nos-partenaires",
   "Nos événements": "lp-section-nos-evenements",
   Opportunités: "lp-section-opportunites",
+  Projets: "lp-section-projets",
   Galerie: "lp-section-galerie",
   Bibliothèque: "lp-section-articles",
   Blog: "lp-section-blog",

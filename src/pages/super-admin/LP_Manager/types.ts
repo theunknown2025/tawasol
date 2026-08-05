@@ -122,14 +122,59 @@ export const DEFAULT_HERO_CONTENT: HeroSectionContent = {
   },
 };
 
+export type TextDirection = "ltr" | "rtl";
+
+export const MOT_DU_PRESIDENT_SIGNATURE_FONTS = [
+  // Arabic calligraphy / display (Google Fonts Arabic)
+  { id: "aref-ruqaa", label: "Aref Ruqaa (عربي)", family: '"Aref Ruqaa", serif', script: "arabic" },
+  { id: "aref-ruqaa-ink", label: "Aref Ruqaa Ink (عربي)", family: '"Aref Ruqaa Ink", serif', script: "arabic" },
+  { id: "katibeh", label: "Katibeh (عربي)", family: '"Katibeh", cursive', script: "arabic" },
+  { id: "amiri", label: "Amiri (عربي)", family: '"Amiri", serif', script: "arabic" },
+  { id: "scheherazade-new", label: "Scheherazade New (عربي)", family: '"Scheherazade New", serif', script: "arabic" },
+  { id: "lateef", label: "Lateef (عربي)", family: '"Lateef", serif', script: "arabic" },
+  { id: "mirza", label: "Mirza (عربي)", family: '"Mirza", serif', script: "arabic" },
+  { id: "lemonada", label: "Lemonada (عربي)", family: '"Lemonada", cursive', script: "arabic" },
+  { id: "rakkas", label: "Rakkas (عربي)", family: '"Rakkas", cursive', script: "arabic" },
+  { id: "noto-naskh-arabic", label: "Noto Naskh Arabic (عربي)", family: '"Noto Naskh Arabic", serif', script: "arabic" },
+  { id: "reem-kufi", label: "Reem Kufi (عربي)", family: '"Reem Kufi", sans-serif', script: "arabic" },
+  // Latin script signatures
+  { id: "great-vibes", label: "Great Vibes (Latin)", family: '"Great Vibes", cursive', script: "latin" },
+  { id: "dancing-script", label: "Dancing Script (Latin)", family: '"Dancing Script", cursive', script: "latin" },
+  { id: "pacifico", label: "Pacifico (Latin)", family: '"Pacifico", cursive', script: "latin" },
+  { id: "satisfy", label: "Satisfy (Latin)", family: '"Satisfy", cursive', script: "latin" },
+  { id: "allura", label: "Allura (Latin)", family: '"Allura", cursive', script: "latin" },
+  { id: "sacramento", label: "Sacramento (Latin)", family: '"Sacramento", cursive', script: "latin" },
+  { id: "caveat", label: "Caveat (Latin)", family: '"Caveat", cursive', script: "latin" },
+  { id: "parisienne", label: "Parisienne (Latin)", family: '"Parisienne", cursive', script: "latin" },
+  { id: "alex-brush", label: "Alex Brush (Latin)", family: '"Alex Brush", cursive', script: "latin" },
+] as const;
+
+export type MotDuPresidentSignatureFontId =
+  (typeof MOT_DU_PRESIDENT_SIGNATURE_FONTS)[number]["id"];
+
+export const MOT_DU_PRESIDENT_SIGNATURE_SIZES = [
+  { id: "sm", label: "Petit", px: 28 },
+  { id: "md", label: "Moyen", px: 36 },
+  { id: "lg", label: "Grand", px: 44 },
+  { id: "xl", label: "Très grand", px: 56 },
+] as const;
+
+export type MotDuPresidentSignatureSizeId =
+  (typeof MOT_DU_PRESIDENT_SIGNATURE_SIZES)[number]["id"];
+
 export type MotDuPresidentContent = {
   /** URL publique (bucket `landing_page`) ou data URL de secours */
   presidentImageUrl: string;
   presidentName: string;
   position: string;
   messageText: string;
+  /** Direction du bloc texte (nom, fonction, message) */
+  messageDirection: TextDirection;
   /** Texte affiché avec une police « signature » */
   signature: string;
+  signatureDirection: TextDirection;
+  signatureFont: MotDuPresidentSignatureFontId;
+  signatureSize: MotDuPresidentSignatureSizeId;
 };
 
 export const DEFAULT_MOT_DU_PRESIDENT_CONTENT: MotDuPresidentContent = {
@@ -137,8 +182,30 @@ export const DEFAULT_MOT_DU_PRESIDENT_CONTENT: MotDuPresidentContent = {
   presidentName: "",
   position: "",
   messageText: "",
+  messageDirection: "ltr",
   signature: "",
+  signatureDirection: "ltr",
+  signatureFont: "great-vibes",
+  signatureSize: "md",
 };
+
+export function resolveMotDuPresidentSignatureFont(
+  id: string | undefined,
+): (typeof MOT_DU_PRESIDENT_SIGNATURE_FONTS)[number] {
+  return (
+    MOT_DU_PRESIDENT_SIGNATURE_FONTS.find((f) => f.id === id) ??
+    MOT_DU_PRESIDENT_SIGNATURE_FONTS[0]
+  );
+}
+
+export function resolveMotDuPresidentSignatureSize(
+  id: string | undefined,
+): (typeof MOT_DU_PRESIDENT_SIGNATURE_SIZES)[number] {
+  return (
+    MOT_DU_PRESIDENT_SIGNATURE_SIZES.find((s) => s.id === id) ??
+    MOT_DU_PRESIDENT_SIGNATURE_SIZES[1]
+  );
+}
 
 export const A_PROPOS_VALEURS_MIN = 4;
 export const A_PROPOS_VALEURS_MAX = 6;

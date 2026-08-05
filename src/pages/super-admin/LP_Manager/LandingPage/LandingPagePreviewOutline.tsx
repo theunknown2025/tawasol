@@ -13,6 +13,7 @@ import { LandingWaveSection } from "./LandingWaveSection";
 import { MotDuPresidentSection } from "./MotDuPresidentSection";
 import { RemessEnChiffresSection } from "./RemessEnChiffresSection";
 import { BarometreLandingSection } from "./BarometreLandingSection";
+import { ProjetsLandingSection } from "./ProjetsLandingSection";
 import { LANDING_PAGE_SECTION_ANCHOR_ID } from "./landingPageSectionAnchors";
 import { LANDING_PAGE_SECTION_LABELS } from "./landingPageSectionLabels";
 import type { LandingPageOutlineTitleLabel } from "./LandingPageSectionOutlineTitle";
@@ -51,6 +52,8 @@ const SECTION_WAVE_VARIANT: Partial<Record<string, LandingWaveVariant>> = {
   "Équipe REMESS": "cream",
   "Nos membres": "white",
   "Nos événements": "warm",
+  Opportunités: "cream",
+  Projets: "warm",
   Galerie: "white",
   Bibliothèque: "cream",
   Blog: "white",
@@ -122,6 +125,8 @@ export function LandingPagePreviewOutline({
               <NosMembresSection content={nosMembres} />
             ) : label === "Nos événements" ? (
               <div className="min-h-[3rem]" aria-hidden />
+            ) : label === "Projets" ? (
+              <ProjetsLandingSection hideMainTitle />
             ) : label === "Galerie" ? (
               <GalerieSection content={galerie} />
             ) : label === "Contacter nous" ? (

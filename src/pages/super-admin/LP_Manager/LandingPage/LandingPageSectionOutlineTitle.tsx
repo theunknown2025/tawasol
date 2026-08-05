@@ -1,6 +1,8 @@
 import {
   BarChart3,
+  Briefcase,
   CalendarDays,
+  FolderKanban,
   Handshake,
   Images,
   Info,
@@ -29,6 +31,8 @@ const SECTION_TITLE_ICONS: Record<LandingPageOutlineTitleLabel, LucideIcon> = {
   "Nos membres": UserSquare2,
   "Nos partenaires": Handshake,
   "Nos événements": CalendarDays,
+  Opportunités: Briefcase,
+  Projets: FolderKanban,
   Galerie: Images,
   Bibliothèque: Library,
   Blog: NotebookPen,

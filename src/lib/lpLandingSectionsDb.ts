@@ -11,6 +11,8 @@ import {
   DEFAULT_HERO_CONTENT,
   DEFAULT_MOT_DU_PRESIDENT_CONTENT,
   DEFAULT_REMESS_EN_CHIFFRES_CONTENT,
+  MOT_DU_PRESIDENT_SIGNATURE_FONTS,
+  MOT_DU_PRESIDENT_SIGNATURE_SIZES,
   ensureAProposValeursCount,
   mergeFooterPayload,
   ensureRemessChiffresStatsCount,
@@ -27,6 +29,8 @@ import {
   type HeaderContent,
   type HeroSectionContent,
   type MotDuPresidentContent,
+  type MotDuPresidentSignatureFontId,
+  type MotDuPresidentSignatureSizeId,
   type RemessEnChiffresContent,
 } from "@/pages/super-admin/LP_Manager/types";
 
@@ -73,9 +77,27 @@ function mergeHeroPayload(raw: unknown): HeroSectionContent {
   };
 }
 
+const SIGNATURE_FONT_IDS = new Set<string>(
+  MOT_DU_PRESIDENT_SIGNATURE_FONTS.map((f) => f.id),
+);
+const SIGNATURE_SIZE_IDS = new Set<string>(
+  MOT_DU_PRESIDENT_SIGNATURE_SIZES.map((s) => s.id),
+);
+
 function mergeMotPayload(raw: unknown): MotDuPresidentContent {
   const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<MotDuPresidentContent>;
-  return { ...DEFAULT_MOT_DU_PRESIDENT_CONTENT, ...o };
+  return {
+    ...DEFAULT_MOT_DU_PRESIDENT_CONTENT,
+    ...o,
+    messageDirection: o.messageDirection === "rtl" ? "rtl" : "ltr",
+    signatureDirection: o.signatureDirection === "rtl" ? "rtl" : "ltr",
+    signatureFont: SIGNATURE_FONT_IDS.has(o.signatureFont ?? "")
+      ? (o.signatureFont as MotDuPresidentSignatureFontId)
+      : DEFAULT_MOT_DU_PRESIDENT_CONTENT.signatureFont,
+    signatureSize: SIGNATURE_SIZE_IDS.has(o.signatureSize ?? "")
+      ? (o.signatureSize as MotDuPresidentSignatureSizeId)
+      : DEFAULT_MOT_DU_PRESIDENT_CONTENT.signatureSize,
+  };
 }
 
 function mergeAProposPayload(raw: unknown): AProposRemessContent {

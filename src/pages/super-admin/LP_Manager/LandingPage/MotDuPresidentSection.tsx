@@ -1,5 +1,9 @@
 import { UserRound } from "lucide-react";
-import type { MotDuPresidentContent } from "../types";
+import {
+  resolveMotDuPresidentSignatureFont,
+  resolveMotDuPresidentSignatureSize,
+  type MotDuPresidentContent,
+} from "../types";
 import { cn } from "@/lib/utils";
 
 type MotDuPresidentSectionProps = {
@@ -13,6 +17,10 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
   const hasPosition = content.position.trim().length > 0;
   const hasMessage = content.messageText.trim().length > 0;
   const hasSignature = content.signature.trim().length > 0;
+  const messageDir = content.messageDirection === "rtl" ? "rtl" : "ltr";
+  const signatureDir = content.signatureDirection === "rtl" ? "rtl" : "ltr";
+  const signatureFont = resolveMotDuPresidentSignatureFont(content.signatureFont);
+  const signatureSize = resolveMotDuPresidentSignatureSize(content.signatureSize);
 
   return (
     <section className={cn("py-8 md:py-12", className)}>
@@ -38,7 +46,7 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
 
           <div className="min-w-0 space-y-4 text-pretty">
             {(hasName || hasPosition) && (
-              <header className="space-y-1 border-b border-border/60 pb-4">
+              <header className="space-y-1 border-b border-border/60 pb-4" dir={messageDir}>
                 {hasName && (
                   <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
                     {content.presidentName}
@@ -51,7 +59,7 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
             )}
 
             {hasMessage && (
-              <div className="prose prose-neutral max-w-none dark:prose-invert">
+              <div className="prose prose-neutral max-w-none dark:prose-invert" dir={messageDir}>
                 <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground md:text-lg">
                   {content.messageText}
                 </p>
@@ -60,8 +68,13 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
 
             {hasSignature && (
               <p
-                className="font-signature pt-2 text-3xl text-foreground md:text-4xl"
-                style={{ lineHeight: 1.2 }}
+                className="pt-2 text-foreground"
+                dir={signatureDir}
+                style={{
+                  fontFamily: signatureFont.family,
+                  fontSize: `${signatureSize.px}px`,
+                  lineHeight: 1.2,
+                }}
               >
                 {content.signature}
               </p>

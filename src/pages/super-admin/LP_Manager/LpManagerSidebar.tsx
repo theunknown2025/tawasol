@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BarChart2,
   Compass,
+  FolderKanban,
   LayoutDashboard,
   LayoutTemplate,
   Library,
@@ -21,6 +22,7 @@ const lpNav = [
   { label: "Cartographie", icon: Compass, path: `${LP_BASE}/cartographie`, end: true },
   { label: "Baromètre", icon: BarChart2, path: `${LP_BASE}/barometre-donnees`, end: true },
   { label: "Bibliothèque", icon: Library, path: `${LP_BASE}/library`, end: true },
+  { label: "Projets", icon: FolderKanban, path: `${LP_BASE}/projets`, end: true },
   { label: "Tableau de bord", icon: LayoutDashboard, path: `${LP_BASE}/dashboard`, end: true },
 ] as const;
 

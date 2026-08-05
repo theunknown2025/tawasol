@@ -31,6 +31,7 @@ const PUBLIC_SITE_NAV = [
   { to: "/cartographie", label: "Cartographie" },
   { to: "/barometre", label: "Baromètre" },
   { to: "/opportunites", label: "Opportunités" },
+  { to: "/projets", label: "Projets" },
 ] as const;
 
 function PublicSiteNavLinks() {

@@ -1,5 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import { hasUsableMapCoordinates, parseCoordValue } from "./barometreCoords";
+import {
+  evaluationToJson,
+  parseEvaluation,
+  type CooperativeEvaluation,
+} from "./barometreEvaluation";
 
 const BUCKET = "barometre_cooperative_images";
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -8,6 +13,8 @@ export const MAX_COOP_PHONES = 3;
 export type CooperativeLink = { url: string; label: string };
 
 export type PresidentGenre = "male" | "female";
+
+export type { CooperativeEvaluation };
 
 export type BarometreCooperative = {
   id: string;
@@ -35,6 +42,13 @@ export type BarometreCooperative = {
   presidentNomComplet: string;
   presidentEmail: string;
   presidentTel: string;
+  /** Coordonnées générales complémentaires */
+  secteur: string;
+  sousSecteur: string;
+  tempsDeTravail: string;
+  facebookUrl: string;
+  instagramUrl: string;
+  evaluation: CooperativeEvaluation;
 };
 
 type DbRow = {
@@ -62,6 +76,12 @@ type DbRow = {
   president_nom_complet: string | null;
   president_email: string | null;
   president_tel: string | null;
+  secteur: string | null;
+  sous_secteur: string | null;
+  temps_de_travail: string | null;
+  facebook_url: string | null;
+  instagram_url: string | null;
+  evaluation: unknown;
 };
 
 function parseLinks(raw: unknown): CooperativeLink[] {
@@ -111,7 +131,7 @@ function mapRow(row: DbRow): BarometreCooperative {
     phones,
     email: row.email ?? "",
     adresse: row.adresse ?? "",
-    activite: (row.activite ?? row.secteur_activite ?? "").trim(),
+    activite: (row.activite ?? row.secteur_activite ?? row.secteur ?? "").trim(),
     description: row.description ?? "",
     links,
     imageUrl: row.image_url ?? null,
@@ -126,11 +146,17 @@ function mapRow(row: DbRow): BarometreCooperative {
     presidentNomComplet: row.president_nom_complet ?? "",
     presidentEmail: row.president_email ?? "",
     presidentTel: row.president_tel ?? "",
+    secteur: (row.secteur ?? row.activite ?? row.secteur_activite ?? "").trim(),
+    sousSecteur: row.sous_secteur ?? "",
+    tempsDeTravail: row.temps_de_travail ?? "",
+    facebookUrl: row.facebook_url ?? "",
+    instagramUrl: row.instagram_url ?? "",
+    evaluation: parseEvaluation(row.evaluation),
   };
 }
 
 const COOP_SELECT =
-  "id, created_at, nom, tel, phones, email, adresse, activite, secteur_activite, description, links, liens, image_url, commune_id, province_id, province_name, commune_name, longitude, latitude, is_published, president_genre, president_nom_complet, president_email, president_tel";
+  "id, created_at, nom, tel, phones, email, adresse, activite, secteur_activite, description, links, liens, image_url, commune_id, province_id, province_name, commune_name, longitude, latitude, is_published, president_genre, president_nom_complet, president_email, president_tel, secteur, sous_secteur, temps_de_travail, facebook_url, instagram_url, evaluation";
 
 /** Données visibles selon RLS (admin : tout ; anon / public : is_published uniquement). */
 export async function fetchBarometreCooperatives(): Promise<BarometreCooperative[]> {
@@ -199,6 +225,12 @@ export type InsertBarometreCooperativeInput = {
   presidentNomComplet: string | null;
   presidentEmail: string | null;
   presidentTel: string | null;
+  secteur: string | null;
+  sousSecteur: string | null;
+  tempsDeTravail: string | null;
+  facebookUrl: string | null;
+  instagramUrl: string | null;
+  evaluation: CooperativeEvaluation;
 };
 
 function phonesPayload(phones: string[]): { phones: string[]; tel: string | null } {
@@ -217,6 +249,7 @@ export async function insertBarometreCooperative(payload: InsertBarometreCoopera
 
   const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
   const { phones, tel } = phonesPayload(payload.phones);
+  const evaluationJson = evaluationToJson(payload.evaluation);
 
   const { error } = await supabase.from("barometre_cooperatives").insert({
     nom: payload.nom,
@@ -244,9 +277,72 @@ export async function insertBarometreCooperative(payload: InsertBarometreCoopera
     president_nom_complet: payload.presidentNomComplet,
     president_email: payload.presidentEmail,
     president_tel: payload.presidentTel,
+    secteur: payload.secteur,
+    sous_secteur: payload.sousSecteur,
+    temps_de_travail: payload.tempsDeTravail,
+    facebook_url: payload.facebookUrl,
+    instagram_url: payload.instagramUrl,
+    evaluation: evaluationJson,
   });
 
   if (error) throw error;
+}
+
+export async function insertBarometreCooperativesBulk(
+  payloads: InsertBarometreCooperativeInput[],
+): Promise<number> {
+  if (payloads.length === 0) return 0;
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error("Connexion requise pour enregistrer des coopératives.");
+  }
+
+  const rows = payloads.map((payload) => {
+    const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
+    const { phones, tel } = phonesPayload(payload.phones);
+    const evaluationJson = evaluationToJson(payload.evaluation);
+    return {
+      nom: payload.nom,
+      tel,
+      phones,
+      email: payload.email,
+      adresse: payload.adresse,
+      description: payload.description,
+      activite: payload.activite,
+      secteur_activite: payload.activite,
+      links: linksJson,
+      liens: linksJson,
+      image_url: payload.imageUrl,
+      longitude: payload.longitude,
+      latitude: payload.latitude,
+      province_id: payload.provinceId,
+      commune_id: payload.communeId,
+      province_name: payload.provinceName,
+      commune_name: payload.communeName,
+      province: payload.provinceName,
+      commune: payload.communeName,
+      created_by: user.id,
+      is_published: payload.isPublished,
+      president_genre: payload.presidentGenre,
+      president_nom_complet: payload.presidentNomComplet,
+      president_email: payload.presidentEmail,
+      president_tel: payload.presidentTel,
+      secteur: payload.secteur,
+      sous_secteur: payload.sousSecteur,
+      temps_de_travail: payload.tempsDeTravail,
+      facebook_url: payload.facebookUrl,
+      instagram_url: payload.instagramUrl,
+      evaluation: evaluationJson,
+    };
+  });
+
+  const { error } = await supabase.from("barometre_cooperatives").insert(rows);
+  if (error) throw error;
+  return rows.length;
 }
 
 export async function updateBarometreCooperative(id: string, payload: InsertBarometreCooperativeInput): Promise<void> {
@@ -260,6 +356,7 @@ export async function updateBarometreCooperative(id: string, payload: InsertBaro
 
   const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
   const { phones, tel } = phonesPayload(payload.phones);
+  const evaluationJson = evaluationToJson(payload.evaluation);
 
   const { error } = await supabase
     .from("barometre_cooperatives")
@@ -288,6 +385,12 @@ export async function updateBarometreCooperative(id: string, payload: InsertBaro
       president_nom_complet: payload.presidentNomComplet,
       president_email: payload.presidentEmail,
       president_tel: payload.presidentTel,
+      secteur: payload.secteur,
+      sous_secteur: payload.sousSecteur,
+      temps_de_travail: payload.tempsDeTravail,
+      facebook_url: payload.facebookUrl,
+      instagram_url: payload.instagramUrl,
+      evaluation: evaluationJson,
     })
     .eq("id", id);
 

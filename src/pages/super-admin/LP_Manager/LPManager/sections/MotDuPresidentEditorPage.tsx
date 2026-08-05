@@ -20,7 +20,7 @@ export default function MotDuPresidentEditorPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-foreground">Mot du président</h1>
             <p className="text-sm text-muted-foreground">
-              Photo, identité, texte et signature affichée avec une police dédiée.
+              Photo, identité, texte (LTR/RTL) et signature (direction, police, taille).
             </p>
           </div>
         </div>

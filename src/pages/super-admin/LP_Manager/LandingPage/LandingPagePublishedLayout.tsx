@@ -15,6 +15,7 @@ import { MotDuPresidentSection } from "./MotDuPresidentSection";
 import { RemessEnChiffresSection } from "./RemessEnChiffresSection";
 import { BarometreLandingSection } from "./BarometreLandingSection";
 import { OpportunitesLandingSection } from "./OpportunitesLandingSection";
+import { ProjetsLandingSection } from "./ProjetsLandingSection";
 import { LandingVerticalSectionNav } from "./LandingVerticalSectionNav";
 import { LANDING_PAGE_SECTION_ANCHOR_ID } from "./landingPageSectionAnchors";
 import type {
@@ -120,6 +121,11 @@ export function LandingPagePublishedLayout({
 
       <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Opportunités} variant="cream">
         <OpportunitesLandingSection />
+      </LandingWaveSection>
+
+      <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Projets} variant="warm">
+        <LandingPageSectionOutlineTitle label="Projets" />
+        <ProjetsLandingSection hideMainTitle />
       </LandingWaveSection>
 
       <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID.Galerie} variant="white">

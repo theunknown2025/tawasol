@@ -37,6 +37,7 @@ import MediaManagerPage from "./pages/super-admin/MediaManagerPage";
 import PMOPage from "./pages/super-admin/PMOPage";
 import LpProfilePage from "./pages/super-admin/LP_Manager/LpProfilePage";
 import LpLibraryPage from "./pages/super-admin/LP_Manager/LibraryManager/LpLibraryPage";
+import LpProjetsPage from "./pages/super-admin/LP_Manager/ProjetsManager/LpProjetsPage";
 import LpDashboardPage from "./pages/super-admin/LP_Manager/LpDashboardPage";
 import BarometrePage from "./pages/super-admin/LP_Manager/BarometrePage";
 import BarometreEditCooperativePage from "./pages/super-admin/LP_Manager/Barometre/BarometreEditCooperativePage";
@@ -53,6 +54,7 @@ import NosPartenairesEditorPage from "./pages/super-admin/LP_Manager/LPManager/s
 import NosEvenementsEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosEvenementsEditorPage";
 import GalerieEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/GalerieEditorPage";
 import ArticlesEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ArticlesEditorPage";
+import ProjetsEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ProjetsEditorPage";
 import ContacterNousEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ContacterNousEditorPage";
 import FooterEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/FooterEditorPage";
 import PublicLibraryPage from "./pages/public-library/PublicLibraryPage";
@@ -63,9 +65,12 @@ import PublicEventsPage from "./pages/public/PublicEventsPage";
 import PublicBlogsPage from "./pages/public/PublicBlogsPage";
 import PublicBlogPage from "./pages/public/PublicBlogPage";
 import PublicBarometrePage from "./pages/public/PublicBarometrePage";
+import PublicBarometreCooperativePage from "./pages/public/PublicBarometreCooperativePage";
 import PublicBarometreComingSoonPage from "./pages/public/PublicBarometreComingSoonPage";
 import PublicOpportunitiesPage from "./pages/public/PublicOpportunitiesPage";
 import PublicOpportunityDetailPage from "./pages/public/PublicOpportunityDetailPage";
+import PublicProjetsPage from "./pages/public/PublicProjetsPage";
+import PublicProjetDetailPage from "./pages/public/PublicProjetDetailPage";
 import OpDashboardPage from "./pages/super-admin/Opportunities_Manager/OpDashboardPage";
 import NouvelleOpportunitePage from "./pages/super-admin/Opportunities_Manager/NouvelleOpportunitePage";
 import SuiviCandidaturesPage from "./pages/super-admin/Opportunities_Manager/SuiviCandidaturesPage";
@@ -119,9 +124,12 @@ const App = () => {
             <Route path="/blogs" element={<PublicBlogsPage />} />
             <Route path="/blog/:slug" element={<PublicBlogPage />} />
             <Route path="/cartographie" element={<PublicBarometrePage />} />
+            <Route path="/cartographie/cooperative/:id" element={<PublicBarometreCooperativePage />} />
             <Route path="/barometre" element={<PublicBarometreComingSoonPage />} />
             <Route path="/opportunites" element={<PublicOpportunitiesPage />} />
             <Route path="/opportunite/:slug" element={<PublicOpportunityDetailPage />} />
+            <Route path="/projets" element={<PublicProjetsPage />} />
+            <Route path="/projet/:slug" element={<PublicProjetDetailPage />} />
             <Route
               path="/admin/portail"
               element={
@@ -141,6 +149,7 @@ const App = () => {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="profile" element={<LpProfilePage />} />
               <Route path="library" element={<LpLibraryPage />} />
+              <Route path="projets" element={<LpProjetsPage />} />
               <Route path="dashboard" element={<LpDashboardPage />} />
               <Route path="cartographie" element={<BarometrePage />} />
               <Route path="cartographie/edit/:id" element={<BarometreEditCooperativePage />} />
@@ -160,6 +169,7 @@ const App = () => {
                 <Route path="nos-evenements" element={<NosEvenementsEditorPage />} />
                 <Route path="galerie" element={<GalerieEditorPage />} />
                 <Route path="articles" element={<ArticlesEditorPage />} />
+                <Route path="projets" element={<ProjetsEditorPage />} />
                 <Route path="contacter-nous" element={<ContacterNousEditorPage />} />
                 <Route path="footer" element={<FooterEditorPage />} />
               </Route>
