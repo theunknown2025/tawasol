@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, LayoutGrid, List } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
+import { PublicPageHero } from "@/components/public/PublicPageHero";
+import {
+  PublicPagedListPagination,
+  PublicPagedListToolbar,
+  type PublicListViewMode,
+} from "@/components/public/PublicPagedListControls";
 import { OpportunityCard, OpportunityRow } from "@/components/opportunities/OpportunityCard";
 import {
   fetchOpportunitiesPublicSettings,
@@ -29,6 +26,14 @@ const DEFAULT_PAGE_SIZE: PageSizeOption = 15;
 function normalizePageSize(value: number | undefined): PageSizeOption {
   if (value === 5 || value === 15 || value === 50) return value;
   return DEFAULT_PAGE_SIZE;
+}
+
+function toViewMode(mode: OpportunitiesDisplayMode): PublicListViewMode {
+  return mode === "rows" ? "rows" : "cards";
+}
+
+function fromViewMode(mode: PublicListViewMode): OpportunitiesDisplayMode {
+  return mode === "rows" ? "rows" : "card";
 }
 
 export default function PublicOpportunitiesPage() {
@@ -53,6 +58,7 @@ export default function PublicOpportunitiesPage() {
   const pageSize = isSuperAdmin ? serverPageSize : (visitorPageSize ?? serverPageSize);
   const serverDisplayMode = settings?.displayMode ?? "card";
   const displayMode = isSuperAdmin ? serverDisplayMode : (visitorDisplayMode ?? serverDisplayMode);
+  const viewMode = toViewMode(displayMode);
   const totalCount = allOpportunities.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
@@ -93,61 +99,33 @@ export default function PublicOpportunitiesPage() {
     }
   };
 
-  const rangeStart = totalCount === 0 ? 0 : currentPage * pageSize + 1;
-  const rangeEnd = Math.min((currentPage + 1) * pageSize, totalCount);
-
   return (
     <PublicShell>
-      <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+      <PublicPageHero
+        title="Nos opportunités"
+        description="Emplois, stages, AMI, TDR et formations du REMESS."
+      />
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 md:py-10 lg:px-8">
         <PublicBreadcrumbs items={[{ label: "Accueil", to: "/" }, { label: "Opportunités" }]} />
-        <div className="mb-8 mt-4">
-          <h1 className="text-3xl font-bold tracking-tight">Nos opportunités</h1>
-          <p className="mt-2 text-muted-foreground">
-            Emplois, stages, AMI, TDR et formations du REMESS.
-          </p>
-        </div>
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Chargement…</p>
+          <div className="flex justify-center py-20 text-muted-foreground">
+            <Loader2 className="h-10 w-10 animate-spin" aria-hidden />
+          </div>
         ) : totalCount === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune opportunité publiée pour le moment.</p>
+          <p className="rounded-xl border border-dashed border-border py-16 text-center text-muted-foreground">
+            Aucune opportunité publiée pour le moment.
+          </p>
         ) : (
           <>
-            <div className="mb-4 flex justify-end">
-              <div
-                className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5"
-                role="group"
-                aria-label="Mode d'affichage"
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "h-8 w-8 shrink-0",
-                    displayMode === "card" && "bg-background text-foreground shadow-sm",
-                  )}
-                  title="Affichage en cartes"
-                  aria-pressed={displayMode === "card"}
-                  onClick={() => setDisplayMode("card")}
-                >
-                  <LayoutGrid size={16} />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "h-8 w-8 shrink-0",
-                    displayMode === "rows" && "bg-background text-foreground shadow-sm",
-                  )}
-                  title="Affichage en lignes"
-                  aria-pressed={displayMode === "rows"}
-                  onClick={() => setDisplayMode("rows")}
-                >
-                  <List size={16} />
-                </Button>
-              </div>
+            <div className="flex justify-end">
+              <PublicPagedListToolbar
+                viewMode={viewMode}
+                onViewModeChange={(mode) => setDisplayMode(fromViewMode(mode))}
+                pageSize={pageSize}
+                onPageSizeChange={(n) => setPageSize(normalizePageSize(n))}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+              />
             </div>
 
             {displayMode === "card" ? (
@@ -164,67 +142,18 @@ export default function PublicOpportunitiesPage() {
               </div>
             )}
 
-            <nav
-              className="mt-8 flex justify-center border-t border-border pt-6"
-              aria-label="Pagination des opportunités"
-            >
-              <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-2 py-1.5">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  disabled={currentPage === 0}
-                  aria-label="Page précédente"
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  <ChevronLeft size={18} />
-                </Button>
-
-                <span className="px-1 text-sm text-muted-foreground whitespace-nowrap">
-                  {rangeStart}–{rangeEnd} sur {totalCount} opportunité{totalCount > 1 ? "s" : ""}
-                </span>
-
-                <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
-
-                <span className="px-1 text-sm text-muted-foreground whitespace-nowrap">
-                  Page {currentPage + 1} / {totalPages}
-                </span>
-
-                <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
-
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(v) => setPageSize(Number(v) as PageSizeOption)}
-                >
-                  <SelectTrigger className="h-8 w-[7.5rem] border-0 bg-transparent shadow-none focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAGE_SIZE_OPTIONS.map((n) => (
-                      <SelectItem key={n} value={String(n)}>
-                        {n} par page
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  disabled={currentPage >= totalPages - 1}
-                  aria-label="Page suivante"
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                >
-                  <ChevronRight size={18} />
-                </Button>
-              </div>
-            </nav>
+            <PublicPagedListPagination
+              page={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              itemLabel="opportunité"
+              ariaLabel="Pagination des opportunités"
+            />
           </>
         )}
-      </div>
+      </main>
     </PublicShell>
   );
 }

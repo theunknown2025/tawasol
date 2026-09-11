@@ -1,9 +1,16 @@
 import { supabase } from "./supabase";
 import { createDefaultNavIncludeSection } from "@/pages/super-admin/LP_Manager/LandingPage/landingPageSectionAnchors";
 import {
+  createDefaultSectionVisibility,
+  type LandingSectionVisibilityMap,
+} from "./lpLandingSectionVisibility";
+import { fetchLpLandingSectionVisibility } from "./lpLandingSectionVisibilityApi";
+import {
   DEFAULT_A_PROPOS_REMESS_CONTENT,
   DEFAULT_EQUIPE_REMESS_CONTENT,
+  DEFAULT_EQUIPE_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
+  DEFAULT_NOS_PARTENAIRES_CONTENT,
   DEFAULT_GALERIE_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
   DEFAULT_FOOTER_CONTENT,
@@ -18,11 +25,14 @@ import {
   ensureRemessChiffresStatsCount,
   normalizeEquipeMembers,
   normalizeNosMembresEntries,
+  normalizeNosPartenairesEntries,
   normalizeGalerieCatalogues,
   isGalerieDisplayMode,
   type AProposRemessContent,
   type EquipeRemessContent,
+  type EquipeContent,
   type NosMembresContent,
+  type NosPartenairesContent,
   type GalerieContent,
   type ContacterNousContent,
   type FooterContent,
@@ -42,15 +52,30 @@ function normalizeHeaderNavInclude(raw: unknown): HeaderContent["navIncludeSecti
   const r = raw as Record<string, boolean | undefined>;
   const legacyBarometre = r["Baromètre"];
   const legacyArticlesNav = r["Articles"];
-  const { Baromètre: _drop, Articles: _dropArticles, ...rest } = r;
+  const legacyEquipeRemess = r["Équipe REMESS"];
+  const {
+    Articles: _dropArticles,
+    "Équipe REMESS": _dropEquipe,
+    ...rest
+  } = r;
+  /** Ancien nav « Baromètre » = Cartographie, seulement si Cartographie est absent. */
+  const mapLegacyBarometreToCartographie =
+    !("Cartographie" in rest) && typeof legacyBarometre === "boolean";
+  const withoutLegacyBarometre = mapLegacyBarometreToCartographie
+    ? (() => {
+        const { Baromètre: _drop, ...kept } = rest;
+        return kept;
+      })()
+    : rest;
   return {
     ...defaults,
-    ...rest,
-    ...(!("Cartographie" in rest) && typeof legacyBarometre === "boolean"
-      ? { Cartographie: legacyBarometre }
-      : {}),
+    ...withoutLegacyBarometre,
+    ...(mapLegacyBarometreToCartographie ? { Cartographie: legacyBarometre as boolean } : {}),
     ...(!("Bibliothèque" in rest) && typeof legacyArticlesNav === "boolean"
       ? { Bibliothèque: legacyArticlesNav }
+      : {}),
+    ...(!("Conseil Administrative REMESS" in rest) && typeof legacyEquipeRemess === "boolean"
+      ? { "Conseil Administrative REMESS": legacyEquipeRemess }
       : {}),
   } as HeaderContent["navIncludeSection"];
 }
@@ -142,6 +167,14 @@ function mergeEquipeRemessPayload(raw: unknown): EquipeRemessContent {
   };
 }
 
+function mergeEquipePayload(raw: unknown): EquipeContent {
+  const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<EquipeContent>;
+  const membersRaw = Array.isArray(o.members) ? o.members : [];
+  return {
+    members: normalizeEquipeMembers(membersRaw),
+  };
+}
+
 function mergeNosMembresPayload(raw: unknown): NosMembresContent {
   const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<NosMembresContent>;
   const entriesRaw = Array.isArray(o.entries) ? o.entries : [];
@@ -151,6 +184,18 @@ function mergeNosMembresPayload(raw: unknown): NosMembresContent {
         ? o.subtitle
         : DEFAULT_NOS_MEMBRES_CONTENT.subtitle,
     entries: normalizeNosMembresEntries(entriesRaw),
+  };
+}
+
+function mergeNosPartenairesPayload(raw: unknown): NosPartenairesContent {
+  const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<NosPartenairesContent>;
+  const entriesRaw = Array.isArray(o.entries) ? o.entries : [];
+  return {
+    subtitle:
+      typeof o.subtitle === "string"
+        ? o.subtitle
+        : DEFAULT_NOS_PARTENAIRES_CONTENT.subtitle,
+    entries: normalizeNosPartenairesEntries(entriesRaw),
   };
 }
 
@@ -351,6 +396,32 @@ export async function upsertLpLandingEquipeRemess(payload: EquipeRemessContent):
   if (error) throw error;
 }
 
+export async function fetchLpLandingEquipe(): Promise<EquipeContent | null> {
+  const { data, error } = await supabase
+    .from("lp_landing_equipe")
+    .select("payload")
+    .eq("id", SINGLETON_ID)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.payload) return null;
+  return mergeEquipePayload(data.payload);
+}
+
+export async function upsertLpLandingEquipe(payload: EquipeContent): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("lp_landing_equipe").upsert(
+    {
+      id: SINGLETON_ID,
+      payload,
+      updated_by: user?.id ?? null,
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw error;
+}
+
 export async function fetchLpLandingNosMembres(): Promise<NosMembresContent | null> {
   const { data, error } = await supabase
     .from("lp_landing_nos_membres")
@@ -367,6 +438,32 @@ export async function upsertLpLandingNosMembres(payload: NosMembresContent): Pro
     data: { user },
   } = await supabase.auth.getUser();
   const { error } = await supabase.from("lp_landing_nos_membres").upsert(
+    {
+      id: SINGLETON_ID,
+      payload,
+      updated_by: user?.id ?? null,
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw error;
+}
+
+export async function fetchLpLandingNosPartenaires(): Promise<NosPartenairesContent | null> {
+  const { data, error } = await supabase
+    .from("lp_landing_nos_partenaires")
+    .select("payload")
+    .eq("id", SINGLETON_ID)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.payload) return null;
+  return mergeNosPartenairesPayload(data.payload);
+}
+
+export async function upsertLpLandingNosPartenaires(payload: NosPartenairesContent): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("lp_landing_nos_partenaires").upsert(
     {
       id: SINGLETON_ID,
       payload,
@@ -462,25 +559,31 @@ export type LpLandingResolvedContent = {
   aProposRemess: AProposRemessContent;
   remessEnChiffres: RemessEnChiffresContent;
   equipeRemess: EquipeRemessContent;
+  equipe: EquipeContent;
   nosMembres: NosMembresContent;
+  nosPartenaires: NosPartenairesContent;
   galerie: GalerieContent;
   contacterNous: ContacterNousContent;
   footer: FooterContent;
+  sectionVisibility: LandingSectionVisibilityMap;
 };
 
 /** Charge toutes les sections (singleton) ; valeurs par défaut si aucune ligne en base. */
 export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedContent> {
-  const [h, he, m, a, r, eq, nm, gal, cn, f] = await Promise.all([
+  const [h, he, m, a, r, eqConseil, eq, nm, np, gal, cn, f, visResult] = await Promise.all([
     fetchLpLandingHeader(),
     fetchLpLandingHero(),
     fetchLpLandingMotDuPresident(),
     fetchLpLandingAProposRemess(),
     fetchLpLandingRemessEnChiffres(),
     fetchLpLandingEquipeRemess(),
+    fetchLpLandingEquipe(),
     fetchLpLandingNosMembres(),
+    fetchLpLandingNosPartenaires(),
     fetchLpLandingGalerie(),
     fetchLpLandingContacterNous(),
     fetchLpLandingFooter(),
+    fetchLpLandingSectionVisibility().catch(() => null),
   ]);
   return {
     header: h ?? DEFAULT_HEADER_CONTENT,
@@ -488,10 +591,13 @@ export async function fetchAllLpLandingResolved(): Promise<LpLandingResolvedCont
     motDuPresident: m ?? DEFAULT_MOT_DU_PRESIDENT_CONTENT,
     aProposRemess: a ?? DEFAULT_A_PROPOS_REMESS_CONTENT,
     remessEnChiffres: r ?? DEFAULT_REMESS_EN_CHIFFRES_CONTENT,
-    equipeRemess: eq ?? DEFAULT_EQUIPE_REMESS_CONTENT,
+    equipeRemess: eqConseil ?? DEFAULT_EQUIPE_REMESS_CONTENT,
+    equipe: eq ?? DEFAULT_EQUIPE_CONTENT,
     nosMembres: nm ?? DEFAULT_NOS_MEMBRES_CONTENT,
+    nosPartenaires: np ?? DEFAULT_NOS_PARTENAIRES_CONTENT,
     galerie: gal ?? DEFAULT_GALERIE_CONTENT,
     contacterNous: cn ?? DEFAULT_CONTACTER_NOUS_CONTENT,
     footer: f ?? DEFAULT_FOOTER_CONTENT,
+    sectionVisibility: visResult ?? createDefaultSectionVisibility(),
   };
 }

@@ -7,7 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadLandingPageImage } from "@/lib/lpLandingPageApi";
 import {
+  FOOTER_ELEMENTS_PER_COLUMN_MAX,
+  FOOTER_NAV_LINKS_MAX,
   FOOTER_SHORT_TEXT_MAX_CHARS,
+  createDefaultFooterColumnLink,
   createDefaultFooterQuickNavLink,
   type FooterContent,
   type FooterSocialKey,
@@ -100,7 +103,7 @@ export function FooterManager({ value, onChange }: FooterManagerProps) {
                 <Input
                   value={row?.url ?? ""}
                   onChange={(e) => updateSocial(key, e.target.value)}
-                  placeholder={`https://${key}.com/...`}
+                  placeholder={`https://${key === "x" ? "x" : key}.com/...`}
                 />
               </div>
             );
@@ -109,16 +112,25 @@ export function FooterManager({ value, onChange }: FooterManagerProps) {
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label>Quick navigation</Label>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <Label>Navigation rapide</Label>
+            <p className="text-xs text-muted-foreground">
+              Ancres de section (#lp-section-…) ou pages (/events). Max {FOOTER_NAV_LINKS_MAX}.
+            </p>
+          </div>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="gap-2"
+            className="gap-2 shrink-0"
+            disabled={value.quickNavigation.length >= FOOTER_NAV_LINKS_MAX}
             onClick={() =>
               patch({
-                quickNavigation: [...value.quickNavigation, createDefaultFooterQuickNavLink(value.quickNavigation.length)],
+                quickNavigation: [
+                  ...value.quickNavigation,
+                  createDefaultFooterQuickNavLink(value.quickNavigation.length),
+                ],
               })
             }
           >
@@ -128,7 +140,10 @@ export function FooterManager({ value, onChange }: FooterManagerProps) {
         </div>
         <div className="space-y-3">
           {value.quickNavigation.map((item, index) => (
-            <div key={item.id} className="grid gap-2 rounded-lg border border-border p-3 md:grid-cols-[1fr_1fr_auto]">
+            <div
+              key={item.id}
+              className="grid gap-2 rounded-lg border border-border p-3 md:grid-cols-[1fr_1fr_auto]"
+            >
               <Input
                 value={item.label}
                 onChange={(e) =>
@@ -149,7 +164,7 @@ export function FooterManager({ value, onChange }: FooterManagerProps) {
                     ),
                   })
                 }
-                placeholder="#lp-section-hero"
+                placeholder="#lp-section-hero ou /bibliotheque"
               />
               <Button
                 type="button"
@@ -167,42 +182,116 @@ export function FooterManager({ value, onChange }: FooterManagerProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {value.elementsColumns.map((column, colIndex) => (
-          <div key={`col-${colIndex}`} className="space-y-2 rounded-lg border border-border p-3">
-            <Label>Titre colonne {colIndex + 1}</Label>
-            <Input
-              value={column.title}
-              onChange={(e) =>
-                patch({
-                  elementsColumns: value.elementsColumns.map((c, i) =>
-                    i === colIndex ? { ...c, title: e.target.value } : c,
-                  ) as FooterContent["elementsColumns"],
-                })
-              }
-            />
-            <Label className="text-xs text-muted-foreground">Un élément par ligne</Label>
-            <Textarea
-              value={column.items.join("\n")}
-              onChange={(e) =>
-                patch({
-                  elementsColumns: value.elementsColumns.map((c, i) =>
-                    i === colIndex
-                      ? {
-                          ...c,
-                          items: e.target.value
-                            .split("\n")
-                            .map((x) => x.trim())
-                            .filter(Boolean),
-                        }
-                      : c,
-                  ) as FooterContent["elementsColumns"],
-                })
-              }
-              rows={6}
-            />
-          </div>
-        ))}
+      <div className="space-y-3">
+        <div>
+          <Label>Colonnes de liens</Label>
+          <p className="text-xs text-muted-foreground">
+            Pages du site (/projets) ou ancres d’accueil (#lp-section-…). Max{" "}
+            {FOOTER_ELEMENTS_PER_COLUMN_MAX} par colonne.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {value.elementsColumns.map((column, colIndex) => (
+            <div key={`col-${colIndex}`} className="space-y-3 rounded-lg border border-border p-3">
+              <div className="space-y-1.5">
+                <Label>Titre colonne {colIndex + 1}</Label>
+                <Input
+                  value={column.title}
+                  onChange={(e) =>
+                    patch({
+                      elementsColumns: value.elementsColumns.map((c, i) =>
+                        i === colIndex ? { ...c, title: e.target.value } : c,
+                      ) as FooterContent["elementsColumns"],
+                    })
+                  }
+                  placeholder={colIndex === 0 ? "Explorer" : "Sur l’accueil"}
+                />
+              </div>
+
+              <div className="space-y-2">
+                {column.items.map((item) => (
+                  <div key={item.id} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                    <Input
+                      value={item.label}
+                      onChange={(e) =>
+                        patch({
+                          elementsColumns: value.elementsColumns.map((c, i) =>
+                            i === colIndex
+                              ? {
+                                  ...c,
+                                  items: c.items.map((x) =>
+                                    x.id === item.id ? { ...x, label: e.target.value } : x,
+                                  ),
+                                }
+                              : c,
+                          ) as FooterContent["elementsColumns"],
+                        })
+                      }
+                      placeholder="Libellé"
+                    />
+                    <Input
+                      value={item.href}
+                      onChange={(e) =>
+                        patch({
+                          elementsColumns: value.elementsColumns.map((c, i) =>
+                            i === colIndex
+                              ? {
+                                  ...c,
+                                  items: c.items.map((x) =>
+                                    x.id === item.id ? { ...x, href: e.target.value } : x,
+                                  ),
+                                }
+                              : c,
+                          ) as FooterContent["elementsColumns"],
+                        })
+                      }
+                      placeholder="/events ou #lp-section-blog"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() =>
+                        patch({
+                          elementsColumns: value.elementsColumns.map((c, i) =>
+                            i === colIndex
+                              ? { ...c, items: c.items.filter((x) => x.id !== item.id) }
+                              : c,
+                          ) as FooterContent["elementsColumns"],
+                        })
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={column.items.length >= FOOTER_ELEMENTS_PER_COLUMN_MAX}
+                onClick={() =>
+                  patch({
+                    elementsColumns: value.elementsColumns.map((c, i) =>
+                      i === colIndex
+                        ? {
+                            ...c,
+                            items: [...c.items, createDefaultFooterColumnLink(c.items.length)],
+                          }
+                        : c,
+                    ) as FooterContent["elementsColumns"],
+                  })
+                }
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                Ajouter un lien
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-2">

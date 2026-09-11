@@ -293,7 +293,7 @@ export function NosMembresManager({ value, onChange }: NosMembresManagerProps) {
 
                     <div className="space-y-2">
                       <Label htmlFor={`nm-org-desc-${e.id}`}>
-                        Description courte (survol de la carte, max. {NOS_MEMBRES_SHORT_DESC_MAX})
+                        Description (affichée sur la carte, max. {NOS_MEMBRES_SHORT_DESC_MAX})
                       </Label>
                       <Textarea
                         id={`nm-org-desc-${e.id}`}

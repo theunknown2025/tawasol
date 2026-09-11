@@ -7,7 +7,7 @@ import { useLpLandingContent } from "../../LpLandingContentContext";
 import { FooterManager } from "../FooterManager";
 
 export default function FooterEditorPage() {
-  const { footer, setFooter } = useLpLandingContent();
+  const { footer, setFooter, contacterNous } = useLpLandingContent();
   const [previewOpen, setPreviewOpen] = useState(false);
 
   return (
@@ -20,7 +20,7 @@ export default function FooterEditorPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-foreground">Footer</h1>
             <p className="text-sm text-muted-foreground">
-              Logo, texte court, réseaux sociaux, quick navigation et éléments sur 2 colonnes.
+              Logo, texte court, réseaux sociaux, navigation rapide et colonnes de liens.
             </p>
           </div>
         </div>
@@ -46,7 +46,7 @@ export default function FooterEditorPage() {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">Aperçu</h2>
           <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 shadow-sm ring-1 ring-border/50">
-            <FooterSection content={footer} />
+            <FooterSection content={footer} contact={contacterNous} />
           </div>
         </div>
       </div>

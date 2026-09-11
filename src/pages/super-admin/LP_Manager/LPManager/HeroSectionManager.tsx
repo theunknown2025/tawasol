@@ -1,3 +1,7 @@
+import { useRef, useState } from "react";
+import { ImagePlus, Link2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isGoogleDriveUrl } from "@/lib/googleDriveImageUrl";
+import {
+  importLandingPageImageFromUrl,
+  uploadLandingPageImage,
+} from "@/lib/lpLandingPageApi";
 import type { HeroSectionContent, HeroSlide } from "../types";
 import { ensureSlideCount, HERO_SLIDE_COUNT_OPTIONS } from "../types";
 
@@ -38,6 +47,16 @@ function SlideForm({
 }) {
   const bg = slide.background;
   const showCtas = slide.showActionButtons !== false;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [urlDraft, setUrlDraft] = useState(bg.type === "image" ? bg.url : "");
+
+  const setImageUrl = (url: string) => {
+    const overlayOpacity = bg.type === "image" ? (bg.overlayOpacity ?? 35) : 35;
+    onChangeSlide({ background: { type: "image", url, overlayOpacity } });
+    setUrlDraft(url);
+  };
 
   const setBgType = (type: "solid" | "gradient" | "image") => {
     if (type === "solid") {
@@ -52,8 +71,62 @@ function SlideForm({
       onChangeSlide({ background: { type: "gradient", from, to, angleDeg } });
     } else {
       const overlayOpacity = bg.type === "image" ? (bg.overlayOpacity ?? 35) : 35;
-      const url = bg.type === "image" ? bg.url : "";
+      const url = bg.type === "image" ? bg.url : urlDraft;
       onChangeSlide({ background: { type: "image", url, overlayOpacity } });
+      setUrlDraft(url);
+    }
+  };
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url, usedFallback } = await uploadLandingPageImage(file, "hero");
+      setImageUrl(url);
+      if (usedFallback) {
+        toast.warning("Image enregistrée en local", {
+          description:
+            "Le stockage distant n’est pas disponible : l’image est intégrée pour cette session.",
+        });
+      } else {
+        toast.success("Image de fond téléversée");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec du téléversement");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const applyUrl = async (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setImageUrl("");
+      return;
+    }
+
+    if (!isGoogleDriveUrl(trimmed)) {
+      setImageUrl(trimmed);
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const { url, usedFallback } = await importLandingPageImageFromUrl(trimmed, "hero");
+      setImageUrl(url);
+      if (usedFallback) {
+        toast.warning("Lien Google Drive normalisé", {
+          description:
+            "L’image n’a pas pu être re-hébergée : une URL directe Drive est utilisée. Vérifiez l’aperçu.",
+        });
+      } else {
+        toast.success("Image Google Drive importée");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l’import");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -169,21 +242,89 @@ function SlideForm({
             </div>
           </TabsContent>
           <TabsContent value="image" className="space-y-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="sr-only"
+              onChange={(e) => void handleFile(e.target.files?.[0])}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploading || importing}
+                className="gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4" aria-hidden />
+                {uploading ? "Téléversement…" : "Choisir une image"}
+              </Button>
+              {bg.type === "image" && bg.url.trim().length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-destructive hover:text-destructive"
+                  disabled={uploading || importing}
+                  onClick={() => setImageUrl("")}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                  Retirer
+                </Button>
+              )}
+            </div>
+            {bg.type === "image" && bg.url.trim().length > 0 && (
+              <div
+                className="h-28 w-full overflow-hidden rounded-md border border-border bg-muted bg-cover bg-center"
+                style={{ backgroundImage: `url(${JSON.stringify(bg.url)})` }}
+                role="img"
+                aria-label="Aperçu du fond"
+              />
+            )}
             <div className="space-y-1.5">
               <Label htmlFor={`slide-${slide.id}-img-url`} className="text-xs text-muted-foreground">
-                URL de l’image
+                Ou coller une URL (image directe ou Google Drive public)
               </Label>
-              <Input
-                id={`slide-${slide.id}-img-url`}
-                value={bg.type === "image" ? bg.url : ""}
-                onChange={(e) => {
-                  const url = e.target.value;
-                  if (bg.type === "image") {
-                    onChangeSlide({ background: { ...bg, url } });
-                  }
-                }}
-                placeholder="https://…"
-              />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id={`slide-${slide.id}-img-url`}
+                  value={urlDraft}
+                  disabled={uploading || importing}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setUrlDraft(url);
+                    if (bg.type === "image" && !isGoogleDriveUrl(url)) {
+                      onChangeSlide({ background: { ...bg, url } });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (isGoogleDriveUrl(urlDraft)) {
+                      void applyUrl(urlDraft);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void applyUrl(urlDraft);
+                    }
+                  }}
+                  placeholder="https://… ou lien Google Drive"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="gap-2 shrink-0"
+                  disabled={uploading || importing || !urlDraft.trim()}
+                  onClick={() => void applyUrl(urlDraft)}
+                >
+                  <Link2 className="h-4 w-4" aria-hidden />
+                  {importing ? "Import…" : "Appliquer"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Les liens Drive publics sont importés (ou normalisés) pour servir de fond fiable.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor={`slide-${slide.id}-img-overlay`} className="text-xs text-muted-foreground">
@@ -407,6 +548,7 @@ export function HeroSectionManager({ value, onChange }: HeroSectionManagerProps)
               </AccordionTrigger>
               <AccordionContent>
                 <SlideForm
+                  key={slide.id}
                   slide={slide}
                   onChangeSlide={(partial) => {
                     onChange({ ...value, slides: patchSlide(value.slides, index, partial) });

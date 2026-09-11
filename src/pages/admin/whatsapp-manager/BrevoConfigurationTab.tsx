@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { getWahaIntegrationConfig, upsertWahaIntegrationConfig } from "./wahaIntegrationConfigApi";
+import { getIntegrationConfig, upsertIntegrationConfig } from "./integrationConfigApi";
 
-const CONFIG_QUERY_KEY = ["waha-integration-config"] as const;
+const CONFIG_QUERY_KEY = ["integration-config"] as const;
 
 export default function BrevoConfigurationTab() {
   const queryClient = useQueryClient();
@@ -24,7 +24,7 @@ export default function BrevoConfigurationTab() {
 
   const { data: config, isLoading } = useQuery({
     queryKey: CONFIG_QUERY_KEY,
-    queryFn: getWahaIntegrationConfig,
+    queryFn: getIntegrationConfig,
   });
 
   useEffect(() => {
@@ -38,11 +38,10 @@ export default function BrevoConfigurationTab() {
 
   const saveMut = useMutation({
     mutationFn: () =>
-      upsertWahaIntegrationConfig({
+      upsertIntegrationConfig({
         public_site_url: form.public_site_url,
         brevo_notes: form.brevo_notes,
         internal_notes: form.internal_notes,
-        waha_base_url_note: config?.waha_base_url_note ?? "",
       }),
     onSuccess: () => {
       toast.success("Configuration email enregistrée");

@@ -1,3 +1,9 @@
+import {
+  extractGoogleDriveFileId,
+  googleDriveDirectImageUrl,
+  isGoogleDriveUrl,
+  normalizeImageSourceUrl,
+} from "./googleDriveImageUrl";
 import { supabase } from "./supabase";
 
 const BUCKET = "landing_page";
@@ -92,4 +98,57 @@ export async function uploadLandingPagePdf(
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return { url: data.publicUrl };
+}
+
+export type ImportLandingPageImageResult = {
+  url: string;
+  /** True when we could not rehost and fell back to a direct / original URL. */
+  usedFallback: boolean;
+  fromDrive: boolean;
+};
+
+/**
+ * Resolve a pasted image URL for landing backgrounds.
+ * - Direct image URLs are kept as-is.
+ * - Google Drive share links are rehosted when the edge function is available;
+ *   otherwise normalized to a direct public image URL.
+ */
+export async function importLandingPageImageFromUrl(
+  sourceUrl: string,
+  segment: string,
+): Promise<ImportLandingPageImageResult> {
+  const trimmed = sourceUrl.trim();
+  if (!trimmed) {
+    throw new Error("Veuillez coller une URL d’image.");
+  }
+
+  const fromDrive = isGoogleDriveUrl(trimmed);
+  const normalized = normalizeImageSourceUrl(trimmed);
+
+  if (!fromDrive) {
+    return { url: normalized, usedFallback: false, fromDrive: false };
+  }
+
+  const fileId = extractGoogleDriveFileId(trimmed);
+  const direct = fileId ? googleDriveDirectImageUrl(fileId) : normalized;
+
+  try {
+    const { data, error } = await supabase.functions.invoke("import-landing-image", {
+      body: { url: trimmed, segment },
+    });
+
+    if (error) throw error;
+
+    const hosted =
+      data && typeof data === "object" && typeof (data as { url?: unknown }).url === "string"
+        ? (data as { url: string }).url.trim()
+        : "";
+    if (hosted) {
+      return { url: hosted, usedFallback: false, fromDrive: true };
+    }
+  } catch {
+    // Edge function missing / Drive fetch failed — use direct URL fallback.
+  }
+
+  return { url: direct, usedFallback: true, fromDrive: true };
 }

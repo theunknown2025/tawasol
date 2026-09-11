@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { BookOpen, FileText, Loader2, Library } from "lucide-react";
+import { BookOpen, FileText, Loader2, Search, X } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicPageHero } from "@/components/public/PublicPageHero";
@@ -13,9 +13,21 @@ import {
   type PublicPageSize,
 } from "@/components/public/PublicPagedListControls";
 import { fetchPublishedLibraryBooks, type PublicLibraryBook } from "@/lib/publicLibraryBooksApi";
-import { incrementLibraryBookClicks } from "@/lib/libraryBookAnalyticsApi";
 import { buildLibraryBookShareUrl } from "@/lib/shareLinks";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+function filterBooksBySearch(books: PublicLibraryBook[], query: string): PublicLibraryBook[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return books;
+  return books.filter((b) => {
+    const hay = `${b.title} ${b.author} ${b.keywords} ${b.description}`.toLowerCase();
+    return q
+      .split(/\s+/)
+      .filter(Boolean)
+      .every((token) => hay.includes(token));
+  });
+}
 
 function LibraryBookCard({ book }: { book: PublicLibraryBook }) {
   return (
@@ -37,10 +49,7 @@ function LibraryBookCard({ book }: { book: PublicLibraryBook }) {
         )}
         <div className="mt-auto flex flex-col gap-2 pt-2 sm:flex-row sm:items-center">
           <Button type="button" className="w-full flex-1 gap-2 sm:w-auto" asChild>
-            <Link
-              to={`/article/${book.id}`}
-              onClick={() => void incrementLibraryBookClicks(book.id)}
-            >
+            <Link to={`/article/${book.id}`}>
               <FileText className="h-4 w-4" aria-hidden />
               {book.pdf_url.trim() ? "Lire le document" : "Voir la fiche"}
             </Link>
@@ -81,10 +90,7 @@ function LibraryBookRow({ book }: { book: PublicLibraryBook }) {
         )}
         <div className="mt-auto flex flex-col gap-2 pt-1 sm:flex-row sm:items-center">
           <Button type="button" className="w-full gap-2 sm:w-auto" asChild>
-            <Link
-              to={`/article/${book.id}`}
-              onClick={() => void incrementLibraryBookClicks(book.id)}
-            >
+            <Link to={`/article/${book.id}`}>
               <FileText className="h-4 w-4" aria-hidden />
               {book.pdf_url.trim() ? "Lire le document" : "Voir la fiche"}
             </Link>
@@ -106,6 +112,7 @@ function LibraryBookRow({ book }: { book: PublicLibraryBook }) {
 export default function PublicLibraryPage() {
   const [searchParams] = useSearchParams();
   const livreRedirect = searchParams.get("livre")?.trim() ?? "";
+  const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<PublicListViewMode>("cards");
   const [pageSize, setPageSize] = useState<PublicPageSize>(9);
   const [page, setPage] = useState(0);
@@ -115,18 +122,20 @@ export default function PublicLibraryPage() {
     queryFn: () => fetchPublishedLibraryBooks(),
   });
 
-  const totalCount = books.length;
+  const filteredBooks = useMemo(() => filterBooksBySearch(books, search), [books, search]);
+  const totalCount = filteredBooks.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
+  const hasActiveSearch = search.trim().length > 0;
 
   const pageItems = useMemo(() => {
     const start = currentPage * pageSize;
-    return books.slice(start, start + pageSize);
-  }, [books, currentPage, pageSize]);
+    return filteredBooks.slice(start, start + pageSize);
+  }, [filteredBooks, currentPage, pageSize]);
 
   useEffect(() => {
     setPage(0);
-  }, [pageSize, viewMode]);
+  }, [pageSize, viewMode, search]);
 
   if (livreRedirect) {
     return <Navigate to={`/article/${encodeURIComponent(livreRedirect)}`} replace />;
@@ -141,28 +150,6 @@ export default function PublicLibraryPage() {
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 md:py-10 lg:px-8">
         <PublicBreadcrumbs items={[{ label: "Accueil", to: "/" }, { label: "Bibliothèque" }]} />
 
-        <header className="flex flex-col gap-3 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-primary/15 p-2.5 ring-1 ring-primary/20">
-              <Library className="h-7 w-7 text-primary" aria-hidden />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground md:text-xl">Ressources</h2>
-              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                Ouvrez une fiche pour lire le document, partager le lien et consulter les avis.
-              </p>
-            </div>
-          </div>
-          {!isLoading && totalCount > 0 ? (
-            <PublicPagedListToolbar
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              pageSize={pageSize}
-              onPageSizeChange={setPageSize}
-            />
-          ) : null}
-        </header>
-
         {isLoading ? (
           <div className="flex justify-center py-20 text-muted-foreground">
             <Loader2 className="h-10 w-10 animate-spin" aria-hidden />
@@ -173,29 +160,74 @@ export default function PublicLibraryPage() {
           </p>
         ) : (
           <>
-            {viewMode === "cards" ? (
-              <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {pageItems.map((book) => (
-                  <LibraryBookCard key={book.id} book={book} />
-                ))}
-              </ul>
-            ) : (
-              <ul className="space-y-3">
-                {pageItems.map((book) => (
-                  <LibraryBookRow key={book.id} book={book} />
-                ))}
-              </ul>
-            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative min-w-[14rem] max-w-xl flex-1">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher par titre, auteur ou mots-clés…"
+                  className="pl-9 pr-10"
+                  aria-label="Rechercher dans la bibliothèque"
+                  autoComplete="off"
+                />
+                {hasActiveSearch ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setSearch("")}
+                    aria-label="Effacer la recherche"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </Button>
+                ) : null}
+              </div>
+              <PublicPagedListToolbar
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                pageSize={pageSize}
+                onPageSizeChange={(n) => {
+                  if (n === 3 || n === 9 || n === 30) setPageSize(n);
+                }}
+              />
+            </div>
 
-            <PublicPagedListPagination
-              page={currentPage}
-              totalPages={totalPages}
-              totalCount={totalCount}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              itemLabel="ressource"
-              ariaLabel="Pagination de la bibliothèque"
-            />
+            {totalCount === 0 ? (
+              <p className="rounded-xl border border-dashed border-border py-16 text-center text-muted-foreground">
+                Aucune ressource ne correspond à votre recherche.
+              </p>
+            ) : (
+              <>
+                {viewMode === "cards" ? (
+                  <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {pageItems.map((book) => (
+                      <LibraryBookCard key={book.id} book={book} />
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="space-y-3">
+                    {pageItems.map((book) => (
+                      <LibraryBookRow key={book.id} book={book} />
+                    ))}
+                  </ul>
+                )}
+
+                <PublicPagedListPagination
+                  page={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  itemLabel="ressource"
+                  ariaLabel="Pagination de la bibliothèque"
+                />
+              </>
+            )}
           </>
         )}
       </main>

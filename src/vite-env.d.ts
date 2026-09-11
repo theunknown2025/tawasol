@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_SURVEY_AI_URL?: string;
   /** OpenAI — analyse IA des publications (Mur) */
   readonly VITE_OPENAI_API_KEY?: string;
+  /** Google Analytics 4 Measurement ID (G-XXXXXXXXXX) */
+  readonly VITE_GA_MEASUREMENT_ID?: string;
 }
 
 interface ImportMeta {

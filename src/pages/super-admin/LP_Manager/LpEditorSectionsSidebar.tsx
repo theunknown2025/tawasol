@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   CalendarDays,
+  Eye,
   FolderKanban,
   Images,
   LayoutTemplate,
@@ -11,6 +12,7 @@ import {
   PanelTop,
   Quote,
   Users,
+  UsersRound,
   UserSquare2,
   Handshake,
   Info,
@@ -23,6 +25,12 @@ const EDITOR_BASE = "/admin/remess-landing/editor";
 type SectionItem = { id: string; label: string; icon: LucideIcon; to: string };
 
 const sections: SectionItem[] = [
+  {
+    id: "visibility",
+    label: "Visibilité",
+    icon: Eye,
+    to: `${EDITOR_BASE}/visibility`,
+  },
   { id: "header", label: "Header", icon: PanelTop, to: `${EDITOR_BASE}/header` },
   { id: "hero", label: "Hero", icon: LayoutTemplate, to: `${EDITOR_BASE}/hero` },
   {
@@ -45,9 +53,15 @@ const sections: SectionItem[] = [
   },
   {
     id: "equipe-remess",
-    label: "Équipe REMESS",
+    label: "Conseil Administrative REMESS",
     icon: Users,
     to: `${EDITOR_BASE}/equipe-remess`,
+  },
+  {
+    id: "equipe",
+    label: "Équipe",
+    icon: UsersRound,
+    to: `${EDITOR_BASE}/equipe`,
   },
   { id: "nos-membres", label: "Nos membres", icon: UserSquare2, to: `${EDITOR_BASE}/nos-membres` },
   {

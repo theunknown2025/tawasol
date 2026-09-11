@@ -8,6 +8,7 @@ export async function editLibraryBook(payload: EditLibraryBookPayload): Promise<
   const { data, error } = await supabase
     .from("lp_library_books")
     .update({
+      group_id: fields.group_id,
       cover_url: fields.cover_url,
       pdf_url: fields.pdf_url,
       title: fields.title,

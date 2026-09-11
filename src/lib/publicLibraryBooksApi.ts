@@ -40,10 +40,12 @@ export async function fetchSimilarPublishedBooks(
 ): Promise<PublicLibraryBook[]> {
   const { data, error } = await supabase
     .from("lp_library_books")
-    .select("id, cover_url, pdf_url, title, author, description, keywords, published_at, created_at")
+    .select(
+      "id, cover_url, pdf_url, title, author, description, keywords, published_at, created_at, updated_at",
+    )
     .eq("is_published", true)
     .neq("id", excludeBookId)
-    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("updated_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -53,9 +55,11 @@ export async function fetchSimilarPublishedBooks(
 export async function fetchPublishedLibraryBooks(limit?: number): Promise<PublicLibraryBook[]> {
   let q = supabase
     .from("lp_library_books")
-    .select("id, cover_url, pdf_url, title, author, description, keywords, published_at, created_at")
+    .select(
+      "id, cover_url, pdf_url, title, author, description, keywords, published_at, created_at, updated_at",
+    )
     .eq("is_published", true)
-    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("updated_at", { ascending: false })
     .order("created_at", { ascending: false });
   if (typeof limit === "number" && limit > 0) {
     q = q.limit(limit);

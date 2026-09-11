@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { CartographieMapBrand } from "@/components/public/logoscarto/CartographieMapBrand";
 import BarometreAddCooperativePanel, { type CoopFormMapPreview } from "./BarometreAddCooperativePanel";
 import BarometreDatabaseAccordion from "./BarometreDatabaseAccordion";
+import CooperativeCard from "./CooperativeCard";
 import CooperativePlaceMarker from "./CooperativePlaceMarker";
 import { placeCooperativesOnMap } from "./barometreCoopPlacements";
 import {
@@ -35,14 +36,25 @@ function MapCameraController({
   manualLng,
   selectionBounds,
   layerBounds,
+  moroccoMaxBounds,
 }: {
   hasManualPoint: boolean;
   manualLat: number;
   manualLng: number;
   selectionBounds: L.LatLngBounds | null;
   layerBounds: L.LatLngBounds | null;
+  moroccoMaxBounds: L.LatLngBounds | null;
 }) {
   const map = useMap();
+
+  useEffect(() => {
+    if (!moroccoMaxBounds?.isValid()) return;
+    map.setMaxBounds(moroccoMaxBounds);
+    map.options.maxBoundsViscosity = 1;
+    const minZ = map.getBoundsZoom(moroccoMaxBounds, false);
+    if (Number.isFinite(minZ)) map.setMinZoom(Math.max(1, Math.floor(minZ)));
+  }, [map, moroccoMaxBounds]);
+
   useEffect(() => {
     if (hasManualPoint) {
       map.setView([manualLat, manualLng], 8, { animate: true });
@@ -94,6 +106,7 @@ export default function MapPage() {
   }, [reloadCooperatives]);
 
   const [displayMode, setDisplayMode] = useState<"provinces" | "communes">("provinces");
+  const [previewCoop, setPreviewCoop] = useState<BarometreCooperative | null>(null);
   const activeFeatures = displayMode === "communes" ? communes : provinces;
   const activeGeoJson = useMemo(
     () => ({ type: "FeatureCollection" as const, features: activeFeatures }),
@@ -105,6 +118,17 @@ export default function MapPage() {
     if (!bounds.isValid()) return null;
     return bounds;
   }, [activeFeatures, activeGeoJson]);
+
+  /** Full Morocco extent (provinces) — used to lock panning/zoom outside the country. */
+  const moroccoMaxBounds = useMemo(() => {
+    if (provinces.length === 0) return null;
+    const bounds = L.geoJSON({
+      type: "FeatureCollection" as const,
+      features: provinces,
+    } as never).getBounds();
+    if (!bounds.isValid()) return null;
+    return bounds.pad(0.04);
+  }, [provinces]);
 
   const communeToProvinceMap = useMemo(
     () => buildCommuneToProvinceMap(provinces, communes),
@@ -337,361 +361,386 @@ export default function MapPage() {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card shadow-sm">
-        <div className="flex flex-col gap-6 p-4 lg:flex-row lg:items-stretch lg:gap-0 lg:p-0">
-          <aside
-            className={cn(
-              "relative flex w-full shrink-0 flex-col gap-4 lg:max-h-[min(100vh-6rem,900px)] lg:overflow-y-auto lg:bg-muted/30 lg:p-5",
-              showMapPanel
-                ? "lg:max-w-[380px] lg:border-r lg:border-border xl:max-w-[400px]"
-                : "lg:max-w-none lg:flex-1",
-            )}
+        <div className="relative z-30 flex flex-col gap-3 border-b border-border bg-muted/30 p-4">
+          {coopLoadError && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              {coopLoadError}
+            </p>
+          )}
+          <Tabs
+            value={sidebarTab}
+            onValueChange={(v) => {
+              const next = v as "naviguer" | "ajouter";
+              setSidebarTab(next);
+              if (next === "naviguer") setMapPanelOpen(true);
+            }}
+            className="flex w-full flex-col gap-0"
           >
-            {coopLoadError && (
-              <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-                {coopLoadError}
-              </p>
-            )}
-            <Tabs
-              value={sidebarTab}
-              onValueChange={(v) => {
-                const next = v as "naviguer" | "ajouter";
-                setSidebarTab(next);
-                if (next === "naviguer") setMapPanelOpen(true);
-              }}
-              className="flex w-full flex-col gap-0"
-            >
-              <div className="flex items-center gap-2">
-                <TabsList className="grid h-10 min-w-0 flex-1 grid-cols-2">
-                  <TabsTrigger value="naviguer">Naviguer</TabsTrigger>
-                  <TabsTrigger value="ajouter">Ajouter</TabsTrigger>
-                </TabsList>
-                {sidebarTab === "ajouter" ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 shrink-0"
-                    onClick={() => setMapPanelOpen((open) => !open)}
-                    aria-label={mapPanelOpen ? "Masquer la carte" : "Afficher la carte"}
-                    title={mapPanelOpen ? "Masquer la carte" : "Afficher la carte"}
-                  >
-                    {mapPanelOpen ? (
-                      <ChevronRight className="h-4 w-4" aria-hidden />
-                    ) : (
-                      <ChevronLeft className="h-4 w-4" aria-hidden />
-                    )}
-                  </Button>
-                ) : null}
-              </div>
-
-              <TabsContent value="naviguer" className="mt-4 flex flex-col gap-4 focus-visible:ring-0">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Recherche</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Province, commune et coordonnées. La carte est à droite sur grand écran.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPinned className="h-4 w-4 shrink-0 text-primary" />
-                <span>
-                  Calque:{" "}
-                  <strong className="text-foreground">
-                    {displayMode === "communes" ? "Communes" : "Provinces"}
-                  </strong>{" "}
-                  ({activeCount})
-                  {cooperativePlacements.length > 0 ? (
-                    <span className="ml-1 text-muted-foreground"> · repères coop.</span>
-                  ) : null}
-                </span>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  type="button"
-                  variant={displayMode === "provinces" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDisplayMode("provinces")}
-                >
-                  Provinces
-                </Button>
-                <Button
-                  type="button"
-                  variant={displayMode === "communes" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDisplayMode("communes")}
-                >
-                  Communes
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Province</p>
-            <Popover open={provinceOpen} onOpenChange={setProvinceOpen}>
-              <PopoverTrigger asChild>
+            <div className="flex items-center gap-2">
+              <TabsList className="grid h-10 min-w-0 flex-1 grid-cols-2 sm:max-w-md">
+                <TabsTrigger value="naviguer">Naviguer</TabsTrigger>
+                <TabsTrigger value="ajouter">Ajouter</TabsTrigger>
+              </TabsList>
+              {sidebarTab === "ajouter" ? (
                 <Button
                   type="button"
                   variant="outline"
-                  role="combobox"
-                  aria-expanded={provinceOpen}
-                  className="w-full justify-between font-normal"
+                  size="icon"
+                  className="h-10 w-10 shrink-0"
+                  onClick={() => setMapPanelOpen((open) => !open)}
+                  aria-label={mapPanelOpen ? "Masquer la carte" : "Afficher la carte"}
+                  title={mapPanelOpen ? "Masquer la carte" : "Afficher la carte"}
                 >
-                  <span className="truncate text-left">
-                    {selectedProvinceLabel ?? "Rechercher une province..."}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  {mapPanelOpen ? (
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                  )}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[min(100vw-2rem,380px)] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Rechercher une province..." />
-                  <CommandList>
-                    <CommandEmpty>Aucune province.</CommandEmpty>
-                    <CommandGroup>
-                      <CommandItem
-                        value="__clear_province__"
-                        onSelect={() => {
-                          setSelectedProvinceId(null);
-                          setSelectedCommuneId(null);
-                          setDisplayMode("provinces");
-                          setProvinceOpen(false);
-                        }}
+              ) : null}
+            </div>
+
+            <TabsContent value="naviguer" className="mt-4 flex flex-col gap-3 focus-visible:ring-0">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Recherche</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Province, commune et coordonnées — la carte occupe toute la largeur en dessous.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPinned className="h-4 w-4 shrink-0 text-primary" />
+                    <span>
+                      Calque:{" "}
+                      <strong className="text-foreground">
+                        {displayMode === "communes" ? "Communes" : "Provinces"}
+                      </strong>{" "}
+                      ({activeCount})
+                      {cooperativePlacements.length > 0 ? (
+                        <span className="ml-1 text-muted-foreground"> · repères coop.</span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={displayMode === "provinces" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDisplayMode("provinces")}
+                    >
+                      Provinces
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={displayMode === "communes" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDisplayMode("communes")}
+                    >
+                      Communes
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Province</p>
+                  <Popover open={provinceOpen} onOpenChange={setProvinceOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={provinceOpen}
+                        className="w-full justify-between bg-background font-normal"
                       >
-                        Effacer la sélection
-                      </CommandItem>
-                      {provincesSorted.map((p) => (
-                        <CommandItem
-                          key={p.properties.id}
-                          value={`${p.properties.name} ${p.properties.id}`}
-                          onSelect={() => {
-                            setSelectedProvinceId(p.properties.id);
-                            setSelectedCommuneId(null);
-                            setDisplayMode("provinces");
-                            setProvinceOpen(false);
-                          }}
-                        >
-                          {p.properties.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+                        <span className="truncate text-left">
+                          {selectedProvinceLabel ?? "Rechercher une province..."}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="z-[1100] w-[min(100vw-2rem,380px)] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Rechercher une province..." />
+                        <CommandList>
+                          <CommandEmpty>Aucune province.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="__clear_province__"
+                              onSelect={() => {
+                                setSelectedProvinceId(null);
+                                setSelectedCommuneId(null);
+                                setDisplayMode("provinces");
+                                setProvinceOpen(false);
+                              }}
+                            >
+                              Effacer la sélection
+                            </CommandItem>
+                            {provincesSorted.map((p) => (
+                              <CommandItem
+                                key={p.properties.id}
+                                value={`${p.properties.name} ${p.properties.id}`}
+                                onSelect={() => {
+                                  setSelectedProvinceId(p.properties.id);
+                                  setSelectedCommuneId(null);
+                                  setDisplayMode("provinces");
+                                  setProvinceOpen(false);
+                                }}
+                              >
+                                {p.properties.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Commune</p>
-            <Popover open={communeOpen} onOpenChange={setCommuneOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={communeOpen}
-                  className="w-full justify-between font-normal"
-                  disabled={!selectedProvinceId}
-                >
-                  <span className="truncate text-left">
-                    {!selectedProvinceId
-                      ? "Sélectionnez d&apos;abord une province"
-                      : (selectedCommuneLabel ?? "Rechercher une commune...")}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[min(100vw-2rem,380px)] p-0" align="start">
-                <Command>
-                  <CommandInput
-                    placeholder="Rechercher une commune..."
-                    disabled={!selectedProvinceId}
-                  />
-                  <CommandList>
-                    <CommandEmpty>Aucune commune dans cette province.</CommandEmpty>
-                    <CommandGroup>
-                      <CommandItem
-                        value="__clear_commune__"
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Commune</p>
+                  <Popover open={communeOpen} onOpenChange={setCommuneOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={communeOpen}
+                        className="w-full justify-between bg-background font-normal"
                         disabled={!selectedProvinceId}
-                        onSelect={() => {
-                          setSelectedCommuneId(null);
-                          setDisplayMode("provinces");
-                          setCommuneOpen(false);
-                        }}
                       >
-                        Effacer la commune
-                      </CommandItem>
-                      {communesInSelectedProvince.map((c) => (
-                        <CommandItem
-                          key={c.properties.id}
-                          value={`${c.properties.name} ${c.properties.id}`}
-                          onSelect={() => {
-                            setSelectedCommuneId(c.properties.id);
-                            setDisplayMode("communes");
-                            setCommuneOpen(false);
-                          }}
-                        >
-                          {c.properties.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-            </div>
+                        <span className="truncate text-left">
+                          {!selectedProvinceId
+                            ? "Sélectionnez d'abord une province"
+                            : (selectedCommuneLabel ?? "Rechercher une commune...")}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="z-[1100] w-[min(100vw-2rem,380px)] p-0" align="start">
+                      <Command>
+                        <CommandInput
+                          placeholder="Rechercher une commune..."
+                          disabled={!selectedProvinceId}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Aucune commune dans cette province.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="__clear_commune__"
+                              disabled={!selectedProvinceId}
+                              onSelect={() => {
+                                setSelectedCommuneId(null);
+                                setDisplayMode("provinces");
+                                setCommuneOpen(false);
+                              }}
+                            >
+                              Effacer la commune
+                            </CommandItem>
+                            {communesInSelectedProvince.map((c) => (
+                              <CommandItem
+                                key={c.properties.id}
+                                value={`${c.properties.name} ${c.properties.id}`}
+                                onSelect={() => {
+                                  setSelectedCommuneId(c.properties.id);
+                                  setDisplayMode("communes");
+                                  setCommuneOpen(false);
+                                }}
+                              >
+                                {c.properties.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Position (X / Y)</p>
-              <div className="grid gap-2">
-                <Input
-                  value={xInput}
-                  onChange={(event) => setXInput(event.target.value)}
-                  placeholder="X (longitude) ex: -8.03"
-                  inputMode="decimal"
-                />
-                <Input
-                  value={yInput}
-                  onChange={(event) => setYInput(event.target.value)}
-                  placeholder="Y (latitude) ex: 31.51"
-                  inputMode="decimal"
-                />
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">X (longitude)</p>
+                  <Input
+                    value={xInput}
+                    onChange={(event) => setXInput(event.target.value)}
+                    placeholder="ex: -8.03"
+                    inputMode="decimal"
+                    className="bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Y (latitude)</p>
+                  <Input
+                    value={yInput}
+                    onChange={(event) => setYInput(event.target.value)}
+                    placeholder="ex: 31.51"
+                    inputMode="decimal"
+                    className="bg-background"
+                  />
+                </div>
               </div>
+
               <p className="text-xs text-muted-foreground">
                 {hasValidPoint
                   ? "Position valide: le repère est affiché sur la carte."
                   : "Saisissez X/Y valides pour afficher le repère."}
               </p>
+
+              {error && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {error}
+                </p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ajouter" className="mt-4 focus-visible:ring-0">
+              <BarometreAddCooperativePanel
+                onSaved={reloadCooperatives}
+                provincesSorted={provincesSorted}
+                communesInCoopProvince={communesInCoopProvince}
+                coopProvinceId={coopFormProvinceId}
+                coopCommuneId={coopFormCommuneId}
+                onCoopProvinceChange={setCoopFormProvinceId}
+                onCoopCommuneChange={setCoopFormCommuneId}
+                coopProvinceLabel={coopProvinceLabel}
+                coopCommuneLabel={coopCommuneLabel}
+                onMapPreviewChange={onFormMapPreviewChange}
+                wideLayout
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {showMapPanel ? (
+          <div className="relative z-0 flex min-h-[min(75vh,720px)] min-w-0 flex-col gap-3 p-3 sm:p-4 lg:min-h-[720px] lg:flex-row lg:items-stretch">
+            <div className="relative z-0 flex min-h-[min(75vh,720px)] min-w-0 flex-1 overflow-hidden rounded-lg border border-border lg:min-h-[720px]">
+              {isLoading ? (
+                <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
+                  Chargement des limites administratives...
+                </div>
+              ) : activeFeatures.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
+                  Aucune zone disponible pour ce niveau. Vérifiez les fichiers de données GeoJSON.
+                </div>
+              ) : (
+                <>
+                  <MapContainer
+                    center={[31.7, -6]}
+                    zoom={5}
+                    scrollWheelZoom
+                    maxBounds={moroccoMaxBounds ?? undefined}
+                    maxBoundsViscosity={1}
+                    className="h-full min-h-[min(75vh,720px)] w-full bg-slate-50 lg:min-h-[720px]"
+                  >
+                    <MapCameraController
+                      hasManualPoint={cameraHasPoint}
+                      manualLat={cameraLat}
+                      manualLng={cameraLng}
+                      selectionBounds={hasFormPreview || hasValidPoint ? null : effectiveSelectionBounds}
+                      layerBounds={mapBounds}
+                      moroccoMaxBounds={moroccoMaxBounds}
+                    />
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      opacity={0}
+                    />
+                    {sidebarTab === "naviguer" && hasValidPoint && (
+                      <Marker position={[parsedLatitude, parsedLongitude]} icon={positionIcon}>
+                        <Popup>
+                          X: {parsedLongitude.toFixed(6)}
+                          <br />
+                          Y: {parsedLatitude.toFixed(6)}
+                        </Popup>
+                      </Marker>
+                    )}
+                    {hasFormPreview && formMapPreview && formPreviewIcon ? (
+                      <Marker
+                        key="form-coop-preview"
+                        position={[formMapPreview.lat, formMapPreview.lng]}
+                        icon={formPreviewIcon}
+                        zIndexOffset={800}
+                      >
+                        <Popup>
+                          Aperçu coopérative
+                          <br />
+                          X: {formMapPreview.lng.toFixed(6)}
+                          <br />
+                          Y: {formMapPreview.lat.toFixed(6)}
+                        </Popup>
+                      </Marker>
+                    ) : null}
+                    <GeoJSON
+                      key={`${displayMode}-${activeCount}-${sidebarTab}-${coopFormCommuneId ?? ""}-${coopFormProvinceId ?? ""}-${selectedCommuneId ?? ""}-${selectedProvinceId ?? ""}`}
+                      data={activeGeoJson as never}
+                      style={(feature) => styleForBoundaryFeature(feature as GeoJSONTypes.Feature)}
+                      onEachFeature={(feature, layer) => {
+                        const f = feature as GeoJSONTypes.Feature;
+                        const props = feature.properties as Record<string, unknown> | undefined;
+                        const geoName = String(
+                          props?.name ??
+                            props?.nom ??
+                            props?.LIBELLE ??
+                            props?.shapeName ??
+                            "Zone",
+                        );
+                        layer.bindTooltip(geoName, {
+                          sticky: true,
+                          direction: "auto",
+                          opacity: 0.95,
+                        });
+                        layer.on({
+                          mouseover: () => {
+                            if (!isFeatureSelectedOnMap(f)) {
+                              layer.setStyle({
+                                fillColor: "#38BDF8",
+                                weight: 1.2,
+                                color: "#334155",
+                                fillOpacity: 0.75,
+                              });
+                            } else {
+                              layer.setStyle({
+                                fillColor: "#0284C7",
+                                weight: 2,
+                                color: "#0369A1",
+                                fillOpacity: 0.92,
+                              });
+                            }
+                          },
+                          mouseout: () => {
+                            layer.setStyle(styleForBoundaryFeature(f));
+                          },
+                        });
+                      }}
+                    />
+                    {cooperativePlacements.map(({ coop, lat, lng }) => (
+                      <CooperativePlaceMarker
+                        key={coop.id}
+                        coop={coop}
+                        latitude={lat}
+                        longitude={lng}
+                        onHover={setPreviewCoop}
+                      />
+                    ))}
+                  </MapContainer>
+                  <CartographieMapBrand />
+                </>
+              )}
             </div>
 
-            {error && (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                {error}
-              </p>
-            )}
-              </TabsContent>
-
-              <TabsContent value="ajouter" className="mt-4 focus-visible:ring-0">
-                <BarometreAddCooperativePanel
-                  onSaved={reloadCooperatives}
-                  provincesSorted={provincesSorted}
-                  communesInCoopProvince={communesInCoopProvince}
-                  coopProvinceId={coopFormProvinceId}
-                  coopCommuneId={coopFormCommuneId}
-                  onCoopProvinceChange={setCoopFormProvinceId}
-                  onCoopCommuneChange={setCoopFormCommuneId}
-                  coopProvinceLabel={coopProvinceLabel}
-                  coopCommuneLabel={coopCommuneLabel}
-                  onMapPreviewChange={onFormMapPreviewChange}
-                  wideLayout={!showMapPanel}
+            {previewCoop ? (
+              <aside className="w-full shrink-0 lg:w-[300px] lg:self-start">
+                <CooperativeCard
+                  key={previewCoop.id}
+                  coop={previewCoop}
+                  onClose={() => setPreviewCoop(null)}
                 />
-              </TabsContent>
-            </Tabs>
-          </aside>
-
-          {showMapPanel ? (
-          <div className="flex min-h-[min(70vh,620px)] min-w-0 flex-1 flex-col lg:min-h-[620px] lg:p-4">
-        {isLoading ? (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Chargement des limites administratives...
+              </aside>
+            ) : null}
           </div>
-        ) : activeFeatures.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Aucune zone disponible pour ce niveau. Vérifiez les fichiers de données GeoJSON.
-          </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
-            <MapContainer center={[31.7, -6]} zoom={5} scrollWheelZoom className="h-full min-h-[min(70vh,620px)] w-full lg:min-h-[620px]">
-              <MapCameraController
-                hasManualPoint={cameraHasPoint}
-                manualLat={cameraLat}
-                manualLng={cameraLng}
-                selectionBounds={hasFormPreview || hasValidPoint ? null : effectiveSelectionBounds}
-                layerBounds={mapBounds}
-              />
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {sidebarTab === "naviguer" && hasValidPoint && (
-                <Marker position={[parsedLatitude, parsedLongitude]} icon={positionIcon}>
-                  <Popup>
-                    X: {parsedLongitude.toFixed(6)}
-                    <br />
-                    Y: {parsedLatitude.toFixed(6)}
-                  </Popup>
-                </Marker>
-              )}
-              {hasFormPreview && formMapPreview && formPreviewIcon ? (
-                <Marker
-                  key="form-coop-preview"
-                  position={[formMapPreview.lat, formMapPreview.lng]}
-                  icon={formPreviewIcon}
-                  zIndexOffset={800}
-                >
-                  <Popup>
-                    Aperçu coopérative
-                    <br />
-                    X: {formMapPreview.lng.toFixed(6)}
-                    <br />
-                    Y: {formMapPreview.lat.toFixed(6)}
-                  </Popup>
-                </Marker>
-              ) : null}
-              <GeoJSON
-                key={`${displayMode}-${activeCount}-${sidebarTab}-${coopFormCommuneId ?? ""}-${coopFormProvinceId ?? ""}-${selectedCommuneId ?? ""}-${selectedProvinceId ?? ""}`}
-                data={activeGeoJson as never}
-                style={(feature) => styleForBoundaryFeature(feature as GeoJSONTypes.Feature)}
-                onEachFeature={(feature, layer) => {
-                  const f = feature as GeoJSONTypes.Feature;
-                  const props = feature.properties as Record<string, unknown> | undefined;
-                  const geoName = String(
-                    props?.name ??
-                      props?.nom ??
-                      props?.LIBELLE ??
-                      props?.shapeName ??
-                      "Zone",
-                  );
-                  layer.bindTooltip(geoName, {
-                    sticky: true,
-                    direction: "auto",
-                    opacity: 0.95,
-                  });
-                  layer.on({
-                    mouseover: () => {
-                      if (!isFeatureSelectedOnMap(f)) {
-                        layer.setStyle({
-                          fillColor: "#38BDF8",
-                          weight: 1.2,
-                          color: "#334155",
-                          fillOpacity: 0.75,
-                        });
-                      } else {
-                        layer.setStyle({
-                          fillColor: "#0284C7",
-                          weight: 2,
-                          color: "#0369A1",
-                          fillOpacity: 0.92,
-                        });
-                      }
-                    },
-                    mouseout: () => {
-                      layer.setStyle(styleForBoundaryFeature(f));
-                    },
-                  });
-                }}
-              />
-              {cooperativePlacements.map(({ coop, lat, lng }) => (
-                <CooperativePlaceMarker key={coop.id} coop={coop} latitude={lat} longitude={lng} />
-              ))}
-            </MapContainer>
-          </div>
-        )}
-          </div>
-          ) : null}
-        </div>
+        ) : null}
       </div>
 
       <BarometreDatabaseAccordion

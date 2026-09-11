@@ -1,19 +1,27 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileUp, ImagePlus, Loader2, Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadLandingPageImage, uploadLandingPagePdf } from "@/lib/lpLandingPageApi";
 import { createLibraryBook } from "./createLibraryBook";
-import type { LibraryBookInsert } from "./types";
+import type { LibraryBookInsert, LibraryGroup } from "./types";
 
 const QUERY_KEY = ["lp-library-books"] as const;
 
-const emptyForm = (): LibraryBookInsert => ({
+const emptyForm = (groupId: string): LibraryBookInsert => ({
+  group_id: groupId,
   cover_url: "",
   pdf_url: "",
   title: "",
@@ -24,16 +32,28 @@ const emptyForm = (): LibraryBookInsert => ({
 });
 
 type NewResourceProps = {
+  groups: LibraryGroup[];
+  defaultGroupId: string;
   onCreated?: () => void;
 };
 
-export function NewResource({ onCreated }: NewResourceProps) {
+export function NewResource({ groups, defaultGroupId, onCreated }: NewResourceProps) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState<LibraryBookInsert>(emptyForm);
+  const [form, setForm] = useState<LibraryBookInsert>(() => emptyForm(defaultGroupId));
   const [uploading, setUploading] = useState(false);
   const [pdfUploading, setPdfUploading] = useState(false);
+
+  useEffect(() => {
+    setForm((prev) => {
+      if (prev.group_id === defaultGroupId) return prev;
+      if (prev.title || prev.author || prev.description || prev.cover_url || prev.pdf_url) {
+        return { ...prev, group_id: defaultGroupId };
+      }
+      return emptyForm(defaultGroupId);
+    });
+  }, [defaultGroupId]);
 
   const patch = (partial: Partial<LibraryBookInsert>) => {
     setForm((prev) => ({ ...prev, ...partial }));
@@ -43,7 +63,7 @@ export function NewResource({ onCreated }: NewResourceProps) {
     mutationFn: createLibraryBook,
     onSuccess: () => {
       toast.success("Livre ajouté à la bibliothèque");
-      setForm(emptyForm());
+      setForm(emptyForm(defaultGroupId));
       void queryClient.invalidateQueries({ queryKey: [...QUERY_KEY] });
       void queryClient.invalidateQueries({ queryKey: ["articles-highlight"] });
       void queryClient.invalidateQueries({ queryKey: ["public-library-books"] });
@@ -80,7 +100,12 @@ export function NewResource({ onCreated }: NewResourceProps) {
       toast.error("Le titre est obligatoire");
       return;
     }
+    if (!form.group_id) {
+      toast.error("Sélectionnez un groupe");
+      return;
+    }
     createMutation.mutate({
+      group_id: form.group_id,
       cover_url: form.cover_url.trim(),
       pdf_url: form.pdf_url.trim(),
       title,
@@ -113,6 +138,25 @@ export function NewResource({ onCreated }: NewResourceProps) {
         Nouvelle ressource
       </h2>
       <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-2">
+          <Label htmlFor="nr-group">Groupe</Label>
+          <Select
+            value={form.group_id || undefined}
+            onValueChange={(v) => patch({ group_id: v })}
+          >
+            <SelectTrigger id="nr-group">
+              <SelectValue placeholder="Choisir un groupe" />
+            </SelectTrigger>
+            <SelectContent>
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-2">
           <Label>Couverture</Label>
           <input

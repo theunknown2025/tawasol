@@ -18,10 +18,10 @@ export default function EquipeRemessEditorPage() {
             <Users className="h-6 w-6 text-primary" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-foreground">Équipe REMESS</h1>
+            <h1 className="text-2xl font-bold text-foreground">Conseil Administrative REMESS</h1>
             <p className="text-sm text-muted-foreground">
-              Photo, nom, fonction, bio (300 caractères max., affichée au survol), LinkedIn et e-mail.
-              Enregistrez depuis la barre du gestionnaire LP.
+              Photo, nom, fonction, bio (300 caractères max. — 15 lettres au survol, complète au clic),
+              LinkedIn et e-mail. Enregistrez depuis la barre du gestionnaire LP.
             </p>
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function EquipeRemessEditorPage() {
           <h2 className="text-lg font-semibold text-foreground">Aperçu</h2>
           <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 shadow-sm ring-1 ring-border/50">
             <div className="border-b border-border bg-background/80 px-3 py-2 text-center text-xs font-medium text-muted-foreground">
-              Survolez une carte pour voir la bio
+              Survolez une carte pour un aperçu · cliquez pour le profil complet
             </div>
             <EquipeRemessSection content={equipeRemess} />
           </div>

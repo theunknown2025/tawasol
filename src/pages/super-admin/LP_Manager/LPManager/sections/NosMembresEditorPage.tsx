@@ -20,10 +20,9 @@ export default function NosMembresEditorPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-foreground">Membres REMESS</h1>
             <p className="text-sm text-muted-foreground">
-              Carte partagée : à gauche l’organisation (logo centré en haut, nom, liens site / LinkedIn /
-              Instagram), à droite le représentant (nom, poste, e-mail, LinkedIn). Ajoutez aussi un
-              sous-titre court pour introduire la section. La description courte s’affiche au survol.
-              Enregistrez depuis la barre du gestionnaire LP.
+              Une fiche à la fois : organisation (logo, nom, liens), représentant (nom, poste, e-mail,
+              LinkedIn) et description toujours visibles. Ajoutez un sous-titre pour introduire la
+              section. Enregistrez depuis la barre du gestionnaire LP.
             </p>
           </div>
         </div>
@@ -50,7 +49,7 @@ export default function NosMembresEditorPage() {
           <h2 className="text-lg font-semibold text-foreground">Aperçu</h2>
           <div className="rounded-2xl border border-border bg-muted/30 shadow-sm ring-1 ring-border/50">
             <div className="border-b border-border bg-background/80 px-3 py-2 text-center text-xs font-medium text-muted-foreground">
-              Survolez une carte pour voir la description de l’organisation
+              Une fiche à la fois — informations, liens, représentant et description
             </div>
             {/* Espace pour le logo qui dépasse au-dessus de la carte */}
             <div className="px-2 pb-4 pt-6 sm:pt-8">

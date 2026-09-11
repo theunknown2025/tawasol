@@ -18,10 +18,13 @@ export function LandingPagePreviewer({ open, onOpenChange }: LandingPagePreviewe
     aProposRemess,
     remessEnChiffres,
     equipeRemess,
+    equipe,
     nosMembres,
+    nosPartenaires,
     galerie,
     contacterNous,
     footer,
+    sectionVisibility,
   } = useLpLandingContent();
   useEffect(() => {
     if (!open) return;
@@ -71,10 +74,13 @@ export function LandingPagePreviewer({ open, onOpenChange }: LandingPagePreviewe
           aProposRemess={aProposRemess}
           remessEnChiffres={remessEnChiffres}
           equipeRemess={equipeRemess}
+          equipe={equipe}
           nosMembres={nosMembres}
+          nosPartenaires={nosPartenaires}
           galerie={galerie}
           contacterNous={contacterNous}
           footer={footer}
+          sectionVisibility={sectionVisibility}
           showSectionOutline
         />
       </div>

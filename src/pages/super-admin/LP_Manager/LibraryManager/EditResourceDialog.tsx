@@ -12,11 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadLandingPageImage, uploadLandingPagePdf } from "@/lib/lpLandingPageApi";
 import { saveLibraryBook } from "./saveLibraryBook";
-import type { LibraryBook, LibraryBookInsert } from "./types";
+import type { LibraryBook, LibraryBookInsert, LibraryGroup } from "./types";
 
 const QUERY_KEY = ["lp-library-books"] as const;
 
@@ -24,14 +31,16 @@ type EditResourceDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   book: LibraryBook | null;
+  groups: LibraryGroup[];
 };
 
-export function EditResourceDialog({ open, onOpenChange, book }: EditResourceDialogProps) {
+export function EditResourceDialog({ open, onOpenChange, book, groups }: EditResourceDialogProps) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<LibraryBookInsert & { id: string }>({
     id: "",
+    group_id: "",
     cover_url: "",
     pdf_url: "",
     title: "",
@@ -47,6 +56,7 @@ export function EditResourceDialog({ open, onOpenChange, book }: EditResourceDia
     if (!book || !open) return;
     setForm({
       id: book.id,
+      group_id: book.group_id,
       cover_url: book.cover_url,
       pdf_url: book.pdf_url ?? "",
       title: book.title,
@@ -101,8 +111,13 @@ export function EditResourceDialog({ open, onOpenChange, book }: EditResourceDia
       toast.error("Le titre est obligatoire");
       return;
     }
+    if (!form.group_id) {
+      toast.error("Sélectionnez un groupe");
+      return;
+    }
     editMutation.mutate({
       id: form.id,
+      group_id: form.group_id,
       cover_url: form.cover_url.trim(),
       pdf_url: form.pdf_url.trim(),
       title,
@@ -135,6 +150,25 @@ export function EditResourceDialog({ open, onOpenChange, book }: EditResourceDia
           <DialogTitle>Modifier la ressource</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="er-group">Groupe</Label>
+            <Select
+              value={form.group_id || undefined}
+              onValueChange={(v) => patch({ group_id: v })}
+            >
+              <SelectTrigger id="er-group">
+                <SelectValue placeholder="Choisir un groupe" />
+              </SelectTrigger>
+              <SelectContent>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label>Couverture</Label>
             <input

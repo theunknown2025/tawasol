@@ -379,7 +379,7 @@ export default function BrevoListsPanel() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cette entrée ?</AlertDialogTitle>
-            <AlertDialogDescription>« {deleteTarget?.name} » sera supprimé (email et liaisons WAHA perdent cette ligne).</AlertDialogDescription>
+            <AlertDialogDescription>« {deleteTarget?.name} » sera supprimé (liste d’envoi email).</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>

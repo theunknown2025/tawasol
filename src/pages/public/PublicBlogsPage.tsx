@@ -156,17 +156,6 @@ export default function PublicBlogsPage() {
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 md:py-10 lg:px-8">
         <PublicBreadcrumbs items={[{ label: "Accueil", to: "/" }, { label: "Blog" }]} />
 
-        {!isLoading && totalCount > 0 ? (
-          <div className="flex justify-end">
-            <PublicPagedListToolbar
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              pageSize={pageSize}
-              onPageSizeChange={setPageSize}
-            />
-          </div>
-        ) : null}
-
         {isLoading ? (
           <div className="flex justify-center py-20 text-muted-foreground">
             <Loader2 className="h-10 w-10 animate-spin" aria-hidden />
@@ -177,6 +166,17 @@ export default function PublicBlogsPage() {
           </p>
         ) : (
           <>
+            <div className="flex justify-end">
+              <PublicPagedListToolbar
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                pageSize={pageSize}
+                onPageSizeChange={(n) => {
+                  if (n === 3 || n === 9 || n === 30) setPageSize(n);
+                }}
+              />
+            </div>
+
             {viewMode === "cards" ? (
               <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {pageItems.map((post) => (

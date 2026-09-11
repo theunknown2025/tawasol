@@ -1,5 +1,14 @@
+export type LibraryGroup = {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type LibraryBook = {
   id: string;
+  group_id: string;
   cover_url: string;
   pdf_url: string;
   title: string;
@@ -17,6 +26,7 @@ export type LibraryBook = {
 };
 
 export type LibraryBookInsert = {
+  group_id: string;
   cover_url: string;
   pdf_url: string;
   title: string;
@@ -24,4 +34,9 @@ export type LibraryBookInsert = {
   description: string;
   keywords: string;
   is_published: boolean;
+};
+
+export type LibraryGroupInsert = {
+  name: string;
+  sort_order?: number;
 };

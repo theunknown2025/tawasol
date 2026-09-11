@@ -9,6 +9,7 @@ export async function createLibraryBook(payload: LibraryBookInsert): Promise<Lib
   const { data, error } = await supabase
     .from("lp_library_books")
     .insert({
+      group_id: payload.group_id,
       cover_url: payload.cover_url,
       pdf_url: payload.pdf_url,
       title: payload.title,

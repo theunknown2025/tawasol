@@ -100,15 +100,16 @@ function toDbPayload(input: LpProjetInput) {
   };
 }
 
-function normalizePageSize(value: number | undefined): 5 | 15 | 50 {
-  if (value === 5 || value === 15 || value === 50) return value;
-  return 15;
+function normalizePageSize(value: number | undefined): 6 | 18 | 36 {
+  if (value === 6 || value === 18 || value === 36) return value;
+  return 18;
 }
 
 export async function fetchAllLpProjets(): Promise<LpProjet[]> {
   const { data, error } = await supabase
     .from("lp_projets")
     .select("*")
+    .order("created_at", { ascending: false })
     .order("updated_at", { ascending: false });
   if (error) throw error;
   return ((data ?? []) as DbProjet[]).map(mapDbToProjet);
@@ -119,7 +120,8 @@ export async function fetchPublishedLpProjets(limit?: number): Promise<LpProjet[
     .from("lp_projets")
     .select("*")
     .eq("status", "published")
-    .order("published_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("updated_at", { ascending: false });
   if (limit) query = query.limit(limit);
   const { data, error } = await query;
   if (error) throw error;

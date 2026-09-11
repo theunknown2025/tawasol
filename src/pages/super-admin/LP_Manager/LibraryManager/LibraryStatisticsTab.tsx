@@ -2,9 +2,12 @@ import { useMemo, useState } from "react";
 import {
   BarChart3,
   Download,
+  LayoutGrid,
+  LineChart,
   Loader2,
   MousePointerClick,
   Search,
+  Settings2,
   Star,
   Trash2,
 } from "lucide-react";
@@ -12,10 +15,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { filterBooksBySearch } from "./libraryListUtils";
+import { LibraryStatsHistoryPanel } from "./LibraryStatsHistoryPanel";
 import { fetchReviewAggregatesForBookIds } from "./libraryStatisticsApi";
 import type { LibraryBook } from "./types";
 
@@ -35,6 +45,7 @@ type LibraryStatisticsTabProps = {
 export function LibraryStatisticsTab({ books }: LibraryStatisticsTabProps) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [viewMode, setViewMode] = useState<"summary" | "history">("summary");
 
   const filtered = useMemo(() => filterBooksBySearch(books, search), [books, search]);
 
@@ -43,7 +54,7 @@ export function LibraryStatisticsTab({ books }: LibraryStatisticsTabProps) {
   const { data: reviewAgg, isLoading: reviewsLoading } = useQuery({
     queryKey: ["library-stats-reviews", selectedIds.join(",")],
     queryFn: () => fetchReviewAggregatesForBookIds(selectedIds),
-    enabled: selectedIds.length > 0,
+    enabled: selectedIds.length > 0 && viewMode === "summary",
   });
 
   const selectedBooks = useMemo(
@@ -72,6 +83,9 @@ export function LibraryStatisticsTab({ books }: LibraryStatisticsTabProps) {
   };
 
   const clearSelection = () => setSelected(new Set());
+
+  const selectionLabel =
+    n === 0 ? undefined : n === 1 ? selectedBooks[0]?.title : `${n} ressources sélectionnées`;
 
   return (
     <div className="space-y-6">
@@ -161,7 +175,10 @@ export function LibraryStatisticsTab({ books }: LibraryStatisticsTabProps) {
                               <span className="font-medium text-foreground">{clicks}</span>
                               <span>clic{clicks !== 1 ? "s" : ""}</span>
                             </span>
-                            <span className="inline-flex items-center gap-1" title="Téléchargements PDF (bouton Télécharger)">
+                            <span
+                              className="inline-flex items-center gap-1"
+                              title="Téléchargements PDF (bouton Télécharger)"
+                            >
                               <Download className="h-3.5 w-3.5 shrink-0 text-primary/80" aria-hidden />
                               <span className="font-medium text-foreground">{dls}</span>
                               <span>tél.</span>
@@ -177,99 +194,139 @@ export function LibraryStatisticsTab({ books }: LibraryStatisticsTabProps) {
           </CardContent>
         </Card>
 
-        <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MousePointerClick className="h-4 w-4" aria-hidden />
-                <CardTitle className="text-sm font-medium">Clics</CardTitle>
-              </div>
-              <CardDescription>
-                Boutons « Lire le document » / « Voir la fiche » sur la page publique
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {n === 0 ? (
-                <p className="text-sm text-muted-foreground">Sélectionnez au moins une ressource.</p>
-              ) : (
-                <>
-                  <p className="text-2xl font-bold tabular-nums text-foreground">{clicksTotal}</p>
-                  <p className="text-xs text-muted-foreground">Total sur la sélection</p>
-                  <p className="text-lg font-semibold tabular-nums text-primary">
-                    {clicksAvg !== null ? clicksAvg.toFixed(2) : "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Moyenne par ressource</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  aria-label="Options des indicateurs"
+                  title="Options des indicateurs"
+                >
+                  <Settings2 className="h-4 w-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {viewMode === "summary" ? (
+                  <DropdownMenuItem className="gap-2" onSelect={() => setViewMode("history")}>
+                    <LineChart className="h-4 w-4" aria-hidden />
+                    Voir l’historique (graphiques)
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem className="gap-2" onSelect={() => setViewMode("summary")}>
+                    <LayoutGrid className="h-4 w-4" aria-hidden />
+                    Voir les totaux
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <BarChart3 className="h-4 w-4" aria-hidden />
-                <CardTitle className="text-sm font-medium">Téléchargements</CardTitle>
-              </div>
-              <CardDescription>Clics sur « Télécharger » (PDF)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {n === 0 ? (
-                <p className="text-sm text-muted-foreground">Sélectionnez au moins une ressource.</p>
-              ) : (
-                <>
-                  <p className="text-2xl font-bold tabular-nums text-foreground">{downloadsTotal}</p>
-                  <p className="text-xs text-muted-foreground">Total sur la sélection</p>
-                  <p className="text-lg font-semibold tabular-nums text-primary">
-                    {downloadsAvg !== null ? downloadsAvg.toFixed(2) : "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Moyenne par ressource</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="sm:col-span-2 xl:col-span-1">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Star className="h-4 w-4" aria-hidden />
-                <CardTitle className="text-sm font-medium">Évaluations</CardTitle>
-              </div>
-              <CardDescription>Avis avec note (1–5) sur la sélection</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {n === 0 ? (
-                <p className="text-sm text-muted-foreground">Sélectionnez au moins une ressource.</p>
-              ) : reviewsLoading ? (
-                <div className="flex items-center gap-2 py-4 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                  <span className="text-sm">Chargement des avis…</span>
-                </div>
-              ) : (
-                <>
-                  <p className="text-2xl font-bold tabular-nums text-foreground">
-                    {reviewAgg?.reviewCount ?? 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Nombre total d’avis</p>
-                  <p className="text-lg font-semibold tabular-nums text-primary">
-                    {reviewAgg?.avgRating != null ? reviewAgg.avgRating.toFixed(2) + " / 5" : "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Note moyenne (tous avis confondus)</p>
-                  {n > 0 && reviewAgg && reviewAgg.reviewCount > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Moyenne d’avis par ressource sélectionnée :{" "}
-                      <span className="font-medium text-foreground">
-                        {(reviewAgg.reviewCount / n).toFixed(2)}
-                      </span>
-                    </p>
+          {viewMode === "history" ? (
+            <LibraryStatsHistoryPanel
+              bookIds={selectedIds}
+              selectionLabel={selectionLabel}
+              onBack={() => setViewMode("summary")}
+            />
+          ) : (
+            <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MousePointerClick className="h-4 w-4" aria-hidden />
+                    <CardTitle className="text-sm font-medium">Clics</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Boutons « Lire le document » / « Voir la fiche » sur la page publique
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  {n === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sélectionnez au moins une ressource.</p>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold tabular-nums text-foreground">{clicksTotal}</p>
+                      <p className="text-xs text-muted-foreground">Total sur la sélection</p>
+                      <p className="text-lg font-semibold tabular-nums text-primary">
+                        {clicksAvg !== null ? clicksAvg.toFixed(2) : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Moyenne par ressource</p>
+                    </>
                   )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <BarChart3 className="h-4 w-4" aria-hidden />
+                    <CardTitle className="text-sm font-medium">Téléchargements</CardTitle>
+                  </div>
+                  <CardDescription>Clics sur « Télécharger » (PDF)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  {n === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sélectionnez au moins une ressource.</p>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold tabular-nums text-foreground">{downloadsTotal}</p>
+                      <p className="text-xs text-muted-foreground">Total sur la sélection</p>
+                      <p className="text-lg font-semibold tabular-nums text-primary">
+                        {downloadsAvg !== null ? downloadsAvg.toFixed(2) : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Moyenne par ressource</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="sm:col-span-2 xl:col-span-1">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Star className="h-4 w-4" aria-hidden />
+                    <CardTitle className="text-sm font-medium">Évaluations</CardTitle>
+                  </div>
+                  <CardDescription>Avis avec note (1–5) sur la sélection</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  {n === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sélectionnez au moins une ressource.</p>
+                  ) : reviewsLoading ? (
+                    <div className="flex items-center gap-2 py-4 text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                      <span className="text-sm">Chargement des avis…</span>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold tabular-nums text-foreground">
+                        {reviewAgg?.reviewCount ?? 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Nombre total d’avis</p>
+                      <p className="text-lg font-semibold tabular-nums text-primary">
+                        {reviewAgg?.avgRating != null ? reviewAgg.avgRating.toFixed(2) + " / 5" : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Note moyenne (tous avis confondus)</p>
+                      {n > 0 && reviewAgg && reviewAgg.reviewCount > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Moyenne d’avis par ressource sélectionnée :{" "}
+                          <span className="font-medium text-foreground">
+                            {(reviewAgg.reviewCount / n).toFixed(2)}
+                          </span>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
 
-      {n > 0 && (
+      {viewMode === "summary" && n > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Détail par ressource (sélection)</CardTitle>

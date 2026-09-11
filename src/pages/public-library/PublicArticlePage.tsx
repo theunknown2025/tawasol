@@ -139,7 +139,6 @@ export default function PublicArticlePage() {
                   <Link
                     to={`/article/${b.id}`}
                     className="flex gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/30"
-                    onClick={() => void incrementLibraryBookClicks(b.id)}
                   >
                     <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
                       {b.cover_url.trim() ? (

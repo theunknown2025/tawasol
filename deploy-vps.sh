@@ -44,6 +44,7 @@ NGINX_LINK="/etc/nginx/sites-enabled/${APP_NAME}"
 #   BRANCH=main
 #   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 #   SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+#   GA_MEASUREMENT_ID=G-XXXXXXXXXX
 #   ENABLE_SSL=true
 # Override via /opt/tawasol/.deploy.env or CLI flags (recommended for secrets).
 DOMAIN="beta-remess.pro"
@@ -52,6 +53,7 @@ REPO_URL="https://github.com/theunknown2025/tawasol.git"
 BRANCH="main"
 SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
 SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
+GA_MEASUREMENT_ID=""
 ENABLE_SSL="true"
 DEPLOY_ENV_FILE="/opt/tawasol/.deploy.env"
 
@@ -69,6 +71,7 @@ Optional:
   --email                Email for Let's Encrypt (required if SSL enabled)
   --repo                 Git repository URL
   --branch               Git branch name (default: main)
+  --ga-measurement-id    Google Analytics 4 Measurement ID (G-XXXXXXXXXX)
   --no-ssl               Skip certbot SSL setup
   --help                 Show this help
 EOF
@@ -111,6 +114,8 @@ while [[ $# -gt 0 ]]; do
       SUPABASE_URL="${2:-}"; shift 2 ;;
     --supabase-anon-key)
       SUPABASE_ANON_KEY="${2:-}"; shift 2 ;;
+    --ga-measurement-id)
+      GA_MEASUREMENT_ID="${2:-}"; shift 2 ;;
     --no-ssl)
       ENABLE_SSL="false"; shift ;;
     --help|-h)
@@ -183,6 +188,7 @@ write_env_file() {
   cat > "${APP_DIR}/.env.local" <<EOF
 VITE_SUPABASE_URL=${SUPABASE_URL}
 VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+VITE_GA_MEASUREMENT_ID=${GA_MEASUREMENT_ID}
 EOF
   chmod 600 "${APP_DIR}/.env.local"
   chown "${APP_USER}:${APP_USER}" "${APP_DIR}/.env.local"

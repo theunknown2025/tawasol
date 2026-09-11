@@ -1,9 +1,8 @@
 /**
- * Notifications publication → Email (Brevo) + WhatsApp (WAHA), même webhook DB.
- * Tests : { test_brevo: true } | { test_waha: true } | { list_waha_groups: true } — JWT super_admin.
+ * Notifications publication → Email (Brevo).
+ * Tests : { test_brevo: true } — JWT super_admin.
  *
- * Secrets : BREVO_* , WAHA_BASE_URL, WAHA_SESSION, WAHA_API_KEY, PUBLIC_SITE_URL,
- *           WEBHOOK_SECRET | WHATSAPP_WEBHOOK_SECRET (optionnel)
+ * Secrets : BREVO_* , PUBLIC_SITE_URL, WEBHOOK_SECRET (optionnel)
  */
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -56,64 +55,9 @@ function shouldNotifyPublish(payload: WebhookPayload): boolean {
   return old.status !== "published";
 }
 
-function normalizeGroupJid(raw: string): string | null {
-  const t = raw.trim();
-  if (!t) return null;
-  if (t.endsWith("@g.us")) return t;
-  const digits = t.replace(/\D/g, "");
-  if (digits.length >= 10) return `${digits}@g.us`;
-  return null;
-}
-
-async function sendWahaText(
-  baseUrl: string,
-  apiKey: string | undefined,
-  session: string,
-  chatId: string,
-  text: string,
-): Promise<{ ok: boolean; detail?: string }> {
-  const url = `${baseUrl.replace(/\/$/, "")}/api/sendText`;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers["X-Api-Key"] = apiKey;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ session, chatId, text }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    return { ok: false, detail: `${res.status}: ${body.slice(0, 500)}` };
-  }
-  return { ok: true };
-}
-
 function isTestBrevo(raw: unknown): raw is { test_brevo: true } {
   return typeof raw === "object" && raw !== null && "test_brevo" in raw &&
     (raw as { test_brevo?: unknown }).test_brevo === true;
-}
-
-function isTestWaha(raw: unknown): raw is { test_waha: true } {
-  return typeof raw === "object" && raw !== null && "test_waha" in raw &&
-    (raw as { test_waha?: unknown }).test_waha === true;
-}
-
-function isListWahaGroups(raw: unknown): raw is { list_waha_groups: true } {
-  return typeof raw === "object" && raw !== null && "list_waha_groups" in raw &&
-    (raw as { list_waha_groups?: unknown }).list_waha_groups === true;
-}
-
-async function wahaFetch(
-  baseUrl: string,
-  apiKey: string | undefined,
-  path: string,
-  init?: RequestInit,
-): Promise<Response> {
-  const url = `${baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
-  const headers = new Headers(init?.headers);
-  if (apiKey) headers.set("X-Api-Key", apiKey);
-  return await fetch(url, { ...init, headers });
 }
 
 async function requireSuperAdmin(req: Request): Promise<
@@ -225,129 +169,6 @@ async function handleTestBrevo(req: Request): Promise<Response> {
   );
 }
 
-async function handleListWahaGroups(req: Request): Promise<Response> {
-  const gate = await requireSuperAdmin(req);
-  if (!gate.ok) return gate.response;
-
-  const wahaBase = optionalEnv("WAHA_BASE_URL");
-  if (!wahaBase) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "WAHA_BASE_URL manquant dans les secrets Edge Function." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  const session = optionalEnv("WAHA_SESSION") ?? "default";
-  const apiKey = optionalEnv("WAHA_API_KEY");
-
-  let res = await wahaFetch(wahaBase, apiKey, `/api/${encodeURIComponent(session)}/groups`, {
-    method: "GET",
-  });
-  if (!res.ok) {
-    res = await wahaFetch(
-      wahaBase,
-      apiKey,
-      `/api/groups?session=${encodeURIComponent(session)}`,
-      { method: "GET" },
-    );
-  }
-  const bodyText = await res.text();
-  if (!res.ok) {
-    return new Response(
-      JSON.stringify({
-        ok: false,
-        mode: "list_waha_groups",
-        error: `WAHA ${res.status}`,
-        detail: bodyText.slice(0, 800),
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(bodyText);
-  } catch {
-    return new Response(
-      JSON.stringify({ ok: false, mode: "list_waha_groups", error: "Réponse WAHA invalide (JSON)" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  const rawList = Array.isArray(parsed)
-    ? parsed
-    : typeof parsed === "object" && parsed !== null && Array.isArray((parsed as { groups?: unknown }).groups)
-    ? (parsed as { groups: unknown[] }).groups
-    : [];
-
-  const groups = rawList
-    .map((g) => {
-      if (typeof g !== "object" || g === null) return null;
-      const row = g as Record<string, unknown>;
-      const id = String(row.id ?? row.jid ?? row.chatId ?? "").trim();
-      if (!id) return null;
-      const name = String(row.name ?? row.subject ?? row.title ?? "").trim() || undefined;
-      return { id, name };
-    })
-    .filter((g): g is { id: string; name?: string } => g !== null);
-
-  return new Response(
-    JSON.stringify({ ok: true, mode: "list_waha_groups", groups }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-  );
-}
-
-async function handleTestWaha(req: Request): Promise<Response> {
-  const gate = await requireSuperAdmin(req);
-  if (!gate.ok) return gate.response;
-
-  const { admin } = gate;
-
-  const wahaBase = optionalEnv("WAHA_BASE_URL");
-  if (!wahaBase) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "WAHA_BASE_URL manquant dans les secrets Edge Function." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  const session = optionalEnv("WAHA_SESSION") ?? "default";
-  const apiKey = optionalEnv("WAHA_API_KEY");
-
-  const siteUrl = optionalEnv("PUBLIC_SITE_URL") ?? "";
-  const base = siteUrl.replace(/\/$/, "") || "https://example.com";
-  const message =
-    `🧪 Test REMESS — WAHA / Supabase.\n\nSi vous voyez ce message, la liaison fonctionne.\n\n👉 ${base}`;
-
-  const { data: groups, error: gErr } = await admin.from("whatsapp_groups").select("*").eq("is_active", true);
-  if (gErr) throw gErr;
-
-  const rows = (groups ?? []) as Record<string, unknown>[];
-  const results: { chatId: string; ok: boolean; detail?: string }[] = [];
-
-  for (const g of rows) {
-    const jidRaw = String(g.wa_group_jid ?? "").trim();
-    const chatId = normalizeGroupJid(jidRaw);
-    if (!chatId) {
-      results.push({ chatId: jidRaw || "(vide)", ok: false, detail: "wa_group_jid manquant ou invalide" });
-      continue;
-    }
-    const r = await sendWahaText(wahaBase, apiKey, session, chatId, message);
-    results.push({ chatId, ok: r.ok, detail: r.detail });
-  }
-
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      mode: "test_waha",
-      message_preview: message.slice(0, 120),
-      sent: results.filter((x) => x.ok).length,
-      results,
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-  );
-}
-
 async function createAndSendCampaign(
   apiKey: string,
   params: {
@@ -414,14 +235,8 @@ Deno.serve(async (req) => {
     if (isTestBrevo(rawBody)) {
       return await handleTestBrevo(req);
     }
-    if (isTestWaha(rawBody)) {
-      return await handleTestWaha(req);
-    }
-    if (isListWahaGroups(rawBody)) {
-      return await handleListWahaGroups(req);
-    }
 
-    const webhookSecret = optionalEnv("WEBHOOK_SECRET") ?? optionalEnv("WHATSAPP_WEBHOOK_SECRET");
+    const webhookSecret = optionalEnv("WEBHOOK_SECRET");
     if (webhookSecret) {
       const h = req.headers.get("x-webhook-secret");
       if (h !== webhookSecret) {
@@ -550,38 +365,11 @@ Deno.serve(async (req) => {
       brevoResult = { skipped: true, reason: "aucune brevo_list_id pour cette catégorie" };
     }
 
-    const wahaBase = optionalEnv("WAHA_BASE_URL");
-    const wahaSession = optionalEnv("WAHA_SESSION") ?? "default";
-    const wahaApiKey = optionalEnv("WAHA_API_KEY");
-
-    let wahaResult: Record<string, unknown> = { skipped: true };
-    if (wahaBase) {
-      const results: { chatId: string; ok: boolean; detail?: string }[] = [];
-      for (const g of filtered) {
-        const jidRaw = String(g.wa_group_jid ?? "").trim();
-        const chatId = normalizeGroupJid(jidRaw);
-        if (!chatId) {
-          results.push({ chatId: jidRaw || "(vide)", ok: false, detail: "wa_group_jid invalide" });
-          continue;
-        }
-        const r = await sendWahaText(wahaBase, wahaApiKey, wahaSession, chatId, message);
-        results.push({ chatId, ok: r.ok, detail: r.detail });
-      }
-      wahaResult = {
-        ok: true,
-        sent: results.filter((x) => x.ok).length,
-        results,
-      };
-    } else {
-      wahaResult = { skipped: true, reason: "WAHA_BASE_URL manquant" };
-    }
-
     return new Response(
       JSON.stringify({
         ok: true,
         category,
         brevo: brevoResult,
-        waha: wahaResult,
         warn: webhookSecret ? undefined : "WEBHOOK_SECRET non défini — à configurer en production",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },

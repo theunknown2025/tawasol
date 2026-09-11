@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import GoogleAnalytics from "./components/GoogleAnalytics";
 import AppLayout from "./components/layout/AppLayout";
 import LpManagerLayout from "./pages/super-admin/LP_Manager/LpManagerLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -25,7 +26,7 @@ import AdminEvenementsPage from "./pages/admin/evenements";
 import EditEvenementPage from "./pages/admin/evenements/EditEvenementPage";
 import AdminMessageriePage from "./pages/admin/MessageriePage";
 import WhatsappManagerPage from "./pages/admin/whatsapp-manager/WhatsappManagerPage";
-import WahaManagerPage from "./pages/admin/whatsapp-waha/WahaManagerPage";
+import OpenwaMessagingPage from "./pages/admin/whatsapp-openwa/OpenwaMessagingPage";
 import AdminBlogsPage from "./pages/admin/blog/BlogsAdminPage";
 import GestionFormPage from "./pages/admin/gestion-form";
 
@@ -49,6 +50,7 @@ import MotDuPresidentEditorPage from "./pages/super-admin/LP_Manager/LPManager/s
 import AProposDuRemessEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/AProposDuRemessEditorPage";
 import RemessEnChiffresEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/RemessEnChiffresEditorPage";
 import EquipeRemessEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/EquipeRemessEditorPage";
+import EquipeEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/EquipeEditorPage";
 import NosMembresEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosMembresEditorPage";
 import NosPartenairesEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosPartenairesEditorPage";
 import NosEvenementsEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosEvenementsEditorPage";
@@ -57,6 +59,7 @@ import ArticlesEditorPage from "./pages/super-admin/LP_Manager/LPManager/section
 import ProjetsEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ProjetsEditorPage";
 import ContacterNousEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ContacterNousEditorPage";
 import FooterEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/FooterEditorPage";
+import SectionVisibilityEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/SectionVisibilityEditorPage";
 import PublicLibraryPage from "./pages/public-library/PublicLibraryPage";
 import PublicArticlePage from "./pages/public-library/PublicArticlePage";
 import PublicLandingPage from "./pages/landing/PublicLandingPage";
@@ -113,6 +116,7 @@ const App = () => {
               v7_relativeSplatPath: true,
             }}
           >
+            <GoogleAnalytics />
             <Routes>
             <Route path="/" element={<PublicLandingPage />} />
             <Route path="/events" element={<PublicEventsPage />} />
@@ -157,13 +161,15 @@ const App = () => {
               <Route path="barometre" element={<Navigate to="/admin/remess-landing/cartographie" replace />} />
               <Route path="barometre/edit/:id" element={<LegacyAdminBarometreEditRedirect />} />
               <Route path="editor" element={<LpEditorLayout />}>
-                <Route index element={<Navigate to="hero" replace />} />
+                <Route index element={<Navigate to="visibility" replace />} />
+                <Route path="visibility" element={<SectionVisibilityEditorPage />} />
                 <Route path="header" element={<HeaderEditorPage />} />
                 <Route path="hero" element={<HeroEditorPage />} />
                 <Route path="mot-du-president" element={<MotDuPresidentEditorPage />} />
                 <Route path="a-propos-du-remess" element={<AProposDuRemessEditorPage />} />
                 <Route path="remess-en-chiffres" element={<RemessEnChiffresEditorPage />} />
                 <Route path="equipe-remess" element={<EquipeRemessEditorPage />} />
+                <Route path="equipe" element={<EquipeEditorPage />} />
                 <Route path="nos-membres" element={<NosMembresEditorPage />} />
                 <Route path="nos-partenaires" element={<NosPartenairesEditorPage />} />
                 <Route path="nos-evenements" element={<NosEvenementsEditorPage />} />
@@ -196,7 +202,7 @@ const App = () => {
               <Route path="/admin/evenements/edit/:id" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><EditEvenementPage /></ProtectedRoute>} />
               <Route path="/admin/messagerie" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminMessageriePage /></ProtectedRoute>} />
               <Route path="/admin/whatsapp-manager" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><WhatsappManagerPage /></ProtectedRoute>} />
-              <Route path="/admin/whatsapp-waha" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><WahaManagerPage /></ProtectedRoute>} />
+              <Route path="/admin/whatsapp-messaging" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><OpenwaMessagingPage /></ProtectedRoute>} />
               <Route path="/admin/blogs" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminBlogsPage /></ProtectedRoute>} />
               <Route path="/admin/gestion-form" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><GestionFormPage /></ProtectedRoute>} />
               {/* Super Admin only */}

@@ -1,4 +1,5 @@
 import {
+  BarChart2,
   BarChart3,
   Briefcase,
   CalendarDays,
@@ -15,6 +16,7 @@ import {
   type LucideIcon,
   UserSquare2,
   Users,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LandingPageSectionLabel } from "./landingPageSectionLabels";
@@ -27,7 +29,9 @@ const SECTION_TITLE_ICONS: Record<LandingPageOutlineTitleLabel, LucideIcon> = {
   "À propos du REMESS": Info,
   "REMESS en chiffres": BarChart3,
   Cartographie: MapPinned,
-  "Équipe REMESS": Users,
+  Baromètre: BarChart2,
+  "Conseil Administrative REMESS": Users,
+  Équipe: UsersRound,
   "Nos membres": UserSquare2,
   "Nos partenaires": Handshake,
   "Nos événements": CalendarDays,

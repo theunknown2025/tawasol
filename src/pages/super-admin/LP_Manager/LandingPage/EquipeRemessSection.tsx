@@ -1,92 +1,20 @@
-import { Linkedin, Mail, UserRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_EQUIPE_REMESS_CONTENT,
   type EquipeMember,
   type EquipeRemessContent,
 } from "../types";
-
-function linkedinHref(url: string): string | null {
-  const t = url.trim();
-  if (!t) return null;
-  if (/^https?:\/\//i.test(t)) return t;
-  return `https://${t.replace(/^\/+/, "")}`;
-}
-
-function mailtoHref(email: string): string | null {
-  const t = email.trim();
-  if (!t) return null;
-  return `mailto:${encodeURIComponent(t)}`;
-}
-
-function TeamMemberCard({ member }: { member: EquipeMember }) {
-  const hasPhoto = member.photoUrl.trim().length > 0;
-  const name = member.fullName.trim() || "Nom à compléter";
-  const role = member.functionTitle.trim() || "Fonction";
-  const bio = member.bio.trim();
-  const linkedin = linkedinHref(member.linkedinUrl);
-  const mail = mailtoHref(member.email);
-
-  return (
-    <article
-      tabIndex={0}
-      className={cn(
-        "group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm outline-none",
-        "transition-shadow duration-200 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      )}
-    >
-      <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden bg-muted">
-        {hasPhoto ? (
-          <img
-            src={member.photoUrl}
-            alt=""
-            className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <div
-            className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground"
-            aria-hidden
-          >
-            <UserRound className="h-16 w-16 opacity-35" />
-            <span className="px-4 text-center text-xs">Photo</span>
-          </div>
-        )}
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/95 via-black/75 to-transparent p-4 pt-16",
-            "opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100",
-          )}
-        >
-          <p className="text-pretty text-sm leading-relaxed text-white md:text-[0.95rem]">
-            {bio.length > 0 ? bio : "Biographie à venir."}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="text-lg font-semibold leading-tight tracking-tight text-foreground">{name}</h3>
-        <p className="text-sm font-medium text-primary">{role}</p>
-        <div className="mt-auto flex flex-wrap gap-2 pt-1">
-          {linkedin ? (
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-full" asChild>
-              <a href={linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
-                <Linkedin className="h-4 w-4" aria-hidden />
-              </a>
-            </Button>
-          ) : null}
-          {mail ? (
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-full" asChild>
-              <a href={mail} aria-label="Envoyer un e-mail">
-                <Mail className="h-4 w-4" aria-hidden />
-              </a>
-            </Button>
-          ) : null}
-        </div>
-      </div>
-    </article>
-  );
-}
+import { EquipeMemberCard } from "./equipe/EquipeMemberCard";
+import { EquipeMemberDetailModal } from "./equipe/EquipeMemberDetailModal";
 
 type EquipeRemessSectionProps = {
   content?: EquipeRemessContent;
@@ -98,22 +26,96 @@ export function EquipeRemessSection({
   className,
 }: EquipeRemessSectionProps) {
   const members = content.members ?? [];
+  const [api, setApi] = useState<CarouselApi>();
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
+  const [detailMember, setDetailMember] = useState<EquipeMember | null>(null);
+
+  const onSelect = useCallback((embla: CarouselApi) => {
+    if (!embla) return;
+    setSelectedIndex(embla.selectedScrollSnap());
+  }, []);
+
+  useEffect(() => {
+    if (!api) return;
+    setScrollSnaps(api.scrollSnapList());
+    onSelect(api);
+    api.on("reInit", onSelect);
+    api.on("select", onSelect);
+    return () => {
+      api.off("select", onSelect);
+      api.off("reInit", onSelect);
+    };
+  }, [api, onSelect]);
 
   return (
-    <div className={cn("mx-auto max-w-6xl px-4 py-10 md:py-14 lg:px-8", className)}>
+    <div className={cn("mx-auto max-w-6xl px-4 pb-8 pt-1 md:pb-10 md:pt-2 lg:px-8", className)}>
       {members.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border py-14 text-center text-sm text-muted-foreground">
-          Aucun membre pour l’instant. Ajoutez l’équipe depuis l’éditeur « Équipe REMESS ».
+          Aucun membre pour l’instant. Ajoutez le conseil depuis l’éditeur « Conseil Administrative
+          REMESS ».
         </p>
       ) : (
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {members.map((m) => (
-            <li key={m.id}>
-              <TeamMemberCard member={m} />
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-5">
+          <Carousel
+            key={members.map((m) => m.id).join("|")}
+            setApi={setApi}
+            opts={{
+              align: "start",
+              slidesToScroll: 1,
+              loop: false,
+              containScroll: "trimSnaps",
+            }}
+            className="relative w-full px-11 sm:px-14 md:px-16"
+          >
+            <CarouselContent className="-ml-3 sm:-ml-4">
+              {members.map((m) => (
+                <CarouselItem
+                  key={m.id}
+                  className="basis-full pl-3 sm:basis-1/2 sm:pl-4 lg:basis-1/3"
+                >
+                  <EquipeMemberCard member={m} onOpenDetail={setDetailMember} />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious
+              className="left-0 h-9 w-9 border-border bg-background/95 shadow-sm hover:bg-background disabled:opacity-40"
+              aria-label="Membres précédents"
+            />
+            <CarouselNext
+              className="right-0 h-9 w-9 border-border bg-background/95 shadow-sm hover:bg-background disabled:opacity-40"
+              aria-label="Membres suivants"
+            />
+          </Carousel>
+
+          {scrollSnaps.length > 1 ? (
+            <div
+              className="flex flex-wrap items-center justify-center gap-2"
+              role="tablist"
+              aria-label="Navigation du conseil administratif"
+            >
+              {scrollSnaps.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === selectedIndex}
+                  aria-label={`Aller à la vue ${index + 1}`}
+                  className={cn(
+                    "h-2.5 rounded-full transition-all duration-200",
+                    index === selectedIndex
+                      ? "w-6 bg-primary"
+                      : "w-2.5 bg-muted-foreground/35 hover:bg-muted-foreground/55",
+                  )}
+                  onClick={() => api?.scrollTo(index)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
       )}
+
+      <EquipeMemberDetailModal member={detailMember} onClose={() => setDetailMember(null)} />
     </div>
   );
 }

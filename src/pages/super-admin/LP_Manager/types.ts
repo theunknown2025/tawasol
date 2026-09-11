@@ -390,7 +390,7 @@ export function createDefaultEquipeMember(index: number): EquipeMember {
     photoUrl: "",
     fullName: `Membre ${index + 1}`,
     functionTitle: "Fonction",
-    bio: "Courte biographie (visible au survol de la carte).",
+    bio: "Courte biographie (aperçu au survol, détail au clic).",
     linkedinUrl: "",
     email: "",
   };
@@ -421,6 +421,15 @@ export const DEFAULT_EQUIPE_REMESS_CONTENT: EquipeRemessContent = {
   members: [],
 };
 
+/** Section landing « Équipe » (distincte du Conseil Administrative REMESS). */
+export type EquipeContent = {
+  members: EquipeMember[];
+};
+
+export const DEFAULT_EQUIPE_CONTENT: EquipeContent = {
+  members: [],
+};
+
 export const NOS_MEMBRES_SHORT_DESC_MAX = 400;
 export const NOS_MEMBRES_ENTRIES_MAX = 24;
 export const NOS_MEMBRES_ORG_LINKS_MAX = 10;
@@ -437,7 +446,7 @@ export type NosMembresOrganization = {
   /** Logo (URL publique bucket `landing_page` / `nos-membres` ou saisie manuelle) */
   logoUrl: string;
   name: string;
-  /** Affichée au survol de la carte */
+  /** Affichée en permanence sur la carte */
   shortDescription: string;
   links: NosMembresOrgLink[];
 };
@@ -537,7 +546,7 @@ export function createDefaultNosMembresEntry(index: number): NosMembresEntry {
     organization: {
       logoUrl: "",
       name: `Organisation ${index + 1}`,
-      shortDescription: "Brève présentation de l’organisation (visible au survol de la carte).",
+      shortDescription: "Brève présentation de l’organisation.",
       links: [],
     },
     representative: {
@@ -551,6 +560,67 @@ export function createDefaultNosMembresEntry(index: number): NosMembresEntry {
 
 export const DEFAULT_NOS_MEMBRES_CONTENT: NosMembresContent = {
   subtitle: "Découvrez quelques organisations membres du REMESS et leurs représentants.",
+  entries: [],
+};
+
+/** Section « Nos partenaires » (landing) */
+export const NOS_PARTENAIRES_DESC_MAX = 400;
+export const NOS_PARTENAIRES_ENTRIES_MAX = 24;
+
+export type NosPartenaireEntry = {
+  id: string;
+  nom: string;
+  websiteUrl: string;
+  logoUrl: string;
+  /** Aperçu (10 premiers mots) sur la carte ; texte complet dans la modale « Plus » */
+  description: string;
+};
+
+export type NosPartenairesContent = {
+  subtitle: string;
+  entries: NosPartenaireEntry[];
+};
+
+function newNosPartenaireEntryId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `nos-partenaires-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function clampNosPartenairesDescription(s: string): string {
+  const t = typeof s === "string" ? s : "";
+  return t.length > NOS_PARTENAIRES_DESC_MAX ? t.slice(0, NOS_PARTENAIRES_DESC_MAX) : t;
+}
+
+export function normalizeNosPartenairesEntries(raw: unknown[]): NosPartenaireEntry[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr.slice(0, NOS_PARTENAIRES_ENTRIES_MAX).map((item, index) => {
+    const o = (typeof item === "object" && item !== null ? item : {}) as Partial<NosPartenaireEntry>;
+    return {
+      id: typeof o.id === "string" && o.id.trim().length > 0 ? o.id.trim() : newNosPartenaireEntryId(),
+      nom: typeof o.nom === "string" ? o.nom : `Partenaire ${index + 1}`,
+      websiteUrl: typeof o.websiteUrl === "string" ? o.websiteUrl : "",
+      logoUrl: typeof o.logoUrl === "string" ? o.logoUrl : "",
+      description: clampNosPartenairesDescription(
+        typeof o.description === "string" ? o.description : "",
+      ),
+    };
+  });
+}
+
+export function createDefaultNosPartenaireEntry(index: number): NosPartenaireEntry {
+  return {
+    id: newNosPartenaireEntryId(),
+    nom: `Partenaire ${index + 1}`,
+    websiteUrl: "",
+    logoUrl: "",
+    description: "Présentation du partenaire (aperçu sur la carte, détail via « Plus »).",
+  };
+}
+
+export const DEFAULT_NOS_PARTENAIRES_CONTENT: NosPartenairesContent = {
+  subtitle: "Ils nous accompagnent dans nos missions et projets.",
   entries: [],
 };
 
@@ -674,7 +744,7 @@ export const DEFAULT_CONTACTER_NOUS_CONTENT: ContacterNousContent = {
 };
 
 export const FOOTER_SHORT_TEXT_MAX_CHARS = 250;
-export const FOOTER_NAV_LINKS_MAX = 10;
+export const FOOTER_NAV_LINKS_MAX = 14;
 export const FOOTER_ELEMENTS_PER_COLUMN_MAX = 8;
 export const FOOTER_SOCIAL_KEYS = [
   "facebook",
@@ -698,9 +768,15 @@ export type FooterQuickNavLink = {
   href: string;
 };
 
+export type FooterColumnLink = {
+  id: string;
+  label: string;
+  href: string;
+};
+
 export type FooterElementColumn = {
   title: string;
-  items: string[];
+  items: FooterColumnLink[];
 };
 
 export type FooterContent = {
@@ -755,22 +831,43 @@ export function normalizeFooterQuickNavigation(raw: unknown[]): FooterQuickNavLi
   });
 }
 
+function normalizeFooterColumnLink(raw: unknown): FooterColumnLink | null {
+  if (typeof raw === "string") {
+    const label = raw.trim();
+    if (!label) return null;
+    return { id: newFooterNavLinkId(), label, href: "#" };
+  }
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Partial<FooterColumnLink>;
+  const label = typeof o.label === "string" ? o.label.trim() : "";
+  if (!label) return null;
+  return {
+    id: typeof o.id === "string" && o.id.trim() ? o.id.trim() : newFooterNavLinkId(),
+    label,
+    href: typeof o.href === "string" && o.href.trim() ? o.href.trim() : "#",
+  };
+}
+
 function normalizeFooterColumn(raw: unknown, fallbackTitle: string): FooterElementColumn {
-  const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<FooterElementColumn>;
+  const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<FooterElementColumn> & {
+    items?: unknown[];
+  };
   const itemsRaw = Array.isArray(o.items) ? o.items : [];
+  const items: FooterColumnLink[] = [];
+  for (let i = 0; i < itemsRaw.length && items.length < FOOTER_ELEMENTS_PER_COLUMN_MAX; i++) {
+    const link = normalizeFooterColumnLink(itemsRaw[i]);
+    if (link) items.push(link);
+  }
   return {
     title: typeof o.title === "string" && o.title.trim() ? o.title : fallbackTitle,
-    items: itemsRaw
-      .map((x) => (typeof x === "string" ? x.trim() : ""))
-      .filter((x) => x.length > 0)
-      .slice(0, FOOTER_ELEMENTS_PER_COLUMN_MAX),
+    items,
   };
 }
 
 export function normalizeFooterColumns(raw: unknown): [FooterElementColumn, FooterElementColumn] {
   const input = Array.isArray(raw) ? raw : [];
-  const col1 = normalizeFooterColumn(input[0], "Éléments colonne 1");
-  const col2 = normalizeFooterColumn(input[1], "Éléments colonne 2");
+  const col1 = normalizeFooterColumn(input[0], "Explorer");
+  const col2 = normalizeFooterColumn(input[1], "Sur l’accueil");
   return [col1, col2];
 }
 
@@ -782,30 +879,78 @@ export function createDefaultFooterQuickNavLink(index: number): FooterQuickNavLi
   };
 }
 
+export function createDefaultFooterColumnLink(index: number): FooterColumnLink {
+  return {
+    id: newFooterNavLinkId(),
+    label: `Lien ${index + 1}`,
+    href: "#",
+  };
+}
+
 export const DEFAULT_FOOTER_CONTENT: FooterContent = {
   logoUrl: "",
   shortText: "",
   socialLinks: FOOTER_SOCIAL_KEYS.map((key) => ({ key, label: key.toUpperCase(), url: "" })),
   quickNavigation: [
     { id: newFooterNavLinkId(), label: "Accueil", href: "#lp-section-hero" },
+    { id: newFooterNavLinkId(), label: "Mot du président", href: "#lp-section-mot-du-president" },
     { id: newFooterNavLinkId(), label: "À propos", href: "#lp-section-a-propos-du-remess" },
+    { id: newFooterNavLinkId(), label: "Nos membres", href: "#lp-section-nos-membres" },
+    { id: newFooterNavLinkId(), label: "Nos partenaires", href: "#lp-section-nos-partenaires" },
+    { id: newFooterNavLinkId(), label: "Galerie", href: "#lp-section-galerie" },
     { id: newFooterNavLinkId(), label: "Contacter nous", href: "#lp-section-contacter-nous" },
   ],
   elementsColumns: [
-    { title: "Éléments colonne 1", items: [] },
-    { title: "Éléments colonne 2", items: [] },
+    {
+      title: "Explorer",
+      items: [
+        { id: newFooterNavLinkId(), label: "Événements", href: "/events" },
+        { id: newFooterNavLinkId(), label: "Bibliothèque", href: "/bibliotheque" },
+        { id: newFooterNavLinkId(), label: "Cartographie", href: "/cartographie" },
+        { id: newFooterNavLinkId(), label: "Baromètre", href: "/barometre" },
+        { id: newFooterNavLinkId(), label: "Opportunités", href: "/opportunites" },
+        { id: newFooterNavLinkId(), label: "Projets", href: "/projets" },
+      ],
+    },
+    {
+      title: "Sur l’accueil",
+      items: [
+        { id: newFooterNavLinkId(), label: "REMESS en chiffres", href: "#lp-section-remess-en-chiffres" },
+        {
+          id: newFooterNavLinkId(),
+          label: "Conseil administratif",
+          href: "#lp-section-equipe-remess",
+        },
+        { id: newFooterNavLinkId(), label: "Équipe", href: "#lp-section-equipe" },
+        { id: newFooterNavLinkId(), label: "Événements", href: "#lp-section-nos-evenements" },
+        { id: newFooterNavLinkId(), label: "Opportunités", href: "#lp-section-opportunites" },
+        { id: newFooterNavLinkId(), label: "Projets", href: "#lp-section-projets" },
+        { id: newFooterNavLinkId(), label: "Blog", href: "#lp-section-blog" },
+        { id: newFooterNavLinkId(), label: "Bibliothèque", href: "#lp-section-articles" },
+      ],
+    },
   ],
   copyrightText: "REMESS. Tous droits réservés.",
 };
 
 export function mergeFooterPayload(raw: unknown): FooterContent {
   const o = (typeof raw === "object" && raw !== null ? raw : {}) as Partial<FooterContent>;
+  const quickNavigation = normalizeFooterQuickNavigation(o.quickNavigation as unknown[]);
+  let elementsColumns = normalizeFooterColumns(o.elementsColumns);
+  const columnsEmpty = elementsColumns.every((c) => c.items.length === 0);
+  if (columnsEmpty) {
+    elementsColumns = DEFAULT_FOOTER_CONTENT.elementsColumns.map((col) => ({
+      title: col.title,
+      items: col.items.map((item) => ({ ...item, id: newFooterNavLinkId() })),
+    })) as FooterContent["elementsColumns"];
+  }
   return {
     logoUrl: typeof o.logoUrl === "string" ? o.logoUrl : DEFAULT_FOOTER_CONTENT.logoUrl,
     shortText: clampFooterShortText(typeof o.shortText === "string" ? o.shortText : ""),
     socialLinks: normalizeFooterSocialLinks(o.socialLinks as unknown[]),
-    quickNavigation: normalizeFooterQuickNavigation(o.quickNavigation as unknown[]),
-    elementsColumns: normalizeFooterColumns(o.elementsColumns),
+    quickNavigation:
+      quickNavigation.length > 0 ? quickNavigation : DEFAULT_FOOTER_CONTENT.quickNavigation,
+    elementsColumns,
     copyrightText:
       typeof o.copyrightText === "string" && o.copyrightText.trim()
         ? o.copyrightText

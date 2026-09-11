@@ -7,12 +7,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   fetchAllLpLandingResolved,
   upsertLpLandingAProposRemess,
   upsertLpLandingEquipeRemess,
+  upsertLpLandingEquipe,
   upsertLpLandingNosMembres,
+  upsertLpLandingNosPartenaires,
   upsertLpLandingGalerie,
   upsertLpLandingContacterNous,
   upsertLpLandingFooter,
@@ -22,9 +25,18 @@ import {
   upsertLpLandingRemessEnChiffres,
 } from "@/lib/lpLandingSectionsDb";
 import {
+  createDefaultSectionVisibility,
+  PUBLIC_LANDING_ALL_SECTIONS_QUERY_KEY,
+  PUBLIC_LANDING_VISIBILITY_QUERY_KEY,
+  type LandingSectionVisibilityMap,
+} from "@/lib/lpLandingSectionVisibility";
+import { upsertLpLandingSectionVisibility } from "@/lib/lpLandingSectionVisibilityApi";
+import {
   DEFAULT_A_PROPOS_REMESS_CONTENT,
   DEFAULT_EQUIPE_REMESS_CONTENT,
+  DEFAULT_EQUIPE_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
+  DEFAULT_NOS_PARTENAIRES_CONTENT,
   DEFAULT_GALERIE_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
   DEFAULT_FOOTER_CONTENT,
@@ -34,7 +46,9 @@ import {
   DEFAULT_REMESS_EN_CHIFFRES_CONTENT,
   type AProposRemessContent,
   type EquipeRemessContent,
+  type EquipeContent,
   type NosMembresContent,
+  type NosPartenairesContent,
   type GalerieContent,
   type ContacterNousContent,
   type FooterContent,
@@ -106,9 +120,15 @@ type LpLandingContentValue = {
   setEquipeRemess: (
     next: EquipeRemessContent | ((prev: EquipeRemessContent) => EquipeRemessContent),
   ) => void;
+  equipe: EquipeContent;
+  setEquipe: (next: EquipeContent | ((prev: EquipeContent) => EquipeContent)) => void;
   nosMembres: NosMembresContent;
   setNosMembres: (
     next: NosMembresContent | ((prev: NosMembresContent) => NosMembresContent),
+  ) => void;
+  nosPartenaires: NosPartenairesContent;
+  setNosPartenaires: (
+    next: NosPartenairesContent | ((prev: NosPartenairesContent) => NosPartenairesContent),
   ) => void;
   galerie: GalerieContent;
   setGalerie: (next: GalerieContent | ((prev: GalerieContent) => GalerieContent)) => void;
@@ -118,11 +138,20 @@ type LpLandingContentValue = {
   ) => void;
   footer: FooterContent;
   setFooter: (next: FooterContent | ((prev: FooterContent) => FooterContent)) => void;
+  sectionVisibility: LandingSectionVisibilityMap;
+  setSectionVisibility: (
+    next:
+      | LandingSectionVisibilityMap
+      | ((prev: LandingSectionVisibilityMap) => LandingSectionVisibilityMap),
+  ) => void;
+  /** Persiste immédiatement la carte de visibilité et rafraîchit la page publique. */
+  persistSectionVisibility: (next: LandingSectionVisibilityMap) => Promise<void>;
 };
 
 const LpLandingContentContext = createContext<LpLandingContentValue | null>(null);
 
 export function LpLandingContentProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [lpLandingReady, setLpLandingReady] = useState(false);
   const [lpLandingLoadError, setLpLandingLoadError] = useState<string | null>(null);
   const [lpLandingSaving, setLpLandingSaving] = useState(false);
@@ -140,12 +169,19 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
   const [equipeRemess, setEquipeRemessState] = useState<EquipeRemessContent>(
     DEFAULT_EQUIPE_REMESS_CONTENT,
   );
+  const [equipe, setEquipeState] = useState<EquipeContent>(DEFAULT_EQUIPE_CONTENT);
   const [nosMembres, setNosMembresState] = useState<NosMembresContent>(DEFAULT_NOS_MEMBRES_CONTENT);
+  const [nosPartenaires, setNosPartenairesState] = useState<NosPartenairesContent>(
+    DEFAULT_NOS_PARTENAIRES_CONTENT,
+  );
   const [galerie, setGalerieState] = useState<GalerieContent>(DEFAULT_GALERIE_CONTENT);
   const [contacterNous, setContacterNousState] = useState<ContacterNousContent>(
     DEFAULT_CONTACTER_NOUS_CONTENT,
   );
   const [footer, setFooterState] = useState<FooterContent>(DEFAULT_FOOTER_CONTENT);
+  const [sectionVisibility, setSectionVisibilityState] = useState<LandingSectionVisibilityMap>(
+    createDefaultSectionVisibility,
+  );
 
   const loadFromDb = useCallback(async () => {
     setLpLandingLoadError(null);
@@ -157,10 +193,13 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setAProposRemessState(merged.aProposRemess);
       setRemessEnChiffresState(merged.remessEnChiffres);
       setEquipeRemessState(merged.equipeRemess);
+      setEquipeState(merged.equipe);
       setNosMembresState(merged.nosMembres);
+      setNosPartenairesState(merged.nosPartenaires);
       setGalerieState(merged.galerie);
       setContacterNousState(merged.contacterNous);
       setFooterState(merged.footer);
+      setSectionVisibilityState(merged.sectionVisibility);
     } catch (e) {
       const msg = formatCaughtError(e);
       setLpLandingLoadError(msg);
@@ -187,6 +226,11 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     setLpLandingReady(true);
   }, [loadFromDb]);
 
+  const invalidatePublicLandingQueries = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: [...PUBLIC_LANDING_ALL_SECTIONS_QUERY_KEY] });
+    void queryClient.invalidateQueries({ queryKey: [...PUBLIC_LANDING_VISIBILITY_QUERY_KEY] });
+  }, [queryClient]);
+
   const saveLpLandingToDb = useCallback(async () => {
     setLpLandingSaving(true);
     try {
@@ -197,14 +241,18 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
         upsertLpLandingAProposRemess(aProposRemess),
         upsertLpLandingRemessEnChiffres(remessEnChiffres),
         upsertLpLandingEquipeRemess(equipeRemess),
+        upsertLpLandingEquipe(equipe),
         upsertLpLandingNosMembres(nosMembres),
+        upsertLpLandingNosPartenaires(nosPartenaires),
         upsertLpLandingGalerie(galerie),
         upsertLpLandingContacterNous(contacterNous),
         upsertLpLandingFooter(footer),
+        upsertLpLandingSectionVisibility(sectionVisibility),
       ]);
+      invalidatePublicLandingQueries();
       toast.success("Modifications enregistrées", {
         description:
-          "Toutes les sections configurées (dont REMESS en chiffres, l’équipe, nos membres, la galerie et Contacter nous) ont été sauvegardées.",
+          "Toutes les sections configurées (dont la visibilité, REMESS en chiffres, le conseil, l’équipe, nos membres, nos partenaires, la galerie et Contacter nous) ont été sauvegardées.",
       });
     } catch (e) {
       const msg = formatCaughtError(e);
@@ -220,10 +268,14 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     aProposRemess,
     remessEnChiffres,
     equipeRemess,
+    equipe,
     nosMembres,
+    nosPartenaires,
     galerie,
     contacterNous,
     footer,
+    sectionVisibility,
+    invalidatePublicLandingQueries,
   ]);
 
   const setHeader = useCallback((next: HeaderContent | ((prev: HeaderContent) => HeaderContent)) => {
@@ -269,9 +321,23 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     [],
   );
 
+  const setEquipe = useCallback(
+    (next: EquipeContent | ((prev: EquipeContent) => EquipeContent)) => {
+      setEquipeState(next);
+    },
+    [],
+  );
+
   const setNosMembres = useCallback(
     (next: NosMembresContent | ((prev: NosMembresContent) => NosMembresContent)) => {
       setNosMembresState(next);
+    },
+    [],
+  );
+
+  const setNosPartenaires = useCallback(
+    (next: NosPartenairesContent | ((prev: NosPartenairesContent) => NosPartenairesContent)) => {
+      setNosPartenairesState(next);
     },
     [],
   );
@@ -294,6 +360,38 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
     setFooterState(next);
   }, []);
 
+  const setSectionVisibility = useCallback(
+    (
+      next:
+        | LandingSectionVisibilityMap
+        | ((prev: LandingSectionVisibilityMap) => LandingSectionVisibilityMap),
+    ) => {
+      setSectionVisibilityState(next);
+    },
+    [],
+  );
+
+  const persistSectionVisibility = useCallback(
+    async (next: LandingSectionVisibilityMap) => {
+      const previous = sectionVisibility;
+      setSectionVisibilityState(next);
+      try {
+        const saved = await upsertLpLandingSectionVisibility(next);
+        setSectionVisibilityState(saved);
+        invalidatePublicLandingQueries();
+        toast.success("Visibilité mise à jour", {
+          description: "La page d’accueil et le menu Accueil ont été actualisés.",
+        });
+      } catch (e) {
+        setSectionVisibilityState(previous);
+        const msg = formatCaughtError(e);
+        toast.error("Visibilité non enregistrée", { description: msg });
+        throw e;
+      }
+    },
+    [invalidatePublicLandingQueries, sectionVisibility],
+  );
+
   const value = useMemo(
     () => ({
       lpLandingReady,
@@ -313,14 +411,21 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setRemessEnChiffres,
       equipeRemess,
       setEquipeRemess,
+      equipe,
+      setEquipe,
       nosMembres,
       setNosMembres,
+      nosPartenaires,
+      setNosPartenaires,
       galerie,
       setGalerie,
       contacterNous,
       setContacterNous,
       footer,
       setFooter,
+      sectionVisibility,
+      setSectionVisibility,
+      persistSectionVisibility,
     }),
     [
       lpLandingReady,
@@ -340,14 +445,21 @@ export function LpLandingContentProvider({ children }: { children: ReactNode }) 
       setRemessEnChiffres,
       equipeRemess,
       setEquipeRemess,
+      equipe,
+      setEquipe,
       nosMembres,
       setNosMembres,
+      nosPartenaires,
+      setNosPartenaires,
       galerie,
       setGalerie,
       contacterNous,
       setContacterNous,
       footer,
       setFooter,
+      sectionVisibility,
+      setSectionVisibility,
+      persistSectionVisibility,
     ],
   );
 

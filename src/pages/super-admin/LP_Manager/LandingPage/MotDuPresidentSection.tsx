@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 import {
   resolveMotDuPresidentSignatureFont,
@@ -11,6 +12,25 @@ type MotDuPresidentSectionProps = {
   className?: string;
 };
 
+/** Fixed message viewport (~portrait height on md+). */
+const MESSAGE_VIEWPORT_CLASS = "h-[16rem] sm:h-[18rem] md:h-[22rem]";
+
+function ScrollMouseIndicator({ visible }: { visible: boolean }) {
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 transition-opacity duration-300",
+        visible ? "opacity-100" : "opacity-0",
+      )}
+      aria-hidden
+    >
+      <div className="relative h-8 w-5 rounded-full border-2 border-muted-foreground/55">
+        <span className="absolute left-1/2 top-1.5 h-1.5 w-1 -translate-x-1/2 rounded-full bg-muted-foreground/70 animate-[mot-scroll-wheel_1.4s_ease-in-out_infinite]" />
+      </div>
+    </div>
+  );
+}
+
 export function MotDuPresidentSection({ content, className }: MotDuPresidentSectionProps) {
   const hasImage = content.presidentImageUrl.trim().length > 0;
   const hasName = content.presidentName.trim().length > 0;
@@ -22,9 +42,35 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
   const signatureFont = resolveMotDuPresidentSignatureFont(content.signatureFont);
   const signatureSize = resolveMotDuPresidentSignatureSize(content.signatureSize);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollMore, setCanScrollMore] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !hasMessage) {
+      setCanScrollMore(false);
+      return;
+    }
+
+    const update = () => {
+      const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setCanScrollMore(el.scrollHeight > el.clientHeight + 2 && remaining > 8);
+    };
+
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [hasMessage, content.messageText]);
+
   return (
     <section className={cn("py-8 md:py-12", className)}>
-      <div className="mx-auto max-w-5xl px-6">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[min(280px,100%)_1fr] md:items-start">
           <div className="flex justify-center md:justify-start">
             {hasImage ? (
@@ -59,10 +105,20 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
             )}
 
             {hasMessage && (
-              <div className="prose prose-neutral max-w-none dark:prose-invert" dir={messageDir}>
-                <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground md:text-lg">
-                  {content.messageText}
-                </p>
+              <div className={cn("relative pr-7", MESSAGE_VIEWPORT_CLASS)}>
+                <div
+                  ref={scrollRef}
+                  className="h-full overflow-y-auto overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                  tabIndex={0}
+                  aria-label="Mot du président — faire défiler pour lire la suite"
+                >
+                  <div className="prose prose-neutral max-w-none dark:prose-invert" dir={messageDir}>
+                    <p className="whitespace-pre-wrap text-justify text-base leading-relaxed text-foreground md:text-lg">
+                      {content.messageText}
+                    </p>
+                  </div>
+                </div>
+                <ScrollMouseIndicator visible={canScrollMore} />
               </div>
             )}
 

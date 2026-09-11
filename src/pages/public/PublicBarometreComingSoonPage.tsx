@@ -1,19 +1,26 @@
-import { Link } from "react-router-dom";
-import { BarChart2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicPageHero } from "@/components/public/PublicPageHero";
+import { BarometreChartCard } from "@/components/public/BarometreChartCard";
+import { fetchPublishedBarometreDatasets } from "@/pages/super-admin/LP_Manager/BarometreStats/barometreDatasetsApi";
 
 export default function PublicBarometreComingSoonPage() {
+  const { data = [], isLoading, isError } = useQuery({
+    queryKey: ["barometre-datasets-published"],
+    queryFn: fetchPublishedBarometreDatasets,
+    staleTime: 60_000,
+  });
+
   return (
     <PublicShell>
       <PublicPageHero
         title="Baromètre"
-        description="Les indicateurs et statistiques du baromètre REMESS seront bientôt disponibles sur cette page."
+        description="Indicateurs et statistiques du REMESS."
       />
-      <main className="mx-auto flex w-full max-w-2xl flex-col items-center px-4 py-12 text-center md:px-8 md:py-16">
-        <div className="mb-8 self-start">
+      <main className="mx-auto flex w-full max-w-6xl flex-col px-4 py-8 md:px-8 md:py-10">
+        <div className="mb-8">
           <PublicBreadcrumbs
             items={[
               { label: "Accueil", to: "/" },
@@ -22,17 +29,28 @@ export default function PublicBarometreComingSoonPage() {
           />
         </div>
 
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <BarChart2 className="h-8 w-8" aria-hidden />
-        </div>
-        <h2 className="mt-6 text-xl font-semibold text-foreground">Bientôt disponible</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-          Cette section est en cours de préparation. En attendant, vous pouvez consulter la
-          cartographie des coopératives publiées.
-        </p>
-        <Button asChild className="mt-8" variant="outline">
-          <Link to="/cartographie">Voir la cartographie</Link>
-        </Button>
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 py-20 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+            <span>Chargement des indicateurs…</span>
+          </div>
+        ) : isError ? (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            Les indicateurs ne sont pas disponibles pour le moment.
+          </p>
+        ) : data.length === 0 ? (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            Aucun graphique publié pour le moment.
+          </p>
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {data.map((dataset) => (
+              <li key={dataset.id}>
+                <BarometreChartCard dataset={dataset} />
+              </li>
+            ))}
+          </ul>
+        )}
       </main>
     </PublicShell>
   );

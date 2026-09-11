@@ -14,7 +14,7 @@ export default function LpProjetsPage() {
   const [tab, setTab] = useState("new");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ProjetsListViewMode>("cards");
-  const [pageSize, setPageSize] = useState<ProjetsPageSize>(15);
+  const [pageSize, setPageSize] = useState<ProjetsPageSize>(18);
   const [page, setPage] = useState(0);
   const [editProjet, setEditProjet] = useState<LpProjet | null>(null);
   const [editOpen, setEditOpen] = useState(false);

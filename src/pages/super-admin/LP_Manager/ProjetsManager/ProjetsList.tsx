@@ -40,7 +40,7 @@ import { slideBackgroundStyle } from "@/pages/super-admin/LP_Manager/types";
 const QUERY_KEY = ["lp-projets"] as const;
 
 export type ProjetsListViewMode = "cards" | "rows";
-export type ProjetsPageSize = 5 | 15 | 50;
+export type ProjetsPageSize = 6 | 18 | 36;
 
 type ProjetsListProps = {
   projets: LpProjet[];
@@ -147,9 +147,9 @@ export function ProjetsList({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="5">5</SelectItem>
-            <SelectItem value="15">15</SelectItem>
-            <SelectItem value="50">50</SelectItem>
+            <SelectItem value="6">6</SelectItem>
+            <SelectItem value="18">18</SelectItem>
+            <SelectItem value="36">36</SelectItem>
           </SelectContent>
         </Select>
       </div>

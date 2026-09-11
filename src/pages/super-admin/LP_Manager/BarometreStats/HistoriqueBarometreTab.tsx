@@ -1,153 +1,152 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Calendar, Loader2 } from "lucide-react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { cn } from "@/lib/utils";
-import { BarometreDualCharts, BAROMETRE_CHART_TYPE_OPTIONS, type BarometreChartType } from "./BarometreDualCharts";
-import type { BarometreBreakdownType } from "./barometreExcelParser";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
-  fetchBarometreStatisticsForYear,
-  fetchBarometreStatisticsYears,
-} from "./barometreStatisticsApi";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+  deleteBarometreDataset,
+  fetchAllBarometreDatasets,
+  setBarometreDatasetPublished,
+} from "./barometreDatasetsApi";
+import type { BarometreDataset } from "./barometreDatasetTypes";
+import { BarometreDatasetForm } from "./BarometreDatasetForm";
+import { BarometreFlexibleChart } from "./BarometreFlexibleChart";
 
 export function HistoriqueBarometreTab() {
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [breakdown, setBreakdown] = useState<BarometreBreakdownType>("region");
-  const [chartType, setChartType] = useState<BarometreChartType>("bar");
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<BarometreDataset | null>(null);
 
-  const { data: years = [], isLoading: yearsLoading } = useQuery({
-    queryKey: ["barometre-statistics-years"],
-    queryFn: fetchBarometreStatisticsYears,
+  const { data = [], isLoading, isError } = useQuery({
+    queryKey: ["barometre-datasets"],
+    queryFn: fetchAllBarometreDatasets,
   });
 
-  useEffect(() => {
-    if (selectedYear == null && years.length > 0) {
-      setSelectedYear(years[0]);
-    }
-  }, [years, selectedYear]);
-
-  const { data: rows = [], isLoading: rowsLoading } = useQuery({
-    queryKey: ["barometre-statistics-rows", selectedYear, breakdown],
-    queryFn: () => fetchBarometreStatisticsForYear(selectedYear!, breakdown),
-    enabled: selectedYear != null,
+  const publishMut = useMutation({
+    mutationFn: ({ id, published }: { id: string; published: boolean }) =>
+      setBarometreDatasetPublished(id, published),
+    onSuccess: async (_, vars) => {
+      toast.success(vars.published ? "Publié." : "Dépublie.");
+      await queryClient.invalidateQueries({ queryKey: ["barometre-datasets"] });
+      await queryClient.invalidateQueries({ queryKey: ["barometre-datasets-published"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const chartRows = rows.map((r) => ({
-    categoryLabel: r.category_label,
-    cooperatives: r.cooperatives,
-    adherents: r.adherents,
-  }));
+  const deleteMut = useMutation({
+    mutationFn: deleteBarometreDataset,
+    onSuccess: async () => {
+      toast.success("Baromètre supprimé.");
+      setEditing(null);
+      await queryClient.invalidateQueries({ queryKey: ["barometre-datasets"] });
+      await queryClient.invalidateQueries({ queryKey: ["barometre-datasets-published"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  if (yearsLoading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Chargement de l’historique…
+      <div className="flex items-center gap-2 py-12 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Chargement…
       </div>
     );
   }
 
-  if (years.length === 0) {
+  if (isError) {
+    return <p className="py-8 text-sm text-destructive">Impossible de charger les baromètres.</p>;
+  }
+
+  if (data.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-        Aucune année enregistrée. Utilisez l’onglet « Nouveau Baromètre » pour importer un fichier Excel.
+      <p className="py-8 text-sm text-muted-foreground">
+        Aucun baromètre pour le moment. Créez-en un dans l’onglet « Nouveau Baromètre ».
       </p>
     );
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[220px,1fr] lg:items-start">
-      <aside className="space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Calendar className="h-4 w-4 text-primary" />
-          Années
-        </div>
-        <ul className="flex flex-col gap-1 border-l-2 border-border pl-3">
-          {years.map((y) => (
-            <li key={y}>
-              <button
+    <>
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {data.map((item) => (
+          <li
+            key={item.id}
+            className="flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm"
+          >
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-foreground">{item.name}</h3>
+                {item.description ? (
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+                ) : null}
+              </div>
+              <Badge variant={item.is_published ? "default" : "secondary"}>
+                {item.is_published ? "Publié" : "Brouillon"}
+              </Badge>
+            </div>
+            <BarometreFlexibleChart
+              columns={item.columns}
+              rows={item.rows}
+              xColumnId={item.x_column_id}
+              yColumnIds={item.y_column_ids}
+              chartType={item.chart_type}
+              height={180}
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setEditing(item)}>
+                <Pencil className="mr-1 h-3.5 w-3.5" />
+                Modifier
+              </Button>
+              <Button
                 type="button"
-                onClick={() => setSelectedYear(y)}
-                className={cn(
-                  "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
-                  selectedYear === y
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
+                size="sm"
+                variant="outline"
+                disabled={publishMut.isPending}
+                onClick={() =>
+                  publishMut.mutate({ id: item.id, published: !item.is_published })
+                }
               >
-                {y}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      <div className="min-w-0 space-y-6">
-        {selectedYear != null ? (
-          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="space-y-2">
-              <Label>Données affichées</Label>
-              <ToggleGroup
-                type="single"
-                value={breakdown}
-                onValueChange={(v) => {
-                  if (v === "region" || v === "sector") setBreakdown(v);
+                {item.is_published ? "Dépublier" : "Publier"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-destructive"
+                disabled={deleteMut.isPending}
+                onClick={() => {
+                  if (window.confirm(`Supprimer « ${item.name} » ?`)) {
+                    deleteMut.mutate(item.id);
+                  }
                 }}
-                className="justify-start"
               >
-                <ToggleGroupItem value="region" aria-label="Région">
-                  Par région
-                </ToggleGroupItem>
-                <ToggleGroupItem value="sector" aria-label="Secteur">
-                  Par secteur / activité
-                </ToggleGroupItem>
-              </ToggleGroup>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="hist-chart-type">Type de graphique</Label>
-              <Select value={chartType} onValueChange={(v) => setChartType(v as BarometreChartType)}>
-                <SelectTrigger id="hist-chart-type" className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {BAROMETRE_CHART_TYPE_OPTIONS.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        ) : null}
+          </li>
+        ))}
+      </ul>
 
-        {rowsLoading ? (
-          <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Chargement des données {selectedYear}…
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              {selectedYear != null ? (
-                <>
-                  Année <strong className="text-foreground">{selectedYear}</strong>
-                  {breakdown === "region" ? " — répartition par région" : " — répartition par secteur"}
-                </>
-              ) : null}
-            </p>
-            <BarometreDualCharts rows={chartRows} chartType={chartType} />
-          </>
-        )}
-      </div>
-    </div>
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier — {editing?.name}</DialogTitle>
+          </DialogHeader>
+          {editing ? (
+            <BarometreDatasetForm
+              key={editing.id}
+              initial={editing}
+              onSaved={(d) => setEditing(d)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

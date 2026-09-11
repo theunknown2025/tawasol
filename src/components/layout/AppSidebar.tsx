@@ -22,7 +22,7 @@ import {
   NotebookPen,
   FileSpreadsheet,
   Mail,
-  Phone,
+  MessageCircle,
   Briefcase,
   LayoutDashboard,
   PlusCircle,
@@ -77,7 +77,7 @@ const adminBottomNavAfterMessagerie = [
 const messagerieSubItems = [
   { label: "Messagerie", icon: MessageSquare, path: "/admin/messagerie" },
   { label: "Email (Brevo)", icon: Mail, path: "/admin/whatsapp-manager" },
-  { label: "WhatsApp (WAHA)", icon: Phone, path: "/admin/whatsapp-waha" },
+  { label: "Whatsapp messaging", icon: MessageCircle, path: "/admin/whatsapp-messaging" },
 ];
 
 const opportunitesSubItems = [
@@ -295,7 +295,7 @@ export default function AppSidebar() {
                     className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all duration-200 ${
                       pathname.startsWith("/admin/messagerie") ||
                       pathname.startsWith("/admin/whatsapp-manager") ||
-                      pathname.startsWith("/admin/whatsapp-waha")
+                      pathname.startsWith("/admin/whatsapp-messaging")
                         ? "bg-[hsl(var(--sidebar-active))] text-[hsl(var(--sidebar-active-fg))] shadow-md shadow-[hsl(var(--sidebar-active)/0.25)]"
                         : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))]"
                     }`}

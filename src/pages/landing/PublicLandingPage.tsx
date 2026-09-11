@@ -1,15 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { fetchAllLpLandingResolved } from "@/lib/lpLandingSectionsDb";
+import {
+  PUBLIC_LANDING_ALL_SECTIONS_QUERY_KEY,
+  createDefaultSectionVisibility,
+} from "@/lib/lpLandingSectionVisibility";
 import { LandingPagePublishedLayout } from "@/pages/super-admin/LP_Manager/LandingPage/LandingPagePublishedLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 export default function PublicLandingPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["public-landing", "all-sections"],
+    queryKey: PUBLIC_LANDING_ALL_SECTIONS_QUERY_KEY,
     queryFn: fetchAllLpLandingResolved,
-    staleTime: 60_000,
+    staleTime: 10_000,
+    refetchOnMount: "always",
   });
 
   if (isLoading && !data) {
@@ -64,10 +69,13 @@ export default function PublicLandingPage() {
         aProposRemess={data.aProposRemess}
         remessEnChiffres={data.remessEnChiffres}
         equipeRemess={data.equipeRemess}
+        equipe={data.equipe}
         nosMembres={data.nosMembres}
+        nosPartenaires={data.nosPartenaires}
         galerie={data.galerie}
         contacterNous={data.contacterNous}
         footer={data.footer}
+        sectionVisibility={data.sectionVisibility ?? createDefaultSectionVisibility()}
         viewportFixedHeader
         publicSiteChrome
       />

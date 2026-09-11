@@ -1,7 +1,9 @@
 import {
   DEFAULT_A_PROPOS_REMESS_CONTENT,
   DEFAULT_EQUIPE_REMESS_CONTENT,
+  DEFAULT_EQUIPE_CONTENT,
   DEFAULT_NOS_MEMBRES_CONTENT,
+  DEFAULT_NOS_PARTENAIRES_CONTENT,
   DEFAULT_GALERIE_CONTENT,
   DEFAULT_CONTACTER_NOUS_CONTENT,
   DEFAULT_FOOTER_CONTENT,
@@ -11,7 +13,9 @@ import {
   DEFAULT_REMESS_EN_CHIFFRES_CONTENT,
   type AProposRemessContent,
   type EquipeRemessContent,
+  type EquipeContent,
   type NosMembresContent,
+  type NosPartenairesContent,
   type GalerieContent,
   type ContacterNousContent,
   type FooterContent,
@@ -20,6 +24,10 @@ import {
   type MotDuPresidentContent,
   type RemessEnChiffresContent,
 } from "../types";
+import {
+  createDefaultSectionVisibility,
+  type LandingSectionVisibilityMap,
+} from "@/lib/lpLandingSectionVisibility";
 import { LandingPagePreviewOutline } from "./LandingPagePreviewOutline";
 import { LandingPagePublishedLayout } from "./LandingPagePublishedLayout";
 
@@ -30,10 +38,13 @@ type MainProps = {
   aProposRemess?: AProposRemessContent;
   remessEnChiffres?: RemessEnChiffresContent;
   equipeRemess?: EquipeRemessContent;
+  equipe?: EquipeContent;
   nosMembres?: NosMembresContent;
+  nosPartenaires?: NosPartenairesContent;
   galerie?: GalerieContent;
   contacterNous?: ContacterNousContent;
   footer?: FooterContent;
+  sectionVisibility?: LandingSectionVisibilityMap;
   /** Aperçu LP : une zone par section avec son titre (hero = carrousel réel). */
   showSectionOutline?: boolean;
 };
@@ -45,10 +56,13 @@ export default function Main({
   aProposRemess = DEFAULT_A_PROPOS_REMESS_CONTENT,
   remessEnChiffres = DEFAULT_REMESS_EN_CHIFFRES_CONTENT,
   equipeRemess = DEFAULT_EQUIPE_REMESS_CONTENT,
+  equipe = DEFAULT_EQUIPE_CONTENT,
   nosMembres = DEFAULT_NOS_MEMBRES_CONTENT,
+  nosPartenaires = DEFAULT_NOS_PARTENAIRES_CONTENT,
   galerie = DEFAULT_GALERIE_CONTENT,
   contacterNous = DEFAULT_CONTACTER_NOUS_CONTENT,
   footer = DEFAULT_FOOTER_CONTENT,
+  sectionVisibility = createDefaultSectionVisibility(),
   showSectionOutline,
 }: MainProps) {
   if (showSectionOutline) {
@@ -60,10 +74,13 @@ export default function Main({
         aProposRemess={aProposRemess}
         remessEnChiffres={remessEnChiffres}
         equipeRemess={equipeRemess}
+        equipe={equipe}
         nosMembres={nosMembres}
+        nosPartenaires={nosPartenaires}
         galerie={galerie}
         contacterNous={contacterNous}
         footer={footer}
+        sectionVisibility={sectionVisibility}
       />
     );
   }
@@ -76,10 +93,13 @@ export default function Main({
       aProposRemess={aProposRemess}
       remessEnChiffres={remessEnChiffres}
       equipeRemess={equipeRemess}
+      equipe={equipe}
       nosMembres={nosMembres}
+      nosPartenaires={nosPartenaires}
       galerie={galerie}
       contacterNous={contacterNous}
       footer={footer}
+      sectionVisibility={sectionVisibility}
     />
   );
 }

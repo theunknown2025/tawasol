@@ -32,8 +32,10 @@ export function visiblePageIndices(currentPage: number, totalPages: number): num
 type PublicPagedListToolbarProps = {
   viewMode: PublicListViewMode;
   onViewModeChange: (mode: PublicListViewMode) => void;
-  pageSize: PublicPageSize;
-  onPageSizeChange: (size: PublicPageSize) => void;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
+  /** Defaults to 3 / 9 / 30. Pass another set when the page persists different sizes. */
+  pageSizeOptions?: readonly number[];
 };
 
 export function PublicPagedListToolbar({
@@ -41,7 +43,10 @@ export function PublicPagedListToolbar({
   onViewModeChange,
   pageSize,
   onPageSizeChange,
+  pageSizeOptions = PUBLIC_PAGE_SIZE_OPTIONS,
 }: PublicPagedListToolbarProps) {
+  const options = pageSizeOptions.length > 0 ? pageSizeOptions : PUBLIC_PAGE_SIZE_OPTIONS;
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       <div className="flex items-center gap-2">
@@ -51,15 +56,15 @@ export function PublicPagedListToolbar({
         <Select
           value={String(pageSize)}
           onValueChange={(v) => {
-            const n = Number(v) as PublicPageSize;
-            if (n === 3 || n === 9 || n === 30) onPageSizeChange(n);
+            const n = Number(v);
+            if (options.includes(n)) onPageSizeChange(n);
           }}
         >
           <SelectTrigger className="h-9 w-[7.5rem]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {PUBLIC_PAGE_SIZE_OPTIONS.map((n) => (
+            {options.map((n) => (
               <SelectItem key={n} value={String(n)}>
                 {n} par page
               </SelectItem>
