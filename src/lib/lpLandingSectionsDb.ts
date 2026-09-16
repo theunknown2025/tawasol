@@ -23,6 +23,7 @@ import {
   ensureAProposValeursCount,
   mergeFooterPayload,
   ensureRemessChiffresStatsCount,
+  normalizeAProposGalleryImages,
   normalizeEquipeMembers,
   normalizeNosMembresEntries,
   normalizeNosPartenairesEntries,
@@ -133,6 +134,9 @@ function mergeAProposPayload(raw: unknown): AProposRemessContent {
       ? (valeursRaw as AProposRemessContent["valeurs"])
       : DEFAULT_A_PROPOS_REMESS_CONTENT.valeurs,
   );
+  const galleryImages = normalizeAProposGalleryImages(
+    Array.isArray(o.galleryImages) ? o.galleryImages : [],
+  );
   return {
     ...DEFAULT_A_PROPOS_REMESS_CONTENT,
     ...o,
@@ -141,6 +145,7 @@ function mergeAProposPayload(raw: unknown): AProposRemessContent {
         ? o.missionActionKind
         : DEFAULT_A_PROPOS_REMESS_CONTENT.missionActionKind,
     valeurs,
+    galleryImages,
   };
 }
 

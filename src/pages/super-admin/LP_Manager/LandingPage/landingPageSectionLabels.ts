@@ -16,6 +16,7 @@ export const LANDING_PAGE_SECTION_LABELS = [
   "Projets",
   "Galerie",
   "Bibliothèque",
+  "Bilan REMESS",
   "Blog",
   "Contacter nous",
   "Footer",

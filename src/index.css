@@ -260,3 +260,49 @@
     opacity: 0;
   }
 }
+
+@keyframes a-propos-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.a-propos-marquee-track {
+  animation: a-propos-marquee 35s linear infinite;
+  width: max-content;
+}
+
+.a-propos-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .a-propos-marquee-track {
+    animation: none;
+  }
+}
+
+@keyframes carto-stat-pop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  55% {
+    transform: translateY(-6px) scale(1.04);
+  }
+  100% {
+    transform: translateY(-4px) scale(1.02);
+  }
+}
+
+.remess-landing-theme .carto-stat-item:hover {
+  animation: carto-stat-pop 0.35s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remess-landing-theme .carto-stat-item:hover {
+    animation: none;
+  }
+}

@@ -15,6 +15,7 @@ import {
   FolderKanban,
   Images,
   Library,
+  ClipboardList,
   Newspaper,
   Mail,
 } from "lucide-react";
@@ -120,6 +121,12 @@ export const LANDING_VERTICAL_NAV_SECTIONS: LandingVerticalNavItem[] = [
     label: "Bibliothèque",
     icon: Library,
     sectionLabel: "Bibliothèque",
+  },
+  {
+    anchorId: LANDING_PAGE_SECTION_ANCHOR_ID["Bilan REMESS"],
+    label: "Bilan REMESS",
+    icon: ClipboardList,
+    sectionLabel: "Bilan REMESS",
   },
   {
     anchorId: LANDING_PAGE_SECTION_ANCHOR_ID.Blog,

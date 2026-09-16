@@ -37,6 +37,9 @@ const VALEUR_ICONS: Record<AProposValeurIconKey, LucideIcon> = {
   compass: Compass,
 };
 
+/** Taille fixe des vignettes du bandeau défilant. */
+const GALLERY_FRAME = "h-[7.5rem] w-[10.5rem] shrink-0 sm:h-[8.5rem] sm:w-[12rem]";
+
 type AProposRemessSectionProps = {
   content?: AProposRemessContent;
 };
@@ -50,9 +53,11 @@ export function AProposRemessSection({
       : content.missionDocumentUrl.trim();
   const actionLabel = content.missionActionLabel.trim();
   const hasAction = actionLabel.length > 0 && actionHref.length > 0;
+  const gallery = (content.galleryImages ?? []).filter((img) => img.url.trim().length > 0);
+  const marqueeImages = gallery.length > 0 ? [...gallery, ...gallery] : [];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 md:py-14 lg:px-8">
+    <div className="mx-auto max-w-6xl space-y-10 px-4 py-10 md:space-y-12 md:py-14 lg:px-8">
       <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
         <div className="space-y-5">
           {content.missionEyebrow.trim().length > 0 && (
@@ -113,6 +118,29 @@ export function AProposRemessSection({
           </ul>
         </div>
       </div>
+
+      {gallery.length > 0 ? (
+        <div className="relative overflow-hidden" aria-label="Galerie À propos du REMESS">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-10 bg-gradient-to-r from-background to-transparent sm:w-16" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-10 bg-gradient-to-l from-background to-transparent sm:w-16" />
+          <div className="a-propos-marquee-track flex gap-4 py-1">
+            {marqueeImages.map((img, i) => (
+              <div
+                key={`${img.id}-${i}`}
+                className={`${GALLERY_FRAME} overflow-hidden rounded-xl border border-border bg-muted shadow-sm`}
+              >
+                <img
+                  src={img.url}
+                  alt={img.alt.trim() || ""}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  draggable={false}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

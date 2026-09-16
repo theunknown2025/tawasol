@@ -6,6 +6,7 @@ import {
   Globe2,
   Handshake,
   Heart,
+  ImagePlus,
   Leaf,
   Lightbulb,
   Plus,
@@ -31,13 +32,17 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadLandingPagePdf } from "@/lib/lpLandingPageApi";
+import { uploadLandingPageImage, uploadLandingPagePdf } from "@/lib/lpLandingPageApi";
 import {
+  A_PROPOS_GALLERY_IMAGES_MAX,
   A_PROPOS_VALEUR_ICON_KEYS,
   A_PROPOS_VALEURS_MAX,
   A_PROPOS_VALEURS_MIN,
+  createDefaultAProposGalleryImage,
   createDefaultAProposValeur,
   ensureAProposValeursCount,
+  normalizeAProposGalleryImages,
+  type AProposGalleryImage,
   type AProposRemessContent,
   type AProposValeurIconKey,
   type AProposValeurItem,
@@ -65,12 +70,18 @@ type AProposRemessManagerProps = {
 
 export function AProposRemessManager({ value, onChange }: AProposRemessManagerProps) {
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const galleryImages = value.galleryImages ?? [];
 
   const patch = (partial: Partial<AProposRemessContent>) => {
     const next: AProposRemessContent = { ...value, ...partial };
     if (partial.valeurs !== undefined) {
       next.valeurs = ensureAProposValeursCount(partial.valeurs);
+    }
+    if (partial.galleryImages !== undefined) {
+      next.galleryImages = normalizeAProposGalleryImages(partial.galleryImages);
     }
     onChange(next);
   };
@@ -96,6 +107,16 @@ export function AProposRemessManager({ value, onChange }: AProposRemessManagerPr
     patch({ valeurs: value.valeurs.filter((v) => v.id !== id) });
   };
 
+  const patchGalleryImage = (id: string, partial: Partial<AProposGalleryImage>) => {
+    patch({
+      galleryImages: galleryImages.map((img) => (img.id === id ? { ...img, ...partial } : img)),
+    });
+  };
+
+  const removeGalleryImage = (id: string) => {
+    patch({ galleryImages: galleryImages.filter((img) => img.id !== id) });
+  };
+
   const handlePdf = async (file: File | undefined) => {
     if (!file) return;
     setPdfUploading(true);
@@ -108,6 +129,41 @@ export function AProposRemessManager({ value, onChange }: AProposRemessManagerPr
     } finally {
       setPdfUploading(false);
       if (pdfInputRef.current) pdfInputRef.current.value = "";
+    }
+  };
+
+  const handleGalleryFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = A_PROPOS_GALLERY_IMAGES_MAX - galleryImages.length;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${A_PROPOS_GALLERY_IMAGES_MAX} images.`);
+      return;
+    }
+    const toUpload = Array.from(files).slice(0, remaining);
+    setGalleryUploading(true);
+    try {
+      const uploaded: AProposGalleryImage[] = [];
+      for (const file of toUpload) {
+        const { url, usedFallback } = await uploadLandingPageImage(file, "a-propos-gallery");
+        uploaded.push({
+          ...createDefaultAProposGalleryImage(galleryImages.length + uploaded.length),
+          url,
+          alt: file.name.replace(/\.[^.]+$/, ""),
+        });
+        if (usedFallback) {
+          toast.warning("Image enregistrée en local", {
+            description:
+              "Le stockage distant n’est pas disponible : l’image est intégrée pour cette session.",
+          });
+        }
+      }
+      patch({ galleryImages: [...galleryImages, ...uploaded] });
+      if (uploaded.length > 0) toast.success(`${uploaded.length} image(s) ajoutée(s)`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec du téléversement");
+    } finally {
+      setGalleryUploading(false);
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
     }
   };
 
@@ -220,6 +276,91 @@ export function AProposRemessManager({ value, onChange }: AProposRemessManagerPr
             </div>
           )}
         </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">Galerie défilante</h3>
+            <p className="text-xs text-muted-foreground">
+              Images à taille fixe, défilement droite → gauche sous la section (max.{" "}
+              {A_PROPOS_GALLERY_IMAGES_MAX}).
+            </p>
+          </div>
+          <div>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              className="sr-only"
+              onChange={(e) => void handleGalleryFiles(e.target.files)}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              disabled={galleryUploading || galleryImages.length >= A_PROPOS_GALLERY_IMAGES_MAX}
+              onClick={() => galleryInputRef.current?.click()}
+            >
+              <ImagePlus className="h-4 w-4" aria-hidden />
+              {galleryUploading ? "Téléversement…" : "Ajouter des images"}
+            </Button>
+          </div>
+        </div>
+
+        {galleryImages.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+            Aucune image. Ajoutez des photos pour le bandeau animé.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {galleryImages.map((img, index) => (
+              <li
+                key={img.id}
+                className="flex flex-wrap items-start gap-3 rounded-xl border border-border bg-background p-3 shadow-sm"
+              >
+                <div className="h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                  {img.url.trim() ? (
+                    <img src={img.url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-[0.65rem] text-muted-foreground">
+                      —
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Image {index + 1}
+                  </p>
+                  <Input
+                    value={img.alt}
+                    onChange={(e) => patchGalleryImage(img.id, { alt: e.target.value })}
+                    placeholder="Texte alternatif"
+                  />
+                  <Input
+                    value={img.url}
+                    onChange={(e) => patchGalleryImage(img.id, { url: e.target.value })}
+                    placeholder="URL de l’image"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => removeGalleryImage(img.id)}
+                  aria-label="Retirer l’image"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <Separator />

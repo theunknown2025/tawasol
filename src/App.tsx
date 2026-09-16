@@ -38,6 +38,7 @@ import MediaManagerPage from "./pages/super-admin/MediaManagerPage";
 import PMOPage from "./pages/super-admin/PMOPage";
 import LpProfilePage from "./pages/super-admin/LP_Manager/LpProfilePage";
 import LpLibraryPage from "./pages/super-admin/LP_Manager/LibraryManager/LpLibraryPage";
+import LpBilanPage from "./pages/super-admin/LP_Manager/BilanManager/LpBilanPage";
 import LpProjetsPage from "./pages/super-admin/LP_Manager/ProjetsManager/LpProjetsPage";
 import LpDashboardPage from "./pages/super-admin/LP_Manager/LpDashboardPage";
 import BarometrePage from "./pages/super-admin/LP_Manager/BarometrePage";
@@ -57,12 +58,15 @@ import NosPartenairesEditorPage from "./pages/super-admin/LP_Manager/LPManager/s
 import NosEvenementsEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/NosEvenementsEditorPage";
 import GalerieEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/GalerieEditorPage";
 import ArticlesEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ArticlesEditorPage";
+import BilanRemessEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/BilanRemessEditorPage";
 import ProjetsEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ProjetsEditorPage";
 import ContacterNousEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/ContacterNousEditorPage";
 import FooterEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/FooterEditorPage";
 import SectionVisibilityEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/SectionVisibilityEditorPage";
 import PublicLibraryPage from "./pages/public-library/PublicLibraryPage";
 import PublicArticlePage from "./pages/public-library/PublicArticlePage";
+import PublicBilanPage from "./pages/public-bilan/PublicBilanPage";
+import PublicBilanDetailPage from "./pages/public-bilan/PublicBilanDetailPage";
 import PublicLandingPage from "./pages/landing/PublicLandingPage";
 import PublicEventRegistrationPage from "./pages/public/PublicEventRegistrationPage";
 import PublicEventsPage from "./pages/public/PublicEventsPage";
@@ -125,6 +129,8 @@ const App = () => {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/bibliotheque" element={<PublicLibraryPage />} />
             <Route path="/articles" element={<Navigate to="/bibliotheque" replace />} />
+            <Route path="/bilan-remess" element={<PublicBilanPage />} />
+            <Route path="/bilan-remess/:id" element={<PublicBilanDetailPage />} />
             <Route path="/article/:id" element={<PublicArticlePage />} />
             <Route path="/blogs" element={<PublicBlogsPage />} />
             <Route path="/blog/:slug" element={<PublicBlogPage />} />
@@ -154,6 +160,7 @@ const App = () => {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="profile" element={<LpProfilePage />} />
               <Route path="library" element={<LpLibraryPage />} />
+              <Route path="bilan" element={<LpBilanPage />} />
               <Route path="projets" element={<LpProjetsPage />} />
               <Route path="dashboard" element={<LpDashboardPage />} />
               <Route path="cartographie/demandes" element={<CartographieInfoRequestsPage />} />
@@ -177,6 +184,7 @@ const App = () => {
                 <Route path="nos-evenements" element={<NosEvenementsEditorPage />} />
                 <Route path="galerie" element={<GalerieEditorPage />} />
                 <Route path="articles" element={<ArticlesEditorPage />} />
+                <Route path="bilan-remess" element={<BilanRemessEditorPage />} />
                 <Route path="projets" element={<ProjetsEditorPage />} />
                 <Route path="contacter-nous" element={<ContacterNousEditorPage />} />
                 <Route path="footer" element={<FooterEditorPage />} />

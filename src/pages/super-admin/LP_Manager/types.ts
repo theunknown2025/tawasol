@@ -240,6 +240,12 @@ export type AProposValeurItem = {
   iconKey: AProposValeurIconKey;
 };
 
+export type AProposGalleryImage = {
+  id: string;
+  url: string;
+  alt: string;
+};
+
 export type AProposRemessContent = {
   missionEyebrow: string;
   missionTitle: string;
@@ -250,7 +256,39 @@ export type AProposRemessContent = {
   missionDocumentUrl: string;
   valeursSectionTitle: string;
   valeurs: AProposValeurItem[];
+  /** Images du bandeau défilant (droite → gauche) sous la mission. */
+  galleryImages: AProposGalleryImage[];
 };
+
+export const A_PROPOS_GALLERY_IMAGES_MAX = 24;
+
+function newAProposGalleryImageId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `apr-img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function createDefaultAProposGalleryImage(index: number): AProposGalleryImage {
+  return {
+    id: newAProposGalleryImageId(),
+    url: "",
+    alt: `Image ${index + 1}`,
+  };
+}
+
+export function normalizeAProposGalleryImages(images: unknown[]): AProposGalleryImage[] {
+  const raw = Array.isArray(images) ? images : [];
+  return raw.slice(0, A_PROPOS_GALLERY_IMAGES_MAX).map((item, i) => {
+    const o = (typeof item === "object" && item !== null ? item : {}) as Partial<AProposGalleryImage>;
+    return {
+      id:
+        typeof o.id === "string" && o.id.trim().length > 0 ? o.id.trim() : newAProposGalleryImageId(),
+      url: typeof o.url === "string" ? o.url : "",
+      alt: typeof o.alt === "string" ? o.alt : `Image ${i + 1}`,
+    };
+  });
+}
 
 function newAProposValeurId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -295,10 +333,12 @@ export const DEFAULT_A_PROPOS_REMESS_CONTENT: AProposRemessContent = {
   missionDocumentUrl: "",
   valeursSectionTitle: "Nos Valeurs",
   valeurs: Array.from({ length: A_PROPOS_VALEURS_MIN }, (_, i) => createDefaultAProposValeur(i)),
+  galleryImages: [],
 };
 
+/** Affichés en overlay sous le hero (maximum 6). */
 export const REMESS_CHIFFRES_STATS_MIN = 3;
-export const REMESS_CHIFFRES_STATS_MAX = 12;
+export const REMESS_CHIFFRES_STATS_MAX = 6;
 
 export type RemessEnChiffreStatItem = {
   id: string;
@@ -360,6 +400,13 @@ export const DEFAULT_REMESS_EN_CHIFFRES_CONTENT: RemessEnChiffresContent = {
 
 export const EQUIPE_BIO_MAX_CHARS = 300;
 export const EQUIPE_MEMBERS_MAX = 24;
+export const EQUIPE_SKILLS_MAX = 5;
+
+export type EquipeSkill = {
+  name: string;
+  /** 0–100, affiché en bandeau de progression */
+  percentage: number;
+};
 
 export type EquipeMember = {
   id: string;
@@ -371,6 +418,8 @@ export type EquipeMember = {
   bio: string;
   linkedinUrl: string;
   email: string;
+  /** Compétences avec niveau % (max. 5) */
+  skills: EquipeSkill[];
 };
 
 export type EquipeRemessContent = {
@@ -390,9 +439,10 @@ export function createDefaultEquipeMember(index: number): EquipeMember {
     photoUrl: "",
     fullName: `Membre ${index + 1}`,
     functionTitle: "Fonction",
-    bio: "Courte biographie (aperçu au survol, détail au clic).",
+    bio: "Courte biographie affichée dans le profil principal.",
     linkedinUrl: "",
     email: "",
+    skills: [],
   };
 }
 
@@ -401,9 +451,36 @@ function clampBio(s: string): string {
   return t.length > EQUIPE_BIO_MAX_CHARS ? t.slice(0, EQUIPE_BIO_MAX_CHARS) : t;
 }
 
+function clampSkillPercentage(n: unknown): number {
+  const v = typeof n === "number" ? n : typeof n === "string" ? Number(n) : NaN;
+  if (!Number.isFinite(v)) return 0;
+  return Math.max(0, Math.min(100, Math.round(v)));
+}
+
+function normalizeEquipeSkills(skills: unknown): EquipeSkill[] {
+  if (!Array.isArray(skills)) return [];
+  return skills
+    .map((item): EquipeSkill | null => {
+      if (typeof item === "string") {
+        const name = item.trim();
+        if (!name) return null;
+        return { name, percentage: 0 };
+      }
+      if (typeof item === "object" && item !== null) {
+        const o = item as Partial<EquipeSkill>;
+        const name = typeof o.name === "string" ? o.name.trim() : "";
+        if (!name) return null;
+        return { name, percentage: clampSkillPercentage(o.percentage) };
+      }
+      return null;
+    })
+    .filter((s): s is EquipeSkill => s !== null)
+    .slice(0, EQUIPE_SKILLS_MAX);
+}
+
 export function normalizeEquipeMembers(members: unknown[]): EquipeMember[] {
   const raw = Array.isArray(members) ? members : [];
-  return raw.slice(0, EQUIPE_MEMBERS_MAX).map((item, i) => {
+  return raw.slice(0, EQUIPE_MEMBERS_MAX).map((item) => {
     const o = (typeof item === "object" && item !== null ? item : {}) as Partial<EquipeMember>;
     return {
       id: typeof o.id === "string" && o.id.trim().length > 0 ? o.id.trim() : newEquipeMemberId(),
@@ -413,6 +490,7 @@ export function normalizeEquipeMembers(members: unknown[]): EquipeMember[] {
       bio: clampBio(typeof o.bio === "string" ? o.bio : ""),
       linkedinUrl: typeof o.linkedinUrl === "string" ? o.linkedinUrl : "",
       email: typeof o.email === "string" ? o.email : "",
+      skills: normalizeEquipeSkills(o.skills),
     };
   });
 }

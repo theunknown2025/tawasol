@@ -7,7 +7,7 @@ import { HeroSectionManager } from "../HeroSectionManager";
 import { useLpLandingContent } from "../../LpLandingContentContext";
 
 export default function HeroEditorPage() {
-  const { hero, setHero } = useLpLandingContent();
+  const { hero, setHero, remessEnChiffres } = useLpLandingContent();
   const [previewOpen, setPreviewOpen] = useState(false);
 
   return (
@@ -20,7 +20,7 @@ export default function HeroEditorPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-foreground">Hero</h1>
             <p className="text-sm text-muted-foreground">
-              Contenu du bandeau principal ; l’aperçu reflète les réglages en direct.
+              Contenu du bandeau principal ; les chiffres clés s’affichent en bas du hero.
             </p>
           </div>
         </div>
@@ -45,9 +45,14 @@ export default function HeroEditorPage() {
 
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">Aperçu</h2>
-          <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 shadow-sm ring-1 ring-border/50">
-            <div className="max-h-[min(85vh,900px)] overflow-y-auto rounded-b-2xl bg-background">
-              <HeroSection content={hero} className="min-h-[50vh] py-14" />
+          <div className="overflow-visible rounded-2xl border border-border bg-muted/30 shadow-sm ring-1 ring-border/50">
+            <div className="max-h-[min(85vh,900px)] overflow-y-auto rounded-b-2xl bg-background pb-16">
+              <HeroSection
+                content={hero}
+                className="min-h-[50vh] py-14"
+                chiffres={remessEnChiffres}
+                showChiffres
+              />
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { ArticlesSection } from "./ArticlesSection";
+import { BilanRemessSection } from "./BilanRemessSection";
 import { BlogsSection } from "./BlogsSection";
 import { AProposRemessSection } from "./AProposRemessSection";
 import { EquipeRemessSection } from "./EquipeRemessSection";
@@ -13,8 +14,6 @@ import { HeroSection } from "./HeroSection";
 import { LandingPageSectionOutlineTitle } from "./LandingPageSectionOutlineTitle";
 import { LandingWaveSection } from "./LandingWaveSection";
 import { MotDuPresidentSection } from "./MotDuPresidentSection";
-import HeroLatestPublicationsSlider from "@/components/landing/HeroLatestPublicationsSlider";
-import { RemessEnChiffresSection } from "./RemessEnChiffresSection";
 import { BarometreLandingSection } from "./BarometreLandingSection";
 import { BarometreDonneesLandingSection } from "./BarometreDonneesLandingSection";
 import { ProjetsLandingSection } from "./ProjetsLandingSection";
@@ -61,7 +60,6 @@ export type LandingPagePreviewOutlineProps = {
 const SECTION_WAVE_VARIANT: Partial<Record<string, LandingWaveVariant>> = {
   "Mot du président": "warm",
   "À propos du REMESS": "white",
-  "REMESS en chiffres": "accent",
   Cartographie: "warm",
   Baromètre: "white",
   "Conseil Administrative REMESS": "cream",
@@ -73,6 +71,7 @@ const SECTION_WAVE_VARIANT: Partial<Record<string, LandingWaveVariant>> = {
   Projets: "warm",
   Galerie: "cream",
   Bibliothèque: "white",
+  "Bilan REMESS": "cream",
   Blog: "cream",
   "Contacter nous": "accent",
   Footer: "deep",
@@ -95,8 +94,12 @@ export function LandingPagePreviewOutline({
   sectionVisibility = createDefaultSectionVisibility(),
 }: LandingPagePreviewOutlineProps) {
   const outlineLabels = LANDING_PAGE_SECTION_LABELS.filter(
-    (l) => l !== "Header" && isLandingSectionVisible(sectionVisibility, l),
+    (l) =>
+      l !== "Header" &&
+      l !== "REMESS en chiffres" &&
+      isLandingSectionVisible(sectionVisibility, l),
   );
+  const showChiffres = isLandingSectionVisible(sectionVisibility, "REMESS en chiffres");
   return (
     <div className="remess-landing-theme min-h-screen w-full bg-background text-foreground">
       {isLandingSectionVisible(sectionVisibility, "Header") ? (
@@ -107,8 +110,16 @@ export function LandingPagePreviewOutline({
       {outlineLabels.map((label) => {
         if (label === "Hero") {
           return (
-           <div key={label} id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero}>
-              <HeroSection content={hero} /> 
+            <div
+              key={label}
+              id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero}
+              className="relative z-10 overflow-visible"
+            >
+              <HeroSection
+                content={hero}
+                chiffres={remessEnChiffres}
+                showChiffres={showChiffres}
+              />
             </div>
           );
         }
@@ -122,7 +133,6 @@ export function LandingPagePreviewOutline({
             id={LANDING_PAGE_SECTION_ANCHOR_ID[label]}
             variant={variant}
           >
-            {label === "Mot du président" ? <HeroLatestPublicationsSlider /> : null}
             {label !== "Footer" ? (
               <LandingPageSectionOutlineTitle
                 label={outlineLabel}
@@ -139,7 +149,9 @@ export function LandingPagePreviewOutline({
                     ? "Découvrir les événements organisés par nos membres"
                     : label === "Bibliothèque"
                       ? "Consulter une bibliothèque riche en ouvrages et publications."
-                      : undefined
+                      : label === "Bilan REMESS"
+                        ? "Nos réalisations et notre impact sur les territoires."
+                        : undefined
                 }
               />
             ) : null}
@@ -147,8 +159,6 @@ export function LandingPagePreviewOutline({
               <MotDuPresidentSection content={motDuPresident} />
             ) : label === "À propos du REMESS" ? (
               <AProposRemessSection content={aProposRemess} />
-            ) : label === "REMESS en chiffres" ? (
-              <RemessEnChiffresSection content={remessEnChiffres} hideMainTitle />
             ) : label === "Cartographie" ? (
               <BarometreLandingSection hideMainTitle />
             ) : label === "Baromètre" ? (
@@ -171,6 +181,8 @@ export function LandingPagePreviewOutline({
               <ContacterNousSection content={contacterNous} />
             ) : label === "Bibliothèque" ? (
               <ArticlesSection hidePageTitle />
+            ) : label === "Bilan REMESS" ? (
+              <BilanRemessSection hidePageTitle />
             ) : label === "Blog" ? (
               <BlogsSection hidePageTitle />
             ) : label === "Footer" ? (

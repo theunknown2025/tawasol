@@ -39,3 +39,9 @@ export function buildBlogShareUrl(slug: string): string {
   if (!origin) return `/blog/${encodeURIComponent(slug)}`;
   return `${origin}/blog/${encodeURIComponent(slug)}`;
 }
+
+export function buildBilanShareUrl(documentId: string): string {
+  const origin = getPublicOrigin();
+  if (!origin) return `/bilan-remess/${encodeURIComponent(documentId)}`;
+  return `${origin}/bilan-remess/${encodeURIComponent(documentId)}`;
+}

@@ -109,7 +109,7 @@ export function RemessEnChiffresManager({ value, onChange }: RemessEnChiffresMan
             <h3 className="text-sm font-semibold text-foreground">Indicateurs</h3>
             <p className="text-xs text-muted-foreground">
               Chiffre affiché, titre, description et icône — entre {REMESS_CHIFFRES_STATS_MIN} et{" "}
-              {REMESS_CHIFFRES_STATS_MAX} blocs.
+              {REMESS_CHIFFRES_STATS_MAX} blocs (affichés sur le hero).
             </p>
           </div>
           <Button

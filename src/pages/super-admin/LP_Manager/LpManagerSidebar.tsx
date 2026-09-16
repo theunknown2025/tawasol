@@ -39,6 +39,7 @@ const cartographieSubItems = [
 const lpNavBottom = [
   { label: "Baromètre", icon: BarChart2, path: `${LP_BASE}/barometre-donnees`, end: true },
   { label: "Bibliothèque", icon: Library, path: `${LP_BASE}/library`, end: true },
+  { label: "Bilan REMESS", icon: ClipboardList, path: `${LP_BASE}/bilan`, end: true },
   { label: "Projets", icon: FolderKanban, path: `${LP_BASE}/projets`, end: true },
   { label: "Tableau de bord", icon: LayoutDashboard, path: `${LP_BASE}/dashboard`, end: true },
 ] as const;

@@ -26,6 +26,7 @@ export const LANDING_PAGE_SECTION_ANCHOR_ID: Record<LandingPageSectionLabel, str
   Projets: "lp-section-projets",
   Galerie: "lp-section-galerie",
   Bibliothèque: "lp-section-articles",
+  "Bilan REMESS": "lp-section-bilan-remess",
   Blog: "lp-section-blog",
   "Contacter nous": "lp-section-contacter-nous",
   Footer: "lp-section-footer",

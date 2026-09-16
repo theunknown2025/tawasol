@@ -7,6 +7,7 @@ import {
   Images,
   LayoutTemplate,
   Library,
+  ClipboardList,
   Mail,
   PanelBottom,
   PanelTop,
@@ -79,6 +80,12 @@ const sections: SectionItem[] = [
   { id: "projets", label: "Projets", icon: FolderKanban, to: `${EDITOR_BASE}/projets` },
   { id: "galerie", label: "Galerie", icon: Images, to: `${EDITOR_BASE}/galerie` },
   { id: "articles", label: "Bibliothèque", icon: Library, to: `${EDITOR_BASE}/articles` },
+  {
+    id: "bilan-remess",
+    label: "Bilan REMESS",
+    icon: ClipboardList,
+    to: `${EDITOR_BASE}/bilan-remess`,
+  },
   {
     id: "contacter-nous",
     label: "Contacter nous",

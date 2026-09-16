@@ -1,4 +1,5 @@
 import { ArticlesSection } from "./ArticlesSection";
+import { BilanRemessSection } from "./BilanRemessSection";
 import { BlogsSection } from "./BlogsSection";
 import { AProposRemessSection } from "./AProposRemessSection";
 import { EquipeRemessSection } from "./EquipeRemessSection";
@@ -14,8 +15,6 @@ import { HeroSection } from "./HeroSection";
 import { LandingPageSectionOutlineTitle } from "./LandingPageSectionOutlineTitle";
 import { LandingWaveSection } from "./LandingWaveSection";
 import { MotDuPresidentSection } from "./MotDuPresidentSection";
-import HeroLatestPublicationsSlider from "@/components/landing/HeroLatestPublicationsSlider";
-import { RemessEnChiffresSection } from "./RemessEnChiffresSection";
 import { BarometreLandingSection } from "./BarometreLandingSection";
 import { BarometreDonneesLandingSection } from "./BarometreDonneesLandingSection";
 import { OpportunitesLandingSection } from "./OpportunitesLandingSection";
@@ -99,14 +98,20 @@ export function LandingPagePublishedLayout({
         </div>
       ) : null}
       {visible("Hero") ? (
-        <div id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero} className="scroll-mt-[var(--page-header-height)]">
-          <HeroSection content={hero} />
+        <div
+          id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero}
+          className="relative z-10 scroll-mt-[var(--page-header-height)] overflow-visible"
+        >
+          <HeroSection
+            content={hero}
+            chiffres={remessEnChiffres}
+            showChiffres={visible("REMESS en chiffres")}
+          />
         </div>
       ) : null}
 
       {visible("Mot du président") ? (
         <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["Mot du président"]} variant="warm">
-          <HeroLatestPublicationsSlider />
           <LandingPageSectionOutlineTitle label="Mot du président" />
           <MotDuPresidentSection content={motDuPresident} />
         </LandingWaveSection>
@@ -116,13 +121,6 @@ export function LandingPagePublishedLayout({
         <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["À propos du REMESS"]} variant="white">
           <LandingPageSectionOutlineTitle label="À propos du REMESS" />
           <AProposRemessSection content={aProposRemess} />
-        </LandingWaveSection>
-      ) : null}
-
-      {visible("REMESS en chiffres") ? (
-        <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["REMESS en chiffres"]} variant="accent">
-          <LandingPageSectionOutlineTitle label="REMESS en chiffres" />
-          <RemessEnChiffresSection content={remessEnChiffres} hideMainTitle />
         </LandingWaveSection>
       ) : null}
 
@@ -211,6 +209,16 @@ export function LandingPagePublishedLayout({
             subtitle="Consulter une bibliothèque riche en ouvrages et publications."
           />
           <ArticlesSection hidePageTitle />
+        </LandingWaveSection>
+      ) : null}
+
+      {visible("Bilan REMESS") ? (
+        <LandingWaveSection id={LANDING_PAGE_SECTION_ANCHOR_ID["Bilan REMESS"]} variant="white">
+          <LandingPageSectionOutlineTitle
+            label="Bilan REMESS"
+            subtitle="Nos réalisations et notre impact sur les territoires."
+          />
+          <BilanRemessSection hidePageTitle />
         </LandingWaveSection>
       ) : null}
 
