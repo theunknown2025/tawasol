@@ -33,6 +33,11 @@ import {
   type CooperativeLink,
   type PresidentGenre,
 } from "./barometreCooperativesApi";
+import CooperativeImagesField, {
+  createDraftFromRemote,
+  draftsToRemoteImages,
+  type CooperativeImageDraft,
+} from "./CooperativeImagesField";
 import { useBarometreActivities } from "./useBarometreActivities";
 import { getActivityMarkerStyle } from "./barometreActivityIcons";
 import {
@@ -41,7 +46,7 @@ import {
   MOROCCO_PHONE_HINT,
   sanitizeMoroccoPhoneInput,
 } from "./barometrePhone";
-import { normalizeCooperativeLatLng, parseCoordValue } from "./barometreCoords";
+import { normalizeCooperativeLatLng, parseCoordValue, parseGoogleMapsLatLng } from "./barometreCoords";
 import {
   emptyEvaluation,
   EVALUATION_CRITERIA,
@@ -119,13 +124,12 @@ export default function BarometreAddCooperativePanel({
   const [adresseDetail, setAdresseDetail] = useState("");
   const [coordX, setCoordX] = useState("");
   const [coordY, setCoordY] = useState("");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
   const [activiteKey, setActiviteKey] = useState<string>("");
   const [activiteAutre, setActiviteAutre] = useState("");
   const [description, setDescription] = useState("");
   const [links, setLinks] = useState<CooperativeLink[]>([{ url: "", label: "" }]);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageInputKey, setImageInputKey] = useState(0);
+  const [imageDrafts, setImageDrafts] = useState<CooperativeImageDraft[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [presidentGenre, setPresidentGenre] = useState<PresidentGenre | "">("");
   const [presidentNom, setPresidentNom] = useState("");
@@ -140,6 +144,24 @@ export default function BarometreAddCooperativePanel({
 
   const resolvedSecteur =
     activiteKey === OTHER_VALUE ? activiteAutre.trim() : activiteKey;
+
+  const applyGoogleMapsUrl = useCallback((raw: string) => {
+    const trimmed = raw.trim();
+    setGoogleMapsUrl(trimmed);
+    if (!trimmed) return;
+
+    const parsed = parseGoogleMapsLatLng(trimmed);
+    if (!parsed) {
+      toast.error(
+        "Impossible d’extraire X/Y. Ouvrez le lien, puis collez l’URL complète (avec @lat,lng) depuis la barre d’adresse.",
+      );
+      return;
+    }
+
+    setCoordX(String(parsed.longitude));
+    setCoordY(String(parsed.latitude));
+    toast.success(`Position remplie : X ${parsed.longitude} · Y ${parsed.latitude}`);
+  }, []);
 
   useEffect(() => {
     if (!onMapPreviewChange) return;
@@ -166,16 +188,6 @@ export default function BarometreAddCooperativePanel({
       onMapPreviewChange?.(null);
     };
   }, [onMapPreviewChange]);
-
-  useEffect(() => {
-    if (!imageFile) {
-      setImagePreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(imageFile);
-    setImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [imageFile]);
 
   useEffect(() => {
     editHydratedRef.current = null;
@@ -230,8 +242,14 @@ export default function BarometreAddCooperativePanel({
 
     setDescription(editCooperative.description);
     setLinks(editCooperative.links.length > 0 ? editCooperative.links : [{ url: "", label: "" }]);
-    setImageFile(null);
-    setImageInputKey((k) => k + 1);
+    setImageDrafts(
+      (editCooperative.images.length > 0
+        ? editCooperative.images
+        : editCooperative.imageUrl
+          ? [{ url: editCooperative.imageUrl, isMain: true }]
+          : []
+      ).map((img) => createDraftFromRemote(img.url, img.isMain)),
+    );
     const g = editCooperative.presidentGenre;
     setPresidentGenre(g === "male" || g === "female" ? g : "");
     setPresidentNom(editCooperative.presidentNomComplet);
@@ -251,12 +269,17 @@ export default function BarometreAddCooperativePanel({
     setAdresseDetail("");
     setCoordX("");
     setCoordY("");
+    setGoogleMapsUrl("");
     setActiviteKey("");
     setActiviteAutre("");
     setDescription("");
     setLinks([{ url: "", label: "" }]);
-    setImageFile(null);
-    setImageInputKey((k) => k + 1);
+    setImageDrafts((prev) => {
+      for (const d of prev) {
+        if (d.file && d.previewUrl.startsWith("blob:")) URL.revokeObjectURL(d.previewUrl);
+      }
+      return [];
+    });
     setPresidentGenre("");
     setPresidentNom("");
     setPresidentEmail("");
@@ -272,18 +295,6 @@ export default function BarometreAddCooperativePanel({
   }, [onCoopCommuneChange, onCoopProvinceChange, onMapPreviewChange]);
 
   const markerPreview = getActivityMarkerStyle(resolvedSecteur || "Autre");
-
-  const onImageChange = (file: File | null) => {
-    if (!file) {
-      setImageFile(null);
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      toast.error("Veuillez choisir un fichier image.");
-      return;
-    }
-    setImageFile(file);
-  };
 
   const saveWithPublish = async (publish: boolean) => {
     const nameTrim = nom.trim();
@@ -393,10 +404,14 @@ export default function BarometreAddCooperativePanel({
 
     setIsSaving(true);
     try {
-      let imageUrl: string | null = isEdit ? editCooperative?.imageUrl ?? null : null;
-      if (imageFile) {
-        imageUrl = await uploadBarometreCooperativeImage(imageFile);
+      const uploadedById = new Map<string, string>();
+      for (const draft of imageDrafts) {
+        if (!draft.file) continue;
+        const url = await uploadBarometreCooperativeImage(draft.file);
+        uploadedById.set(draft.id, url);
       }
+      const images = draftsToRemoteImages(imageDrafts, uploadedById);
+      const imageUrl = images.find((i) => i.isMain)?.url ?? images[0]?.url ?? null;
 
       const payload = {
         nom: nameTrim,
@@ -407,6 +422,7 @@ export default function BarometreAddCooperativePanel({
         description: description.trim(),
         links: linksOut,
         imageUrl,
+        images,
         provinceId: coopProvinceId,
         communeId: coopCommuneId,
         provinceName: coopProvinceLabel,
@@ -558,6 +574,44 @@ export default function BarometreAddCooperativePanel({
                 <p className="text-[11px] text-muted-foreground">
                   X = longitude (ouest, négatif au Maroc) · Y = latitude (nord). Ex. X -8.03 · Y 31.51
                 </p>
+                <div className="space-y-1">
+                  <Label htmlFor="coop-google-maps" className="text-[10px] text-muted-foreground">
+                    Lien Google Maps
+                  </Label>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      id="coop-google-maps"
+                      value={googleMapsUrl}
+                      onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                      onPaste={(e) => {
+                        const pasted = e.clipboardData.getData("text");
+                        if (pasted.trim()) {
+                          e.preventDefault();
+                          applyGoogleMapsUrl(pasted);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          applyGoogleMapsUrl(googleMapsUrl);
+                        }
+                      }}
+                      placeholder="Collez un lien Google Maps…"
+                      className="min-w-0 flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="shrink-0"
+                      onClick={() => applyGoogleMapsUrl(googleMapsUrl)}
+                    >
+                      Remplir X / Y
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Collez le lien : X et Y sont remplis automatiquement à côté.
+                  </p>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label htmlFor="coop-coord-x" className="text-[10px] text-muted-foreground">
@@ -895,23 +949,11 @@ export default function BarometreAddCooperativePanel({
               </Button>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="coop-image">Image</Label>
-              <Input
-                key={imageInputKey}
-                id="coop-image"
-                type="file"
-                accept="image/*"
-                onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
-              />
-              {(imagePreview || (isEdit && editCooperative?.imageUrl && !imageFile)) && (
-                <img
-                  src={imagePreview ?? editCooperative?.imageUrl ?? ""}
-                  alt=""
-                  className="mt-2 max-h-40 w-auto rounded-md border border-border object-contain"
-                />
-              )}
-            </div>
+            <CooperativeImagesField
+              images={imageDrafts}
+              onChange={setImageDrafts}
+              disabled={isSaving}
+            />
           </AccordionContent>
         </AccordionItem>
 

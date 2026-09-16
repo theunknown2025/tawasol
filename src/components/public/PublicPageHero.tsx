@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type PublicPageHeroProps = {
@@ -6,6 +7,8 @@ type PublicPageHeroProps = {
   className?: string;
   /** Largeur max du bloc titre (défaut ~1152px). Utile pour aligner avec un contenu plus large. */
   contentMaxWidthClassName?: string;
+  /** Contenu aligné à droite sur la même ligne que le titre (ex. logo). */
+  trailing?: ReactNode;
 };
 
 /**
@@ -17,6 +20,7 @@ export function PublicPageHero({
   description,
   className,
   contentMaxWidthClassName = "max-w-6xl",
+  trailing,
 }: PublicPageHeroProps) {
   return (
     <section
@@ -37,7 +41,12 @@ export function PublicPageHero({
         )}
       >
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl lg:text-4xl">{title}</h1>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="min-w-0 text-2xl font-bold tracking-tight text-foreground md:text-3xl lg:text-4xl">
+              {title}
+            </h1>
+            {trailing ? <div className="shrink-0">{trailing}</div> : null}
+          </div>
           {description ? (
             <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">{description}</p>
           ) : null}

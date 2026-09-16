@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GeoJSON as GeoJSONTypes } from "geojson";
 import L from "leaflet";
-import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
+import { GeoJSON, MapContainer, useMap } from "react-leaflet";
+import { OpenFreeMapLayer } from "@/components/public/OpenFreeMapLayer";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -22,9 +23,10 @@ import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicPageHero } from "@/components/public/PublicPageHero";
 import { CartographieLogos } from "@/components/public/logoscarto/CartographieLogos";
 import { CartographieMapBrand } from "@/components/public/logoscarto/CartographieMapBrand";
-import BarometreDatabaseAccordion from "@/pages/super-admin/LP_Manager/Barometre/BarometreDatabaseAccordion";
+import { LatestCooperativesSection } from "@/components/public/LatestCooperativesSection";
+import CartographieInfoRequestForm from "@/components/public/cartographie/CartographieInfoRequestForm";
 import CooperativeCard from "@/pages/super-admin/LP_Manager/Barometre/CooperativeCard";
-import CooperativePlaceMarker from "@/pages/super-admin/LP_Manager/Barometre/CooperativePlaceMarker";
+import CooperativeMapMarkers from "@/pages/super-admin/LP_Manager/Barometre/CooperativeMapMarkers";
 import { placeCooperativesOnMap } from "@/pages/super-admin/LP_Manager/Barometre/barometreCoopPlacements";
 import {
   fetchBarometreCooperatives,
@@ -79,21 +81,11 @@ export default function PublicBarometrePage() {
   const {
     data: cooperatives = [],
     isLoading: coopsLoading,
-    isError: coopsQueryError,
-    error: coopsQueryErrorRaw,
-    refetch: refetchCooperatives,
   } = useQuery({
     queryKey: ["barometre-cooperatives", "public-map"],
     queryFn: fetchBarometreCooperatives,
     staleTime: 60_000,
   });
-
-  const coopLoadError =
-    coopsQueryError && coopsQueryErrorRaw instanceof Error
-      ? coopsQueryErrorRaw.message
-      : coopsQueryError
-        ? "Impossible de charger les coopératives."
-        : null;
 
   const communeToProvinceMap = useMemo(
     () => buildCommuneToProvinceMap(provinces, communes),
@@ -196,30 +188,6 @@ export default function PublicBarometrePage() {
     communesInSelectedProvince.find((c) => c.properties.id === selectedCommuneId)?.properties.name ??
     null;
 
-  const tableFilterHint = useMemo(() => {
-    const parts: string[] = [];
-    const n = nomFilter.trim();
-    if (n) parts.push(`nom contenant « ${n} »`);
-    if (secteurFilter) parts.push(`secteur « ${secteurFilter} »`);
-    if (selectedCommuneId && selectedCommuneLabel) {
-      const prov = selectedProvinceLabel ? ` · ${selectedProvinceLabel}` : "";
-      parts.push(`commune « ${selectedCommuneLabel} »${prov}`);
-    } else if (selectedProvinceId && selectedProvinceLabel) {
-      parts.push(`province « ${selectedProvinceLabel} »`);
-    }
-    if (parts.length === 0) return null;
-    return `Filtres : ${parts.join(" · ")}`;
-  }, [
-    nomFilter,
-    secteurFilter,
-    selectedCommuneId,
-    selectedCommuneLabel,
-    selectedProvinceId,
-    selectedProvinceLabel,
-  ]);
-
-  const tableFilterKey = `${nomFilter.trim()}|${secteurFilter}|${selectedProvinceId ?? ""}|${selectedCommuneId ?? ""}`;
-
   const selectionBounds = useMemo(() => {
     if (selectedCommuneId) {
       const f = communes.find((c) => c.properties.id === selectedCommuneId);
@@ -260,14 +228,14 @@ export default function PublicBarometrePage() {
           fillColor: "#0EA5E9",
           color: "#0369A1",
           weight: 2,
-          fillOpacity: 0.88,
+          fillOpacity: 0.35,
         };
       }
       return {
         fillColor: "#CBD5E1",
         color: "#475569",
         weight: 1,
-        fillOpacity: 0.75,
+        fillOpacity: 0.18,
       };
     },
     [isFeatureSelectedOnMap],
@@ -293,6 +261,7 @@ export default function PublicBarometrePage() {
         title="Cartographie des coopératives"
         description="Explorez la carte des coopératives publiées et affinez la liste par nom, secteur, province ou commune."
         contentMaxWidthClassName="max-w-7xl"
+        trailing={<CartographieMapBrand />}
       />
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6 md:py-10">
         <PublicBreadcrumbs items={[{ label: "Accueil", to: "/" }, { label: "Cartographie" }]} />
@@ -316,7 +285,10 @@ export default function PublicBarometrePage() {
                     </strong>{" "}
                     ({activeCount})
                     {cooperativePlacements.length > 0 ? (
-                      <span className="ml-1 text-muted-foreground"> · repères visibles</span>
+                      <span className="ml-1 text-muted-foreground">
+                        {" "}
+                        · {cooperativePlacements.length} coop. (regroupement par distance)
+                      </span>
                     ) : null}
                   </span>
                 </div>
@@ -582,11 +554,7 @@ export default function PublicBarometrePage() {
                       layerBounds={mapBounds}
                       moroccoMaxBounds={moroccoMaxBounds}
                     />
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      opacity={0}
-                    />
+                    <OpenFreeMapLayer />
                     <GeoJSON
                       key={`${displayMode}-${activeCount}-${selectedCommuneId ?? ""}-${selectedProvinceId ?? ""}`}
                       data={activeGeoJson as never}
@@ -613,14 +581,14 @@ export default function PublicBarometrePage() {
                                 fillColor: "#38BDF8",
                                 weight: 1.2,
                                 color: "#334155",
-                                fillOpacity: 0.75,
+                                fillOpacity: 0.28,
                               });
                             } else {
                               layer.setStyle({
                                 fillColor: "#0284C7",
                                 weight: 2,
                                 color: "#0369A1",
-                                fillOpacity: 0.92,
+                                fillOpacity: 0.42,
                               });
                             }
                           },
@@ -630,18 +598,13 @@ export default function PublicBarometrePage() {
                         });
                       }}
                     />
-                    {cooperativePlacements.map(({ coop, lat, lng }) => (
-                      <CooperativePlaceMarker
-                        key={coop.id}
-                        coop={coop}
-                        latitude={lat}
-                        longitude={lng}
-                        onHover={setPreviewCoop}
-                        onSelect={setPreviewCoop}
-                      />
-                    ))}
+                    <CooperativeMapMarkers
+                      placements={cooperativePlacements}
+                      communeToProvinceMap={communeToProvinceMap}
+                      onHover={setPreviewCoop}
+                      onSelect={setPreviewCoop}
+                    />
                   </MapContainer>
-                  <CartographieMapBrand />
                 </>
               )}
             </div>
@@ -677,15 +640,8 @@ export default function PublicBarometrePage() {
         </div>
 
         <div className="mt-4 space-y-4">
-          <BarometreDatabaseAccordion
-            cooperatives={filteredCooperatives}
-            isLoading={coopsLoading}
-            error={coopLoadError}
-            onRefresh={() => void refetchCooperatives()}
-            filterHint={tableFilterHint}
-            filterKey={tableFilterKey}
-            readOnly
-          />
+          <LatestCooperativesSection cooperatives={cooperatives} />
+          <CartographieInfoRequestForm />
           <CartographieLogos />
         </div>
       </main>

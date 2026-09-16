@@ -9,8 +9,14 @@ import {
 const BUCKET = "barometre_cooperative_images";
 const MAX_BYTES = 5 * 1024 * 1024;
 export const MAX_COOP_PHONES = 3;
+export const MAX_COOP_IMAGES = 5;
 
 export type CooperativeLink = { url: string; label: string };
+
+export type CooperativeImage = {
+  url: string;
+  isMain: boolean;
+};
 
 export type PresidentGenre = "male" | "female";
 
@@ -29,7 +35,10 @@ export type BarometreCooperative = {
   activite: string;
   description: string;
   links: CooperativeLink[];
+  /** Image principale (carte, listes). */
   imageUrl: string | null;
+  /** Galerie (max 5) — une seule image principale. */
+  images: CooperativeImage[];
   communeId: string | null;
   provinceId: string | null;
   provinceName: string;
@@ -65,6 +74,7 @@ type DbRow = {
   links: unknown;
   liens: unknown;
   image_url: string | null;
+  images: unknown;
   commune_id: string | null;
   province_id: string | null;
   province_name: string | null;
@@ -98,6 +108,63 @@ function parseLinks(raw: unknown): CooperativeLink[] {
   return out;
 }
 
+/** Normalise jusqu’à MAX_COOP_IMAGES et garantit une seule image principale. */
+export function normalizeCooperativeImages(raw: CooperativeImage[]): CooperativeImage[] {
+  const cleaned: CooperativeImage[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const url = typeof item?.url === "string" ? item.url.trim() : "";
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    cleaned.push({ url, isMain: Boolean(item.isMain) });
+    if (cleaned.length >= MAX_COOP_IMAGES) break;
+  }
+  if (cleaned.length === 0) return [];
+  const mainIdx = cleaned.findIndex((i) => i.isMain);
+  return cleaned.map((img, i) => ({
+    ...img,
+    isMain: mainIdx >= 0 ? i === mainIdx : i === 0,
+  }));
+}
+
+export function parseCooperativeImages(raw: unknown, fallbackUrl?: string | null): CooperativeImage[] {
+  const fromJson: CooperativeImage[] = [];
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const rec = item as Record<string, unknown>;
+      const url =
+        typeof rec.url === "string"
+          ? rec.url.trim()
+          : typeof rec.image_url === "string"
+            ? rec.image_url.trim()
+            : "";
+      if (!url) continue;
+      const isMain =
+        rec.is_main === true ||
+        rec.isMain === true ||
+        rec.role === "main";
+      fromJson.push({ url, isMain });
+    }
+  }
+  if (fromJson.length > 0) return normalizeCooperativeImages(fromJson);
+  const legacy = fallbackUrl?.trim();
+  if (legacy) return [{ url: legacy, isMain: true }];
+  return [];
+}
+
+export function mainCooperativeImageUrl(images: CooperativeImage[]): string | null {
+  const normalized = normalizeCooperativeImages(images);
+  return normalized.find((i) => i.isMain)?.url ?? normalized[0]?.url ?? null;
+}
+
+function imagesToJson(images: CooperativeImage[]): { url: string; is_main: boolean }[] {
+  return normalizeCooperativeImages(images).map((i) => ({
+    url: i.url,
+    is_main: i.isMain,
+  }));
+}
+
 export function normalizePhones(raw: unknown, fallbackTel?: string | null): string[] {
   const out: string[] = [];
   if (Array.isArray(raw)) {
@@ -123,6 +190,7 @@ function parsePresidentGenre(raw: string | null): PresidentGenre | null {
 function mapRow(row: DbRow): BarometreCooperative {
   const links = parseLinks(row.links ?? row.liens);
   const phones = normalizePhones(row.phones, row.tel);
+  const images = parseCooperativeImages(row.images, row.image_url);
   return {
     id: row.id,
     createdAt: row.created_at,
@@ -134,7 +202,8 @@ function mapRow(row: DbRow): BarometreCooperative {
     activite: (row.activite ?? row.secteur_activite ?? row.secteur ?? "").trim(),
     description: row.description ?? "",
     links,
-    imageUrl: row.image_url ?? null,
+    imageUrl: mainCooperativeImageUrl(images) ?? row.image_url ?? null,
+    images,
     communeId: row.commune_id ?? null,
     provinceId: row.province_id ?? null,
     provinceName: row.province_name ?? "",
@@ -156,7 +225,7 @@ function mapRow(row: DbRow): BarometreCooperative {
 }
 
 const COOP_SELECT =
-  "id, created_at, nom, tel, phones, email, adresse, activite, secteur_activite, description, links, liens, image_url, commune_id, province_id, province_name, commune_name, longitude, latitude, is_published, president_genre, president_nom_complet, president_email, president_tel, secteur, sous_secteur, temps_de_travail, facebook_url, instagram_url, evaluation";
+  "id, created_at, nom, tel, phones, email, adresse, activite, secteur_activite, description, links, liens, image_url, images, commune_id, province_id, province_name, commune_name, longitude, latitude, is_published, president_genre, president_nom_complet, president_email, president_tel, secteur, sous_secteur, temps_de_travail, facebook_url, instagram_url, evaluation";
 
 /** Données visibles selon RLS (admin : tout ; anon / public : is_published uniquement). */
 export async function fetchBarometreCooperatives(): Promise<BarometreCooperative[]> {
@@ -213,7 +282,9 @@ export type InsertBarometreCooperativeInput = {
   activite: string;
   description: string;
   links: CooperativeLink[];
+  /** @deprecated Prefer `images`; kept for CSV / bulk. Synced from main when `images` provided. */
   imageUrl: string | null;
+  images?: CooperativeImage[];
   provinceId: string | null;
   communeId: string | null;
   provinceName: string | null;
@@ -233,6 +304,22 @@ export type InsertBarometreCooperativeInput = {
   evaluation: CooperativeEvaluation;
 };
 
+function resolveImagesPayload(payload: InsertBarometreCooperativeInput): {
+  imagesJson: { url: string; is_main: boolean }[];
+  imageUrl: string | null;
+} {
+  const fromImages = payload.images
+    ? normalizeCooperativeImages(payload.images)
+    : payload.imageUrl?.trim()
+      ? [{ url: payload.imageUrl.trim(), isMain: true }]
+      : [];
+  const imagesJson = imagesToJson(fromImages);
+  return {
+    imagesJson,
+    imageUrl: mainCooperativeImageUrl(fromImages),
+  };
+}
+
 function phonesPayload(phones: string[]): { phones: string[]; tel: string | null } {
   const cleaned = normalizePhones(phones);
   return { phones: cleaned, tel: cleaned[0] ?? null };
@@ -250,6 +337,7 @@ export async function insertBarometreCooperative(payload: InsertBarometreCoopera
   const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
   const { phones, tel } = phonesPayload(payload.phones);
   const evaluationJson = evaluationToJson(payload.evaluation);
+  const { imagesJson, imageUrl } = resolveImagesPayload(payload);
 
   const { error } = await supabase.from("barometre_cooperatives").insert({
     nom: payload.nom,
@@ -262,7 +350,8 @@ export async function insertBarometreCooperative(payload: InsertBarometreCoopera
     secteur_activite: payload.activite,
     links: linksJson,
     liens: linksJson,
-    image_url: payload.imageUrl,
+    image_url: imageUrl,
+    images: imagesJson,
     longitude: payload.longitude,
     latitude: payload.latitude,
     province_id: payload.provinceId,
@@ -305,6 +394,7 @@ export async function insertBarometreCooperativesBulk(
     const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
     const { phones, tel } = phonesPayload(payload.phones);
     const evaluationJson = evaluationToJson(payload.evaluation);
+    const { imagesJson, imageUrl } = resolveImagesPayload(payload);
     return {
       nom: payload.nom,
       tel,
@@ -316,7 +406,8 @@ export async function insertBarometreCooperativesBulk(
       secteur_activite: payload.activite,
       links: linksJson,
       liens: linksJson,
-      image_url: payload.imageUrl,
+      image_url: imageUrl,
+      images: imagesJson,
       longitude: payload.longitude,
       latitude: payload.latitude,
       province_id: payload.provinceId,
@@ -357,6 +448,7 @@ export async function updateBarometreCooperative(id: string, payload: InsertBaro
   const linksJson = payload.links.map((l) => ({ url: l.url, label: l.label }));
   const { phones, tel } = phonesPayload(payload.phones);
   const evaluationJson = evaluationToJson(payload.evaluation);
+  const { imagesJson, imageUrl } = resolveImagesPayload(payload);
 
   const { error } = await supabase
     .from("barometre_cooperatives")
@@ -371,7 +463,8 @@ export async function updateBarometreCooperative(id: string, payload: InsertBaro
       secteur_activite: payload.activite,
       links: linksJson,
       liens: linksJson,
-      image_url: payload.imageUrl,
+      image_url: imageUrl,
+      images: imagesJson,
       longitude: payload.longitude,
       latitude: payload.latitude,
       province_id: payload.provinceId,

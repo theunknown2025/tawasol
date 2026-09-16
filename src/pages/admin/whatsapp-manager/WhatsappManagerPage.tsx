@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Mail } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import BrevoListsPanel from "./BrevoListsPanel";
-import BrevoConfigurationTab from "./BrevoConfigurationTab";
+import EmailGroupCreateTab from "./EmailGroupCreateTab";
+import EmailGroupsListTab from "./EmailGroupsListTab";
+import EmailHistoryTab from "./EmailHistoryTab";
 
 export default function WhatsappManagerPage() {
-  const [tab, setTab] = useState<"listes" | "config">("listes");
+  const [tab, setTab] = useState<"nouveau" | "listes" | "historique">("nouveau");
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
@@ -14,24 +15,28 @@ export default function WhatsappManagerPage() {
           <Mail className="text-emerald-600" size={24} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Email (Brevo)</h1>
+          <h1 className="text-2xl font-bold text-foreground">Email</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Listes d’envoi et configuration des notifications email
+            Groupes destinataires — envoi via Postfix / Dovecot (SMTP)
           </p>
         </div>
       </div>
 
       <div className="bg-card rounded-2xl border border-border p-6 md:p-8 shadow-sm">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="listes">Listes d’envoi</TabsTrigger>
-            <TabsTrigger value="config">Configuration</TabsTrigger>
+          <TabsList className="mb-6 grid w-full max-w-xl grid-cols-3">
+            <TabsTrigger value="nouveau">Nouveau groupe</TabsTrigger>
+            <TabsTrigger value="listes">Listes groupes</TabsTrigger>
+            <TabsTrigger value="historique">Historique</TabsTrigger>
           </TabsList>
-          <TabsContent value="listes" className="mt-0 focus-visible:outline-none">
-            <BrevoListsPanel />
+          <TabsContent value="nouveau" className="mt-0 focus-visible:outline-none">
+            <EmailGroupCreateTab onCreated={() => setTab("listes")} />
           </TabsContent>
-          <TabsContent value="config" className="mt-0 focus-visible:outline-none">
-            <BrevoConfigurationTab />
+          <TabsContent value="listes" className="mt-0 focus-visible:outline-none">
+            <EmailGroupsListTab />
+          </TabsContent>
+          <TabsContent value="historique" className="mt-0 focus-visible:outline-none">
+            <EmailHistoryTab />
           </TabsContent>
         </Tabs>
       </div>

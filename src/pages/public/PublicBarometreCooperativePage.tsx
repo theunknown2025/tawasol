@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, ExternalLink, MapPin } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
+import CooperativeImageSlider from "@/components/public/cartographie/CooperativeImageSlider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -76,6 +77,10 @@ export default function PublicBarometreCooperativePage() {
 
   const phones = coop.phones.length > 0 ? coop.phones : coop.tel ? [coop.tel] : [];
   const secteur = coop.secteur || coop.activite;
+  const hasLocation =
+    Boolean(coop.communeName) ||
+    Boolean(coop.provinceName) ||
+    (coop.latitude != null && coop.longitude != null);
 
   return (
     <PublicShell>
@@ -134,21 +139,27 @@ export default function PublicBarometreCooperativePage() {
           ) : null}
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,280px)_1fr]">
-          <aside className="space-y-4">
-            {coop.imageUrl ? (
-              <img
-                src={coop.imageUrl}
-                alt=""
-                className="w-full rounded-xl border border-border object-cover shadow-sm"
-              />
-            ) : (
-              <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
-                Aucune image
-              </div>
-            )}
-            {(coop.communeName || coop.provinceName || (coop.latitude != null && coop.longitude != null)) && (
-              <div className="rounded-xl border border-border bg-card p-4 text-sm">
+        <CooperativeImageSlider
+          images={
+            coop.images.length > 0
+              ? coop.images
+              : coop.imageUrl
+                ? [{ url: coop.imageUrl, isMain: true }]
+                : []
+          }
+          alt={coop.nom}
+        />
+
+        <div
+          className={
+            hasLocation
+              ? "grid gap-8 lg:grid-cols-[minmax(0,260px)_1fr]"
+              : "grid gap-8"
+          }
+        >
+          {hasLocation ? (
+            <aside>
+              <div className="rounded-xl border border-border bg-card p-4 text-sm lg:sticky lg:top-4">
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5" aria-hidden />
                   Localisation
@@ -160,8 +171,8 @@ export default function PublicBarometreCooperativePage() {
                   </p>
                 ) : null}
               </div>
-            )}
-          </aside>
+            </aside>
+          ) : null}
 
           <div className="space-y-8">
             {coop.description ? (

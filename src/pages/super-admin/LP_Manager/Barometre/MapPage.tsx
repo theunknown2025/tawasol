@@ -2,16 +2,16 @@ import { ChevronLeft, ChevronRight, ChevronsUpDown, MapPinned } from "lucide-rea
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GeoJSON as GeoJSONTypes } from "geojson";
 import L from "leaflet";
-import { GeoJSON, MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { GeoJSON, MapContainer, Marker, Popup, useMap } from "react-leaflet";
+import { OpenFreeMapLayer } from "@/components/public/OpenFreeMapLayer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CartographieMapBrand } from "@/components/public/logoscarto/CartographieMapBrand";
 import BarometreAddCooperativePanel, { type CoopFormMapPreview } from "./BarometreAddCooperativePanel";
 import BarometreDatabaseAccordion from "./BarometreDatabaseAccordion";
 import CooperativeCard from "./CooperativeCard";
-import CooperativePlaceMarker from "./CooperativePlaceMarker";
+import CooperativeMapMarkers from "./CooperativeMapMarkers";
 import { placeCooperativesOnMap } from "./barometreCoopPlacements";
 import {
   fetchBarometreCooperatives,
@@ -316,14 +316,14 @@ export default function MapPage() {
         fillColor: "#0EA5E9",
         color: "#0369A1",
         weight: 2,
-        fillOpacity: 0.88,
+        fillOpacity: 0.35,
       };
     }
     return {
       fillColor: "#CBD5E1",
       color: "#475569",
       weight: 1,
-      fillOpacity: 0.75,
+      fillOpacity: 0.18,
     };
   };
 
@@ -642,11 +642,7 @@ export default function MapPage() {
                       layerBounds={mapBounds}
                       moroccoMaxBounds={moroccoMaxBounds}
                     />
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      opacity={0}
-                    />
+                    <OpenFreeMapLayer />
                     {sidebarTab === "naviguer" && hasValidPoint && (
                       <Marker position={[parsedLatitude, parsedLongitude]} icon={positionIcon}>
                         <Popup>
@@ -698,14 +694,14 @@ export default function MapPage() {
                                 fillColor: "#38BDF8",
                                 weight: 1.2,
                                 color: "#334155",
-                                fillOpacity: 0.75,
+                                fillOpacity: 0.28,
                               });
                             } else {
                               layer.setStyle({
                                 fillColor: "#0284C7",
                                 weight: 2,
                                 color: "#0369A1",
-                                fillOpacity: 0.92,
+                                fillOpacity: 0.42,
                               });
                             }
                           },
@@ -715,17 +711,12 @@ export default function MapPage() {
                         });
                       }}
                     />
-                    {cooperativePlacements.map(({ coop, lat, lng }) => (
-                      <CooperativePlaceMarker
-                        key={coop.id}
-                        coop={coop}
-                        latitude={lat}
-                        longitude={lng}
-                        onHover={setPreviewCoop}
-                      />
-                    ))}
+                    <CooperativeMapMarkers
+                      placements={cooperativePlacements}
+                      communeToProvinceMap={communeToProvinceMap}
+                      onHover={setPreviewCoop}
+                    />
                   </MapContainer>
-                  <CartographieMapBrand />
                 </>
               )}
             </div>

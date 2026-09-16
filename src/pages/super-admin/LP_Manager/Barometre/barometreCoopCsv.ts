@@ -372,6 +372,7 @@ export function mapCsvRowsToPreview(headers: string[], rows: string[][]): CoopCs
       description: (map.description ?? "").trim(),
       links: [],
       imageUrl: null,
+      images: [],
       provinceId: null,
       communeId: null,
       provinceName,

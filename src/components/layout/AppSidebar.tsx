@@ -76,7 +76,7 @@ const adminBottomNavAfterMessagerie = [
 
 const messagerieSubItems = [
   { label: "Messagerie", icon: MessageSquare, path: "/admin/messagerie" },
-  { label: "Email (Brevo)", icon: Mail, path: "/admin/whatsapp-manager" },
+  { label: "Email", icon: Mail, path: "/admin/whatsapp-manager" },
   { label: "Whatsapp messaging", icon: MessageCircle, path: "/admin/whatsapp-messaging" },
 ];
 

@@ -69,10 +69,10 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
   }, [hasMessage, content.messageText]);
 
   return (
-    <section className={cn("py-8 md:py-12", className)}>
+    <section className={cn("pb-8 pt-2 md:pb-10 md:pt-3", className)}>
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[min(280px,100%)_1fr] md:items-start">
-          <div className="flex justify-center md:justify-start">
+          <div className="flex flex-col items-center gap-4 md:items-start">
             {hasImage ? (
               <img
                 src={content.presidentImageUrl}
@@ -88,11 +88,9 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
                 <span className="px-4 text-center text-sm">Photo du président</span>
               </div>
             )}
-          </div>
 
-          <div className="min-w-0 space-y-4 text-pretty">
             {(hasName || hasPosition) && (
-              <header className="space-y-1 border-b border-border/60 pb-4" dir={messageDir}>
+              <header className="w-full max-w-[280px] space-y-1 text-center md:text-left" dir={messageDir}>
                 {hasName && (
                   <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
                     {content.presidentName}
@@ -103,7 +101,9 @@ export function MotDuPresidentSection({ content, className }: MotDuPresidentSect
                 )}
               </header>
             )}
+          </div>
 
+          <div className="min-w-0 space-y-4 text-pretty">
             {hasMessage && (
               <div className={cn("relative pr-7", MESSAGE_VIEWPORT_CLASS)}>
                 <div

@@ -56,6 +56,21 @@ export function evaluationToJson(evaluation: CooperativeEvaluation): Record<stri
   return out;
 }
 
+/** Moyenne des scores renseignés (1–5), ou null si aucun. */
+export function averageEvaluationScore(evaluation: CooperativeEvaluation): number | null {
+  let sum = 0;
+  let n = 0;
+  for (const c of EVALUATION_CRITERIA) {
+    const v = evaluation[c.key];
+    if (typeof v === "number" && Number.isFinite(v)) {
+      sum += v;
+      n += 1;
+    }
+  }
+  if (n === 0) return null;
+  return Math.round((sum / n) * 10) / 10;
+}
+
 export const TEMPS_DE_TRAVAIL_OPTIONS = [
   "Temps plein",
   "Temps partiel",

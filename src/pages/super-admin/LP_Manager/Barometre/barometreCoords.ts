@@ -52,3 +52,63 @@ export function hasUsableMapCoordinates(
   if (latitude == null || longitude == null) return false;
   return normalizeCooperativeLatLng(latitude, longitude) != null;
 }
+
+function pairFromMatch(
+  a: number,
+  b: number,
+): { latitude: number; longitude: number } | null {
+  const normalized = normalizeCooperativeLatLng(a, b);
+  if (!normalized) return null;
+  return { latitude: normalized.latitude, longitude: normalized.longitude };
+}
+
+/**
+ * Extrait lat/lng depuis un lien Google Maps (ou « lat, lng » collé).
+ * Les liens courts (maps.app.goo.gl) sans coordonnées dans l’URL ne peuvent pas
+ * être résolus côté navigateur — coller l’URL complète après ouverture.
+ */
+export function parseGoogleMapsLatLng(
+  input: string,
+): { latitude: number; longitude: number } | null {
+  const text = input.trim();
+  if (!text) return null;
+
+  // Pin du lieu : !3dLAT!4dLNG (souvent le plus fiable)
+  const bangMatches = [...text.matchAll(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/g)];
+  if (bangMatches.length > 0) {
+    const last = bangMatches[bangMatches.length - 1];
+    const pair = pairFromMatch(Number(last[1]), Number(last[2]));
+    if (pair) return pair;
+  }
+
+  // Centre de carte : @lat,lng,zoom
+  const at = text.match(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+  if (at) {
+    const pair = pairFromMatch(Number(at[1]), Number(at[2]));
+    if (pair) return pair;
+  }
+
+  // Paramètres q / ll / center / destination
+  const query = text.match(
+    /[?&](?:q|query|ll|center|destination)=(-?\d+(?:\.\d+)?)\s*,\s*\+?(-?\d+(?:\.\d+)?)/i,
+  );
+  if (query) {
+    const pair = pairFromMatch(Number(query[1]), Number(query[2]));
+    if (pair) return pair;
+  }
+
+  // /search/lat,+lng
+  const search = text.match(/\/search\/(-?\d+(?:\.\d+)?)\s*,\s*\+?(-?\d+(?:\.\d+)?)/);
+  if (search) {
+    const pair = pairFromMatch(Number(search[1]), Number(search[2]));
+    if (pair) return pair;
+  }
+
+  // Texte simple « 31.51, -8.03 »
+  const plain = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  if (plain) {
+    return pairFromMatch(Number(plain[1]), Number(plain[2]));
+  }
+
+  return null;
+}

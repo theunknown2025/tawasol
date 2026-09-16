@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
   BarometreChartType,
@@ -25,7 +27,11 @@ type Props = {
   className?: string;
   /** Masque les filtres (ex. carte compacte landing). */
   hideFilters?: boolean;
+  /** Affiche les filtres uniquement après clic sur l’icône engrenage. */
+  filtersBehindGear?: boolean;
   showDownload?: boolean;
+  /** Contenu à droite de la barre d’outils (ex. plein écran). */
+  toolbarExtra?: ReactNode;
 };
 
 export function BarometreChartPanel({
@@ -38,13 +44,15 @@ export function BarometreChartPanel({
   height = 280,
   className,
   hideFilters = false,
+  filtersBehindGear = false,
   showDownload = true,
+  toolbarExtra,
 }: Props) {
   const [filters, setFilters] = useState<BarometreChartFilterState>(() =>
     buildDefaultChartFilters(columns, rows, yColumnIds),
   );
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // Réinitialiser les filtres quand la structure / données changent fortement
   const structureKey = useMemo(
     () =>
       `${columns.map((c) => `${c.id}:${c.label}:${c.type}`).join("|")}#${rows.length}#${yColumnIds.join(",")}#${rows
@@ -56,6 +64,7 @@ export function BarometreChartPanel({
 
   useEffect(() => {
     setFilters(buildDefaultChartFilters(columns, rows, yColumnIds));
+    setFiltersOpen(false);
   }, [structureKey, columns, rows, yColumnIds]);
 
   const { filteredRows, activeYColumnIds } = useMemo(
@@ -63,18 +72,26 @@ export function BarometreChartPanel({
     [columns, rows, xColumnId, yColumnIds, filters],
   );
 
-  return (
-    <div className={cn("space-y-4", className)}>
-      {!hideFilters ? (
-        <BarometreChartColumnFilters
-          columns={columns}
-          rows={rows}
-          filters={filters}
-          onChange={setFilters}
-        />
-      ) : null}
+  const showFilters =
+    !hideFilters && (!filtersBehindGear || filtersOpen);
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+  return (
+    <div className={cn("space-y-3", className)}>
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        {!hideFilters && filtersBehindGear ? (
+          <Button
+            type="button"
+            variant={filtersOpen ? "secondary" : "ghost"}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setFiltersOpen((o) => !o)}
+            aria-label={filtersOpen ? "Masquer les filtres" : "Afficher les filtres"}
+            aria-pressed={filtersOpen}
+            title="Filtres"
+          >
+            <Settings2 className="h-4 w-4" aria-hidden />
+          </Button>
+        ) : null}
         {showDownload ? (
           <BarometreChartDownloadButton
             fileName={title}
@@ -82,7 +99,17 @@ export function BarometreChartPanel({
             rows={filteredRows}
           />
         ) : null}
+        {toolbarExtra}
       </div>
+
+      {showFilters ? (
+        <BarometreChartColumnFilters
+          columns={columns}
+          rows={rows}
+          filters={filters}
+          onChange={setFilters}
+        />
+      ) : null}
 
       <BarometreFlexibleChart
         columns={columns}

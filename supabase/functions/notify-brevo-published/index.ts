@@ -1,14 +1,12 @@
 /**
- * Notifications publication → Email (Brevo).
- * Tests : { test_brevo: true } — JWT super_admin.
- *
- * Secrets : BREVO_* , PUBLIC_SITE_URL, WEBHOOK_SECRET (optionnel)
+ * DEPRECATED function name — prefer notify-smtp-published.
+ * Notifications → Email via Postfix + Dovecot (SMTP on VPS).
+ * Tables: publications, evenements, lp_projets, lp_opportunities, blogs
  */
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const BREVO_API = "https://api.brevo.com/v3";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import nodemailer from "npm:nodemailer@6.9.16";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -24,14 +22,36 @@ type WebhookPayload = {
   old_record: Record<string, unknown> | null;
 };
 
+type ContentType = "publication" | "event" | "project" | "opportunity" | "blog";
+
+type MemberRow = {
+  email: string;
+  full_name: string;
+  group_id: string;
+  group_name: string;
+};
+
+type BuiltEmail = {
+  contentType: ContentType;
+  contentId: string | null;
+  contentTitle: string;
+  authorName: string;
+  content: string;
+  link: string;
+  subject: string;
+  text: string;
+  html: string;
+};
+
 function optionalEnv(name: string): string | undefined {
   const v = Deno.env.get(name);
   return v?.trim() || undefined;
 }
 
-function truncate(s: string, max: number): string {
-  if (s.length <= max) return s;
-  return `${s.slice(0, max - 1)}…`;
+function requireEnv(name: string): string {
+  const v = optionalEnv(name);
+  if (!v) throw new Error(`${name} manquant dans les secrets Edge Function`);
+  return v;
 }
 
 function escapeHtml(s: string): string {
@@ -42,8 +62,13 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function plainTextToHtml(text: string): string {
-  return `<p>${escapeHtml(text).replace(/\n/g, "<br/>")}</p>`;
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1)}…`;
+}
+
+function stripHtml(s: string): string {
+  return s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function shouldNotifyPublish(payload: WebhookPayload): boolean {
@@ -55,166 +80,235 @@ function shouldNotifyPublish(payload: WebhookPayload): boolean {
   return old.status !== "published";
 }
 
-function isTestBrevo(raw: unknown): raw is { test_brevo: true } {
-  return typeof raw === "object" && raw !== null && "test_brevo" in raw &&
-    (raw as { test_brevo?: unknown }).test_brevo === true;
+function siteBase(): string {
+  return (optionalEnv("PUBLIC_SITE_URL") ?? "").replace(/\/$/, "") || "https://beta-remess.pro";
 }
 
-async function requireSuperAdmin(req: Request): Promise<
-  | { ok: false; response: Response }
-  | { ok: true; admin: ReturnType<typeof createClient> }
-> {
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (!token) {
-    return {
-      ok: false,
-      response: new Response(JSON.stringify({ ok: false, error: "Authorization Bearer requis" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }),
-    };
-  }
+function buildHtml(params: {
+  heading: string;
+  authorLabel: string;
+  authorName: string;
+  contentLabel: string;
+  content: string;
+  linkLabel: string;
+  link: string;
+}): string {
+  return `<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;line-height:1.5;color:#222;max-width:640px;margin:0 auto;padding:24px">
+  <h2 style="margin:0 0 16px;font-size:18px">${escapeHtml(params.heading)}</h2>
+  <p style="margin:0 0 8px"><strong>${escapeHtml(params.authorLabel)}</strong><br/>${escapeHtml(params.authorName)}</p>
+  <p style="margin:16px 0 8px"><strong>${escapeHtml(params.contentLabel)}</strong></p>
+  <div style="padding:12px 14px;background:#f6f6f6;border-radius:8px;white-space:pre-wrap">${escapeHtml(params.content)}</div>
+  <p style="margin:20px 0 8px"><strong>${escapeHtml(params.linkLabel)}</strong></p>
+  <p style="margin:0"><a href="${escapeHtml(params.link)}" style="color:#0b6e4f">${escapeHtml(params.link)}</a></p>
+  <p style="margin-top:28px;color:#666;font-size:12px">REMESS — notification automatique</p>
+</body>
+</html>`;
+}
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (!supabaseUrl || !serviceKey) {
-    throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing");
-  }
-
-  const admin = createClient(supabaseUrl, serviceKey);
-  const { data: userData, error: userErr } = await admin.auth.getUser(token);
-  if (userErr || !userData.user) {
-    return {
-      ok: false,
-      response: new Response(JSON.stringify({ ok: false, error: "Session invalide ou expirée" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }),
-    };
-  }
-
-  const { data: profile, error: pErr } = await admin
+async function resolveAuthorName(
+  supabase: SupabaseClient,
+  userId: string | null | undefined,
+): Promise<string> {
+  const id = String(userId ?? "").trim();
+  if (!id) return "REMESS";
+  const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
-    .eq("user_id", userData.user.id)
+    .select("full_name")
+    .eq("user_id", id)
     .maybeSingle();
+  return profile?.full_name ? String(profile.full_name) : "REMESS";
+}
 
-  if (pErr) throw pErr;
-  if (profile?.role !== "super_admin") {
+async function buildContentEmail(
+  supabase: SupabaseClient,
+  table: string,
+  record: Record<string, unknown>,
+): Promise<BuiltEmail | null> {
+  const base = siteBase();
+  const id = String(record.id ?? "").trim() || null;
+
+  if (table === "publications") {
+    const authorName = await resolveAuthorName(supabase, String(record.author_id ?? ""));
+    const content = String(record.text ?? "").trim() || "(sans contenu)";
+    const link = `${base}/member/mur`;
+    const subject = "Nouvelle publication — REMESS";
+    const text =
+      `Publication User: ${authorName}\n\nPublication Content:\n${content}\n\nPublication Link: ${link}\n`;
     return {
-      ok: false,
-      response: new Response(JSON.stringify({ ok: false, error: "Réservé au super admin" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      contentType: "publication",
+      contentId: id,
+      contentTitle: truncate(content, 80),
+      authorName,
+      content,
+      link,
+      subject,
+      text,
+      html: buildHtml({
+        heading: "Nouvelle publication",
+        authorLabel: "Publication User",
+        authorName,
+        contentLabel: "Publication Content",
+        content,
+        linkLabel: "Publication Link",
+        link,
       }),
     };
   }
 
-  return { ok: true, admin };
+  if (table === "evenements") {
+    const authorName = await resolveAuthorName(supabase, String(record.author_id ?? ""));
+    const title = String(record.titre ?? "Événement").trim();
+    const content = stripHtml(String(record.description ?? "")) || title;
+    const slug = String(record.public_slug ?? "").trim();
+    const link = slug ? `${base}/event/${slug}` : `${base}/events`;
+    const subject = `Nouvel événement — ${truncate(title, 60)}`;
+    const text =
+      `Event User: ${authorName}\n\nEvent Title: ${title}\n\nEvent Content:\n${content}\n\nEvent Link: ${link}\n`;
+    return {
+      contentType: "event",
+      contentId: id,
+      contentTitle: title,
+      authorName,
+      content: `${title}\n\n${content}`,
+      link,
+      subject,
+      text,
+      html: buildHtml({
+        heading: "Nouvel événement",
+        authorLabel: "Event User",
+        authorName,
+        contentLabel: "Event Content",
+        content: `${title}\n\n${content}`,
+        linkLabel: "Event Link",
+        link,
+      }),
+    };
+  }
+
+  if (table === "lp_projets") {
+    const authorName = await resolveAuthorName(supabase, String(record.created_by ?? ""));
+    const title = String(record.title ?? "Projet").trim();
+    const content = stripHtml(String(record.description ?? "")) || title;
+    const slug = String(record.public_slug ?? "").trim();
+    const link = slug ? `${base}/projet/${slug}` : `${base}/projets`;
+    const subject = `Nouveau projet — ${truncate(title, 60)}`;
+    const text =
+      `Project User: ${authorName}\n\nProject Title: ${title}\n\nProject Content:\n${content}\n\nProject Link: ${link}\n`;
+    return {
+      contentType: "project",
+      contentId: id,
+      contentTitle: title,
+      authorName,
+      content: `${title}\n\n${content}`,
+      link,
+      subject,
+      text,
+      html: buildHtml({
+        heading: "Nouveau projet",
+        authorLabel: "Project User",
+        authorName,
+        contentLabel: "Project Content",
+        content: `${title}\n\n${content}`,
+        linkLabel: "Project Link",
+        link,
+      }),
+    };
+  }
+
+  if (table === "lp_opportunities") {
+    const authorName = await resolveAuthorName(supabase, String(record.created_by ?? ""));
+    const title = String(record.title ?? "Opportunité").trim();
+    const content = stripHtml(String(record.description ?? "")) || title;
+    const slug = String(record.public_slug ?? "").trim();
+    const link = slug ? `${base}/opportunite/${slug}` : `${base}/opportunites`;
+    const subject = `Nouvelle opportunité — ${truncate(title, 60)}`;
+    const text =
+      `Opportunity User: ${authorName}\n\nOpportunity Title: ${title}\n\nOpportunity Content:\n${content}\n\nOpportunity Link: ${link}\n`;
+    return {
+      contentType: "opportunity",
+      contentId: id,
+      contentTitle: title,
+      authorName,
+      content: `${title}\n\n${content}`,
+      link,
+      subject,
+      text,
+      html: buildHtml({
+        heading: "Nouvelle opportunité",
+        authorLabel: "Opportunity User",
+        authorName,
+        contentLabel: "Opportunity Content",
+        content: `${title}\n\n${content}`,
+        linkLabel: "Opportunity Link",
+        link,
+      }),
+    };
+  }
+
+  if (table === "blogs") {
+    const authorName = await resolveAuthorName(supabase, String(record.author_id ?? ""));
+    const title = String(record.title ?? "Article").trim();
+    const content = stripHtml(String(record.content ?? "")) || title;
+    const slug = String(record.slug ?? "").trim();
+    const link = slug ? `${base}/blog/${slug}` : `${base}/blogs`;
+    const subject = `Nouvel article — ${truncate(title, 60)}`;
+    const text =
+      `Blog User: ${authorName}\n\nBlog Title: ${title}\n\nBlog Content:\n${content}\n\nBlog Link: ${link}\n`;
+    return {
+      contentType: "blog",
+      contentId: id,
+      contentTitle: title,
+      authorName,
+      content: `${title}\n\n${content}`,
+      link,
+      subject,
+      text,
+      html: buildHtml({
+        heading: "Nouvel article de blog",
+        authorLabel: "Blog User",
+        authorName,
+        contentLabel: "Blog Content",
+        content: `${title}\n\n${content}`,
+        linkLabel: "Blog Link",
+        link,
+      }),
+    };
+  }
+
+  return null;
 }
 
-async function brevoFetch(apiKey: string, path: string, init?: RequestInit): Promise<Response> {
-  const url = path.startsWith("http") ? path : `${BREVO_API}${path}`;
-  const headers = new Headers(init?.headers);
-  headers.set("api-key", apiKey);
-  headers.set("accept", "application/json");
-  if (init?.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  return await fetch(url, { ...init, headers });
-}
+async function sendOneEmail(params: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}): Promise<void> {
+  const host = requireEnv("SMTP_HOST");
+  const port = Number.parseInt(optionalEnv("SMTP_PORT") ?? "587", 10);
+  const user = requireEnv("SMTP_USER");
+  const pass = optionalEnv("SMTP_PASS") ?? optionalEnv("SMTP_PASSWORD");
+  if (!pass) throw new Error("SMTP_PASS (ou SMTP_PASSWORD) manquant");
+  const fromEmail = optionalEnv("SMTP_FROM") ?? "noreply@beta-remess.pro";
+  const fromName = optionalEnv("SMTP_FROM_NAME") ?? "REMESS";
 
-async function handleTestBrevo(req: Request): Promise<Response> {
-  const gate = await requireSuperAdmin(req);
-  if (!gate.ok) return gate.response;
-
-  const apiKey = optionalEnv("BREVO_API_KEY");
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "BREVO_API_KEY manquant dans les secrets Edge Function." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  const res = await brevoFetch(apiKey, "/account", { method: "GET" });
-  const bodyText = await res.text();
-  if (!res.ok) {
-    return new Response(
-      JSON.stringify({ ok: false, mode: "test_brevo", brevo_status: res.status, brevo_body: bodyText.slice(0, 800) }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  let account: unknown;
-  try {
-    account = JSON.parse(bodyText);
-  } catch {
-    account = bodyText;
-  }
-
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      mode: "test_brevo",
-      message: "Clé API Brevo acceptée (GET /account).",
-      account_preview: typeof account === "object" && account !== null
-        ? {
-          email: (account as { email?: string }).email,
-          companyName: (account as { companyName?: string }).companyName,
-        }
-        : undefined,
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-  );
-}
-
-async function createAndSendCampaign(
-  apiKey: string,
-  params: {
-    name: string;
-    subject: string;
-    senderName: string;
-    senderEmail: string;
-    htmlContent: string;
-    listIds: number[];
-  },
-): Promise<{ campaignId: number; sendNowStatus: number }> {
-  const createRes = await brevoFetch(apiKey, "/emailCampaigns", {
-    method: "POST",
-    body: JSON.stringify({
-      name: params.name,
-      subject: params.subject,
-      sender: { name: params.senderName, email: params.senderEmail },
-      type: "classic",
-      htmlContent: params.htmlContent,
-      recipients: { listIds: params.listIds },
-    }),
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+    requireTLS: port === 587,
   });
 
-  const createText = await createRes.text();
-  if (!createRes.ok) {
-    throw new Error(`Brevo createEmailCampaign ${createRes.status}: ${createText.slice(0, 600)}`);
-  }
-
-  let created: { id?: number };
-  try {
-    created = JSON.parse(createText) as { id?: number };
-  } catch {
-    throw new Error(`Brevo createEmailCampaign réponse invalide: ${createText.slice(0, 200)}`);
-  }
-
-  const campaignId = created.id;
-  if (campaignId == null) {
-    throw new Error("Brevo createEmailCampaign: pas d'id campagne dans la réponse.");
-  }
-
-  const sendRes = await brevoFetch(apiKey, `/emailCampaigns/${campaignId}/sendNow`, {
-    method: "POST",
-    body: "{}",
+  await transporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to: params.to,
+    subject: params.subject,
+    text: params.text,
+    html: params.html,
   });
-
-  return { campaignId, sendNowStatus: sendRes.status };
 }
 
 Deno.serve(async (req) => {
@@ -232,10 +326,6 @@ Deno.serve(async (req) => {
 
     const rawBody: unknown = await req.json().catch(() => undefined);
 
-    if (isTestBrevo(rawBody)) {
-      return await handleTestBrevo(req);
-    }
-
     const webhookSecret = optionalEnv("WEBHOOK_SECRET");
     if (webhookSecret) {
       const h = req.headers.get("x-webhook-secret");
@@ -248,7 +338,6 @@ Deno.serve(async (req) => {
     }
 
     const payload = rawBody as WebhookPayload;
-
     if (!payload || typeof payload !== "object") {
       return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
         status: 400,
@@ -262,8 +351,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const table = payload.table;
-    if (!["publications", "evenements", "blogs"].includes(table)) {
+    const allowed = ["publications", "evenements", "lp_projets", "lp_opportunities", "blogs"];
+    if (!allowed.includes(payload.table)) {
       return new Response(JSON.stringify({ ok: true, skipped: "unsupported table" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -275,38 +364,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const record = payload.record;
-    let category: "publication" | "event" | "blog";
-    if (table === "publications") category = "publication";
-    else if (table === "evenements") category = "event";
-    else category = "blog";
-
-    const siteUrl = optionalEnv("PUBLIC_SITE_URL") ?? "";
-    const base = siteUrl.replace(/\/$/, "") || "https://example.com";
-
-    let message = "";
-    let subject = "";
-    if (category === "publication") {
-      const excerpt = truncate(String(record.text ?? "").replace(/\s+/g, " ").trim(), 400);
-      message = `Nouvelle publication sur le Mur\n\n${excerpt}\n\n${base}/member/mur`;
-      subject = "Nouvelle publication sur le Mur";
-    } else if (category === "event") {
-      const titre = String(record.titre ?? "Événement");
-      const slug = String(record.public_slug ?? "").trim();
-      const path = slug ? `/event/${slug}` : "/events";
-      message = `Nouvel événement : ${titre}\n\n${base}${path}`;
-      subject = `Événement : ${truncate(titre, 80)}`;
-    } else {
-      const title = String(record.title ?? "Article");
-      const slug = String(record.slug ?? "").trim();
-      const path = slug ? `/blog/${slug}` : "/blogs";
-      message = `Nouvel article : ${title}\n\n${base}${path}`;
-      subject = `Article : ${truncate(title, 80)}`;
-    }
-
-    const htmlContent =
-      `<html><body>${plainTextToHtml(message)}<p style="color:#666;font-size:12px">REMESS — notification automatique</p></body></html>`;
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
     if (!supabaseUrl || !serviceKey) {
@@ -314,65 +371,105 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceKey);
-    const { data: groups, error: gErr } = await supabase.from("whatsapp_groups").select("*").eq("is_active", true);
+    const built = await buildContentEmail(supabase, payload.table, payload.record);
+    if (!built) {
+      return new Response(JSON.stringify({ ok: true, skipped: "unhandled content" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: groups, error: gErr } = await supabase
+      .from("email_notification_groups")
+      .select("id, name, members:email_notification_group_members(email, full_name)")
+      .eq("is_active", true);
+
     if (gErr) throw gErr;
 
-    const rows = (groups ?? []) as Record<string, unknown>[];
-    const filtered = rows.filter((g) => {
-      if (category === "publication") return g.notify_publications !== false;
-      if (category === "event") return g.notify_events !== false;
-      return g.notify_blogs !== false;
-    });
+    const members: MemberRow[] = [];
+    const seenEmails = new Set<string>();
 
-    const listIds = [
-      ...new Set(
-        filtered
-          .map((g) => g.brevo_list_id)
-          .filter((id): id is number => typeof id === "number" && Number.isInteger(id) && id > 0),
-      ),
-    ];
-
-    let brevoResult: Record<string, unknown> = { skipped: true };
-    if (listIds.length > 0) {
-      const apiKey = optionalEnv("BREVO_API_KEY");
-      const senderEmail = optionalEnv("BREVO_SENDER_EMAIL");
-      const senderName = optionalEnv("BREVO_SENDER_NAME") ?? "REMESS";
-
-      if (apiKey && senderEmail) {
-        try {
-          const campaignName = `REMESS-${category}-${String(record.id ?? "").slice(0, 8)}-${Date.now()}`;
-          const { campaignId, sendNowStatus } = await createAndSendCampaign(apiKey, {
-            name: campaignName,
-            subject,
-            senderName,
-            senderEmail,
-            htmlContent,
-            listIds,
-          });
-          brevoResult = {
-            ok: true,
-            brevo_campaign_id: campaignId,
-            brevo_send_now_http_status: sendNowStatus,
-            list_ids: listIds,
-          };
-        } catch (e) {
-          brevoResult = { ok: false, error: e instanceof Error ? e.message : String(e) };
-        }
-      } else {
-        brevoResult = { skipped: true, reason: "BREVO_API_KEY ou BREVO_SENDER_EMAIL manquant" };
+    for (const g of groups ?? []) {
+      const groupId = String((g as { id: string }).id);
+      const groupName = String((g as { name?: string }).name ?? "");
+      const rows = (g as { members?: { email?: string; full_name?: string }[] }).members ?? [];
+      for (const m of rows) {
+        const email = String(m.email ?? "").trim().toLowerCase();
+        if (!email.includes("@") || seenEmails.has(email)) continue;
+        seenEmails.add(email);
+        members.push({
+          email,
+          full_name: String(m.full_name ?? "").trim(),
+          group_id: groupId,
+          group_name: groupName,
+        });
       }
-    } else {
-      brevoResult = { skipped: true, reason: "aucune brevo_list_id pour cette catégorie" };
+    }
+
+    if (members.length === 0) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: "aucun membre dans les groupes actifs" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    requireEnv("SMTP_HOST");
+    requireEnv("SMTP_USER");
+    if (!(optionalEnv("SMTP_PASS") ?? optionalEnv("SMTP_PASSWORD"))) {
+      throw new Error("SMTP_PASS (ou SMTP_PASSWORD) manquant");
+    }
+
+    const sent: string[] = [];
+    const failed: { email: string; error: string }[] = [];
+    const historyRows: Record<string, unknown>[] = [];
+
+    for (const m of members) {
+      try {
+        await sendOneEmail({
+          to: m.email,
+          subject: built.subject,
+          text: built.text,
+          html: built.html,
+        });
+        sent.push(m.email);
+        historyRows.push({
+          publication_id: built.contentType === "publication" ? built.contentId : null,
+          content_type: built.contentType,
+          content_id: built.contentId,
+          content_title: built.contentTitle,
+          group_id: m.group_id,
+          group_name: m.group_name,
+          recipient_name: m.full_name,
+          recipient_email: m.email,
+          author_name: built.authorName,
+          content_excerpt: truncate(built.content, 500),
+          publication_link: built.link,
+          subject: built.subject,
+        });
+      } catch (e) {
+        failed.push({
+          email: m.email,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    if (historyRows.length > 0) {
+      const { error: histErr } = await supabase.from("email_notification_sends").insert(historyRows);
+      if (histErr) console.error("email_notification_sends insert failed:", histErr.message);
     }
 
     return new Response(
       JSON.stringify({
-        ok: true,
-        category,
-        brevo: brevoResult,
-        warn: webhookSecret ? undefined : "WEBHOOK_SECRET non défini — à configurer en production",
+        ok: failed.length === 0,
+        category: built.contentType,
+        recipients: members.length,
+        smtp: { sent: sent.length, failed },
+        history_logged: historyRows.length,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: failed.length === members.length ? 500 : 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

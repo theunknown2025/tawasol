@@ -26,7 +26,7 @@ import AdminEvenementsPage from "./pages/admin/evenements";
 import EditEvenementPage from "./pages/admin/evenements/EditEvenementPage";
 import AdminMessageriePage from "./pages/admin/MessageriePage";
 import WhatsappManagerPage from "./pages/admin/whatsapp-manager/WhatsappManagerPage";
-import OpenwaMessagingPage from "./pages/admin/whatsapp-openwa/OpenwaMessagingPage";
+import GreenApiMessagingPage from "./pages/admin/whatsapp-greenapi/GreenApiMessagingPage";
 import AdminBlogsPage from "./pages/admin/blog/BlogsAdminPage";
 import GestionFormPage from "./pages/admin/gestion-form";
 
@@ -42,6 +42,7 @@ import LpProjetsPage from "./pages/super-admin/LP_Manager/ProjetsManager/LpProje
 import LpDashboardPage from "./pages/super-admin/LP_Manager/LpDashboardPage";
 import BarometrePage from "./pages/super-admin/LP_Manager/BarometrePage";
 import BarometreEditCooperativePage from "./pages/super-admin/LP_Manager/Barometre/BarometreEditCooperativePage";
+import CartographieInfoRequestsPage from "./pages/super-admin/LP_Manager/CartographieDemandes/CartographieInfoRequestsPage";
 import BarometreStatsPage from "./pages/super-admin/LP_Manager/BarometreStats/BarometreStatsPage";
 import LpEditorLayout from "./pages/super-admin/LP_Manager/LpEditorLayout";
 import HeaderEditorPage from "./pages/super-admin/LP_Manager/LPManager/sections/HeaderEditorPage";
@@ -155,8 +156,9 @@ const App = () => {
               <Route path="library" element={<LpLibraryPage />} />
               <Route path="projets" element={<LpProjetsPage />} />
               <Route path="dashboard" element={<LpDashboardPage />} />
-              <Route path="cartographie" element={<BarometrePage />} />
+              <Route path="cartographie/demandes" element={<CartographieInfoRequestsPage />} />
               <Route path="cartographie/edit/:id" element={<BarometreEditCooperativePage />} />
+              <Route path="cartographie" element={<BarometrePage />} />
               <Route path="barometre-donnees" element={<BarometreStatsPage />} />
               <Route path="barometre" element={<Navigate to="/admin/remess-landing/cartographie" replace />} />
               <Route path="barometre/edit/:id" element={<LegacyAdminBarometreEditRedirect />} />
@@ -202,7 +204,7 @@ const App = () => {
               <Route path="/admin/evenements/edit/:id" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><EditEvenementPage /></ProtectedRoute>} />
               <Route path="/admin/messagerie" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminMessageriePage /></ProtectedRoute>} />
               <Route path="/admin/whatsapp-manager" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><WhatsappManagerPage /></ProtectedRoute>} />
-              <Route path="/admin/whatsapp-messaging" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><OpenwaMessagingPage /></ProtectedRoute>} />
+              <Route path="/admin/whatsapp-messaging" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}><GreenApiMessagingPage /></ProtectedRoute>} />
               <Route path="/admin/blogs" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><AdminBlogsPage /></ProtectedRoute>} />
               <Route path="/admin/gestion-form" element={<ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}><GestionFormPage /></ProtectedRoute>} />
               {/* Super Admin only */}

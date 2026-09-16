@@ -1,13 +1,18 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   BarChart2,
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
   Compass,
   FolderKanban,
   LayoutDashboard,
   LayoutTemplate,
   Library,
   LogOut,
+  Map,
   User,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,10 +21,22 @@ import { cn } from "@/lib/utils";
 
 const LP_BASE = "/admin/remess-landing";
 
-const lpNav = [
+const lpNavTop = [
   { label: "Profil", icon: User, path: `${LP_BASE}/profile`, end: true },
   { label: "Éditeur", icon: LayoutTemplate, path: `${LP_BASE}/editor`, end: false },
-  { label: "Cartographie", icon: Compass, path: `${LP_BASE}/cartographie`, end: true },
+] as const;
+
+const cartographieSubItems = [
+  { label: "Carte", icon: Map, path: `${LP_BASE}/cartographie`, end: true },
+  {
+    label: "Demandes d'information",
+    icon: ClipboardList,
+    path: `${LP_BASE}/cartographie/demandes`,
+    end: true,
+  },
+] as const;
+
+const lpNavBottom = [
   { label: "Baromètre", icon: BarChart2, path: `${LP_BASE}/barometre-donnees`, end: true },
   { label: "Bibliothèque", icon: Library, path: `${LP_BASE}/library`, end: true },
   { label: "Projets", icon: FolderKanban, path: `${LP_BASE}/projets`, end: true },
@@ -28,7 +45,18 @@ const lpNav = [
 
 export default function LpManagerSidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile, signOut } = useAuth();
+
+  const isCartographieSection =
+    location.pathname === `${LP_BASE}/cartographie` ||
+    location.pathname.startsWith(`${LP_BASE}/cartographie/`);
+
+  const [cartographieOpen, setCartographieOpen] = useState(isCartographieSection);
+
+  useEffect(() => {
+    if (isCartographieSection) setCartographieOpen(true);
+  }, [isCartographieSection]);
 
   const linkClass = (isActive: boolean) =>
     cn(
@@ -73,7 +101,51 @@ export default function LpManagerSidebar() {
         <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           LP Manager
         </p>
-        {lpNav.map((item) => (
+        {lpNavTop.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.end}
+            className={({ isActive }) => linkClass(isActive)}
+          >
+            <item.icon size={20} className="shrink-0" />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setCartographieOpen((o) => !o)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              isCartographieSection
+                ? "bg-violet-600/15 text-violet-700 dark:text-violet-300 shadow-sm ring-1 ring-violet-500/20"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Compass size={20} className="shrink-0" />
+            <span className="flex-1 text-left">Cartographie</span>
+            {cartographieOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+          {cartographieOpen ? (
+            <div className="ml-4 mt-1 space-y-1 border-l border-border pl-3">
+              {cartographieSubItems.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.end}
+                  className={({ isActive }) => linkClass(isActive)}
+                >
+                  <item.icon size={18} className="shrink-0" />
+                  <span className="text-sm">{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {lpNavBottom.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

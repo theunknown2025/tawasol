@@ -22,6 +22,9 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    include: ["dompurify"],
+    include: ["dompurify", "@maplibre/maplibre-gl-leaflet"],
+    // MapLibre v6 worker breaks under Vite pre-bundling — keep it external.
+    exclude: ["maplibre-gl"],
   },
+
 }));

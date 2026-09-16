@@ -107,8 +107,8 @@ export function LandingPagePreviewOutline({
       {outlineLabels.map((label) => {
         if (label === "Hero") {
           return (
-            <div key={label} id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero}>
-              <HeroSection content={hero} />
+           <div key={label} id={LANDING_PAGE_SECTION_ANCHOR_ID.Hero}>
+              <HeroSection content={hero} /> 
             </div>
           );
         }

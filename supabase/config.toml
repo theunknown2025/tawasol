@@ -368,6 +368,12 @@ deno_version = 2
 [functions.notify-brevo-published]
 verify_jwt = false
 
+[functions.notify-smtp-published]
+verify_jwt = false
+
+[functions.notify-green-api-published]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
