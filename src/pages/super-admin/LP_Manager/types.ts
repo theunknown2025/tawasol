@@ -1071,7 +1071,7 @@ export const DEFAULT_HEADER_CONTENT: HeaderContent = {
   showAuthButtons: true,
   scrollBehavior: "fixed",
   navIncludeSection: createDefaultNavIncludeSection(),
-  loginCta: { label: "Connexion", href: "/auth" },
+  loginCta: { label: "Espace Membre", href: "/auth" },
   signInCta: { label: "S'inscrire", href: "/auth" },
 };
 

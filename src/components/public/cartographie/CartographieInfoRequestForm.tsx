@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { ClipboardList, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { submitCartographieInfoRequest } from "@/pages/super-admin/LP_Manager/CartographieDemandes/cartographieInfoRequestApi";
+import { CartographieRequestFiltersFields } from "@/pages/super-admin/LP_Manager/CartographieDemandes/CartographieRequestFiltersFields";
 import {
   CARTOGRAPHIE_INFO_FIELD_OPTIONS,
   type CartographieInfoFieldKey,
+  type CartographieInfoRequestFilters,
 } from "@/pages/super-admin/LP_Manager/CartographieDemandes/cartographieInfoRequestTypes";
 
 const emptyForm = {
@@ -23,9 +25,24 @@ const emptyForm = {
   usageDescription: "",
 };
 
+const emptyFilters: CartographieInfoRequestFilters = {
+  activities: [],
+  provinces: [],
+  communes: [],
+};
+
 export default function CartographieInfoRequestForm() {
   const [form, setForm] = useState(emptyForm);
   const [requestedFields, setRequestedFields] = useState<CartographieInfoFieldKey[]>([]);
+  const [filters, setFilters] = useState<CartographieInfoRequestFilters>(emptyFilters);
+
+  const hasFilters = useMemo(
+    () =>
+      filters.activities.length > 0 ||
+      filters.provinces.length > 0 ||
+      filters.communes.length > 0,
+    [filters],
+  );
 
   const mutation = useMutation({
     mutationFn: submitCartographieInfoRequest,
@@ -33,6 +50,7 @@ export default function CartographieInfoRequestForm() {
       toast.success("Votre demande a été envoyée. Vous serez contacté(e) par e-mail après validation.");
       setForm(emptyForm);
       setRequestedFields([]);
+      setFilters(emptyFilters);
     },
     onError: (e) => {
       toast.error(e instanceof Error ? e.message : "Impossible d'envoyer la demande.");
@@ -48,9 +66,16 @@ export default function CartographieInfoRequestForm() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (!hasFilters) {
+      toast.error("Sélectionnez au moins une activité, province ou commune.");
+      return;
+    }
     mutation.mutate({
       ...form,
       requestedFields,
+      filterActivities: filters.activities,
+      filterProvinces: filters.provinces,
+      filterCommunes: filters.communes,
     });
   };
 
@@ -66,7 +91,7 @@ export default function CartographieInfoRequestForm() {
         <AccordionContent className="px-4 pb-5 sm:px-5">
           <p className="mb-4 text-sm text-muted-foreground">
             Remplissez ce formulaire pour demander l&apos;accès aux éléments d&apos;information des
-            coopératives. Après validation, un fichier Excel vous sera envoyé par e-mail.
+            coopératives. Après validation, un fichier Excel filtré vous sera envoyé par e-mail.
           </p>
 
           <form onSubmit={onSubmit} className="space-y-5">
@@ -124,11 +149,19 @@ export default function CartographieInfoRequestForm() {
             </div>
 
             <fieldset className="space-y-3">
-              <legend className="text-sm font-medium text-foreground">Description du besoin</legend>
+              <legend className="text-sm font-medium text-foreground">Filtres de sélection</legend>
               <p className="text-xs text-muted-foreground">
-                Prière d&apos;indiquer les éléments d&apos;information demandées.
+                Sélectionnez une ou plusieurs activités, provinces et communes (après choix des
+                provinces).
               </p>
-              <p className="text-xs font-medium text-foreground">Coopératives informations</p>
+              <CartographieRequestFiltersFields value={filters} onChange={setFilters} />
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium text-foreground">Éléments d&apos;information</legend>
+              <p className="text-xs text-muted-foreground">
+                Prière d&apos;indiquer les éléments d&apos;information demandés.
+              </p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {CARTOGRAPHIE_INFO_FIELD_OPTIONS.map((opt) => {
                   const checked = requestedFields.includes(opt.key);

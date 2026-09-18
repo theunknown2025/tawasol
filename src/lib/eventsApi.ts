@@ -3,6 +3,7 @@ import type { GestionForm, GestionFormField } from "@/types/gestionForm";
 
 const BUCKET_BANNERS = "event-banners";
 const BUCKET_FILES = "event-files";
+const EVENT_REGISTRATION_FILES_BUCKET = "event-registration-files";
 
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ?? "")
   .toString()
@@ -31,6 +32,8 @@ export interface Evenement {
   files: EventFile[];
   registrationFormId: string | null;
   publicSlug: string | null;
+  /** Visible on the public landing page when published */
+  isPublic: boolean;
   status: "draft" | "published";
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +52,7 @@ interface DbEvenement {
   liens: string[] | unknown;
   registration_form_id: string | null;
   public_slug: string | null;
+  is_public?: boolean | null;
   status: "draft" | "published";
   created_at: string;
   updated_at: string;
@@ -105,6 +109,7 @@ function mapDbToEvenement(db: DbEvenement, fileUrls?: Map<string, string>): Even
     files,
     registrationFormId: db.registration_form_id ?? null,
     publicSlug: db.public_slug ?? null,
+    isPublic: db.is_public !== false,
     status: db.status,
     createdAt: new Date(db.created_at),
     updatedAt: new Date(db.updated_at),
@@ -151,11 +156,28 @@ export async function fetchEvenements(): Promise<Evenement[]> {
   return rows.map((d) => mapDbToEvenement(d, signedUrls));
 }
 
+/** Published public events for the dedicated `/events` page (landing + public events) */
 export async function fetchPublishedEvenementsForPublic(): Promise<Evenement[]> {
   const { data, error } = await supabase
     .from("evenements")
     .select("*, profiles!evenements_author_profile_fkey(full_name)")
     .eq("status", "published")
+    .eq("is_public", true)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as DbEvenement[];
+  return rows.map((row) => mapDbToEvenement({ ...row, event_files: [] }));
+}
+
+/** Published public events for the landing page « Nos événements » */
+export async function fetchLandingEvenements(): Promise<Evenement[]> {
+  const { data, error } = await supabase
+    .from("evenements")
+    .select("*, profiles!evenements_author_profile_fkey(full_name)")
+    .eq("status", "published")
+    .eq("is_public", true)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -208,6 +230,7 @@ export interface CreateEvenementInput {
   titre: string;
   description: string;
   status: "draft" | "published";
+  isPublic?: boolean;
   banner?: File | null;
   eventDateStart: string | null;
   eventDateEnd: string | null;
@@ -236,6 +259,7 @@ export async function createEvenement(input: CreateEvenementInput): Promise<Even
       deadline_inscription: input.deadlineInscription || null,
       liens: input.liens,
       registration_form_id: input.registrationFormId ?? null,
+      is_public: input.isPublic !== false,
       status: input.status,
     })
     .select()
@@ -289,6 +313,7 @@ export async function updateEvenement(
     deadlineInscription?: string | null;
     liens?: string[];
     registrationFormId?: string | null;
+    isPublic?: boolean;
     status?: "draft" | "published";
     banner?: File | null;
     newFiles?: { file: File; name: string; type: string }[];
@@ -304,6 +329,7 @@ export async function updateEvenement(
   if (data.liens !== undefined) updates.liens = data.liens;
   if (data.registrationFormId !== undefined)
     updates.registration_form_id = data.registrationFormId;
+  if (data.isPublic !== undefined) updates.is_public = data.isPublic;
   if (data.status !== undefined) updates.status = data.status;
 
   const { error } = await supabase.from("evenements").update(updates).eq("id", id);
@@ -507,12 +533,19 @@ export interface MySubscription {
   event: Evenement;
 }
 
+export type EventRegistrationFileUpload = {
+  url: string;
+  path: string;
+  fileName: string;
+};
+
 export interface EventFormRegistration {
   id: string;
   eventId: string;
   applicantName: string;
   applicantEmail: string;
   answers: Record<string, string | number | boolean>;
+  fileUploads: Record<string, EventRegistrationFileUpload>;
   status: "pending" | "approved" | "rejected";
   createdAt: Date;
 }
@@ -523,6 +556,7 @@ type DbEventFormRegistration = {
   applicant_name: string;
   applicant_email: string;
   answers: Record<string, string | number | boolean> | null;
+  file_uploads?: Record<string, EventRegistrationFileUpload> | null;
   status: "pending" | "approved" | "rejected";
   created_at: string;
 };
@@ -534,6 +568,7 @@ function mapDbRegistration(row: DbEventFormRegistration): EventFormRegistration 
     applicantName: row.applicant_name,
     applicantEmail: row.applicant_email,
     answers: row.answers ?? {},
+    fileUploads: row.file_uploads ?? {},
     status: row.status,
     createdAt: new Date(row.created_at),
   };
@@ -568,6 +603,7 @@ export async function fetchPublicEventBySlug(slug: string): Promise<PublicEventW
     )
     .eq("public_slug", slug)
     .eq("status", "published")
+    .eq("is_public", true)
     .maybeSingle();
 
   if (error) throw error;
@@ -604,17 +640,45 @@ export async function fetchPublicEventBySlug(slug: string): Promise<PublicEventW
   };
 }
 
+export async function uploadEventRegistrationFile(
+  eventId: string,
+  fieldKey: string,
+  file: File
+): Promise<EventRegistrationFileUpload> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+  const safeKey = fieldKey.replace(/[^\w.-]+/g, "_").slice(0, 80);
+  const filePath = `${eventId}/${safeKey}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(EVENT_REGISTRATION_FILES_BUCKET)
+    .upload(filePath, file, { upsert: false });
+  if (error) throw error;
+  const { data: urlData } = supabase.storage
+    .from(EVENT_REGISTRATION_FILES_BUCKET)
+    .getPublicUrl(filePath);
+  return { url: urlData.publicUrl, path: filePath, fileName: file.name };
+}
+
+export async function getEventRegistrationFileSignedUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from(EVENT_REGISTRATION_FILES_BUCKET)
+    .createSignedUrl(path, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 export async function submitPublicEventRegistration(input: {
   eventId: string;
   applicantName: string;
   applicantEmail: string;
   answers: Record<string, string | number | boolean>;
+  fileUploads?: Record<string, EventRegistrationFileUpload>;
 }): Promise<void> {
   const { error } = await supabase.from("event_form_registrations").insert({
     event_id: input.eventId,
     applicant_name: input.applicantName,
     applicant_email: input.applicantEmail,
     answers: input.answers,
+    file_uploads: input.fileUploads ?? {},
     status: "pending",
   });
   if (error) throw error;
@@ -633,7 +697,7 @@ export async function fetchFormRegistrationsForMyEvents(): Promise<Record<string
 
   const { data, error } = await supabase
     .from("event_form_registrations")
-    .select("id, event_id, applicant_name, applicant_email, answers, status, created_at")
+    .select("id, event_id, applicant_name, applicant_email, answers, file_uploads, status, created_at")
     .in("event_id", eventIds)
     .order("created_at", { ascending: false });
 

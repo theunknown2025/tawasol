@@ -1,17 +1,29 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  PublicPagedListPagination,
+  PublicPagedListToolbar,
+  type PublicListViewMode,
+} from "@/components/public/PublicPagedListControls";
 import { EventsCardsGrid } from "./EventsCardsGrid";
 import { OrganizerDialog } from "./OrganizerDialog";
 import type { Evenement } from "@/hooks/useEvenements";
+
+const TAWASOL_EVENT_PAGE_SIZES = [9, 18, 36] as const;
+type TawasolEventPageSize = (typeof TAWASOL_EVENT_PAGE_SIZES)[number];
 
 interface AllEventsProps {
   events: Evenement[];
   isLoading: boolean;
   onView: (e: Evenement) => void;
   onSubscribe: (e: Evenement) => void;
+  onPublish?: (id: string) => void;
+  onUnpublish?: (id: string) => void;
+  canManagePublish?: boolean;
+  isUpdatingStatus?: boolean;
 }
 
 export function AllEvents({
@@ -19,11 +31,18 @@ export function AllEvents({
   isLoading,
   onView,
   onSubscribe,
+  onPublish,
+  onUnpublish,
+  canManagePublish = false,
+  isUpdatingStatus = false,
 }: AllEventsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [organizerEvt, setOrganizerEvt] = useState<Evenement | null>(null);
+  const [viewMode, setViewMode] = useState<PublicListViewMode>("cards");
+  const [pageSize, setPageSize] = useState<TawasolEventPageSize>(9);
+  const [page, setPage] = useState(0);
 
   const filteredEvents = useMemo(() => {
     let list = events;
@@ -49,11 +68,24 @@ export function AllEvents({
     return list;
   }, [events, searchQuery, dateFrom, dateTo]);
 
+  const totalCount = filteredEvents.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const currentPage = Math.min(page, totalPages - 1);
+
+  const pageItems = useMemo(() => {
+    const start = currentPage * pageSize;
+    return filteredEvents.slice(start, start + pageSize);
+  }, [filteredEvents, currentPage, pageSize]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [pageSize, viewMode, searchQuery, dateFrom, dateTo]);
+
   return (
     <>
-      <div className="space-y-4 mb-6">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-[200px] space-y-1">
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[200px] flex-1 space-y-1">
             <Label htmlFor="search-events" className="text-xs text-muted-foreground">
               Rechercher
             </Label>
@@ -105,20 +137,55 @@ export function AllEvents({
             Réinitialiser
           </Button>
         </div>
-        {filteredEvents.length !== events.length && (
-          <p className="text-sm text-muted-foreground">
-            {filteredEvents.length} résultat
-            {filteredEvents.length !== 1 ? "s" : ""} sur {events.length}
-          </p>
-        )}
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {filteredEvents.length !== events.length ? (
+            <p className="text-sm text-muted-foreground">
+              {filteredEvents.length} résultat
+              {filteredEvents.length !== 1 ? "s" : ""} sur {events.length}
+            </p>
+          ) : (
+            <span className="hidden sm:block" />
+          )}
+          <PublicPagedListToolbar
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            pageSize={pageSize}
+            onPageSizeChange={(n) => {
+              if (n === 9 || n === 18 || n === 36) setPageSize(n);
+            }}
+            pageSizeOptions={TAWASOL_EVENT_PAGE_SIZES}
+          />
+        </div>
       </div>
+
       <EventsCardsGrid
-        events={filteredEvents}
+        events={pageItems}
         isLoading={isLoading}
+        viewMode={viewMode}
         onView={onView}
         onSubscribe={onSubscribe}
         onViewOrganizer={setOrganizerEvt}
+        onPublish={onPublish}
+        onUnpublish={onUnpublish}
+        canManagePublish={canManagePublish}
+        isUpdatingStatus={isUpdatingStatus}
       />
+
+      {!isLoading && totalCount > 0 ? (
+        <div className="mt-6">
+          <PublicPagedListPagination
+            page={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            itemLabel="événement"
+            ariaLabel="Pagination des événements Tawasol"
+          />
+        </div>
+      ) : null}
+
       <OrganizerDialog event={organizerEvt} onClose={() => setOrganizerEvt(null)} />
     </>
   );

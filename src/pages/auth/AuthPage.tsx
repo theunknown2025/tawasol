@@ -1,17 +1,22 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePublicLpHeader } from "@/hooks/usePublicLpHeader";
 import { getDashboardPath } from "@/lib/supabase";
 
 export default function AuthPage() {
   const { user, profile, loading, signIn, signOut } = useAuth();
+  const { data: headerContent } = usePublicLpHeader();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const logoUrl = headerContent?.logoUrl?.trim() ?? "";
+  const brandTitle = headerContent?.title?.trim() || "REMESS";
 
   useEffect(() => {
     const st = location.state as { deactivated?: boolean } | null;
@@ -85,31 +90,65 @@ export default function AuthPage() {
     );
   }
 
+  const RemessLogoLink = ({ className }: { className?: string }) => (
+    <Link
+      to="/"
+      className={className}
+      aria-label="Retour à la page d'accueil REMESS"
+      title="Retour à l'accueil"
+    >
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt="REMESS"
+          className="h-14 w-auto max-w-[220px] object-contain"
+        />
+      ) : (
+        <span className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          {brandTitle}
+        </span>
+      )}
+    </Link>
+  );
+
   return (
     <div className="min-h-screen flex bg-background">
       <div className="hidden lg:flex lg:w-1/2 bg-[hsl(var(--sidebar-bg))] items-center justify-center p-12">
         <div className="max-w-md text-center">
-          <h1 className="text-4xl font-bold text-[hsl(var(--sidebar-active))] mb-4">
-            ProManager
-          </h1>
+          <Link
+            to="/"
+            className="mb-6 inline-flex items-center justify-center"
+            aria-label="Retour à la page d'accueil REMESS"
+            title="Retour à l'accueil"
+          >
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="REMESS"
+                className="h-20 w-auto max-w-[280px] object-contain"
+              />
+            ) : (
+              <h1 className="text-4xl font-bold text-[hsl(var(--sidebar-active))]">
+                {brandTitle}
+              </h1>
+            )}
+          </Link>
           <p className="text-[hsl(var(--sidebar-fg))] text-lg leading-relaxed">
-            Gérez vos projets, votre équipe et vos événements en un seul endroit.
+            Accédez à votre espace membre REMESS.
           </p>
-          <div className="mt-10 grid grid-cols-3 gap-4 opacity-60">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-20 rounded-xl bg-[hsl(var(--sidebar-hover))]" />
-            ))}
-          </div>
         </div>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md space-y-8">
-          <div>
-            <h2 className="text-3xl font-bold text-foreground">Connexion</h2>
-            <p className="mt-2 text-muted-foreground">
-              Connectez-vous à votre compte
-            </p>
+          <div className="space-y-4">
+            <RemessLogoLink className="inline-flex" />
+            <div>
+              <h2 className="text-3xl font-bold text-foreground">Connexion</h2>
+              <p className="mt-2 text-muted-foreground">
+                Connectez-vous à votre compte
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">

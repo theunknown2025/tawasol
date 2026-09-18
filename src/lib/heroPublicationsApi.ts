@@ -70,6 +70,7 @@ export async function fetchLatestHeroPublications(): Promise<HeroPublicationSlid
       .from("evenements")
       .select("id, titre, public_slug, banner_path, created_at, updated_at")
       .eq("status", "published")
+      .eq("is_public", true)
       .not("public_slug", "is", null)
       .order("created_at", { ascending: false })
       .limit(1),

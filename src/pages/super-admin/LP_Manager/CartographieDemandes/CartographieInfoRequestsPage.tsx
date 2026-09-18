@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, FileSpreadsheet, X } from "lucide-react";
 import { toast } from "sonner";
@@ -10,16 +10,23 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   approveCartographieInfoRequest,
   fetchCartographieInfoRequests,
   rejectCartographieInfoRequest,
 } from "./cartographieInfoRequestApi";
+import { CartographieRequestFiltersFields } from "./CartographieRequestFiltersFields";
 import {
+  CARTOGRAPHIE_INFO_FIELD_OPTIONS,
   CARTOGRAPHIE_INFO_STATUS_LABELS,
   labelForInfoField,
+  type CartographieInfoFieldKey,
   type CartographieInfoRequest,
+  type CartographieInfoRequestFilters,
   type CartographieInfoRequestStatus,
 } from "./cartographieInfoRequestTypes";
 
@@ -31,6 +38,10 @@ function statusBadgeVariant(
   return "secondary";
 }
 
+function listOrDash(items: string[]): string {
+  return items.length > 0 ? items.join(", ") : "—";
+}
+
 function RequestRow({
   request,
   onApprove,
@@ -38,11 +49,45 @@ function RequestRow({
   busyId,
 }: {
   request: CartographieInfoRequest;
-  onApprove: (id: string) => void;
+  onApprove: (payload: {
+    requestId: string;
+    requestedFields: CartographieInfoFieldKey[];
+    filters: CartographieInfoRequestFilters;
+    adminComment: string;
+  }) => void;
   onReject: (id: string) => void;
   busyId: string | null;
 }) {
   const busy = busyId === request.id;
+  const isPending = request.status === "pending";
+
+  const [requestedFields, setRequestedFields] = useState<CartographieInfoFieldKey[]>(
+    request.requestedFields,
+  );
+  const [filters, setFilters] = useState<CartographieInfoRequestFilters>({
+    activities: request.filterActivities,
+    provinces: request.filterProvinces,
+    communes: request.filterCommunes,
+  });
+  const [adminComment, setAdminComment] = useState(request.adminComment ?? "");
+
+  useEffect(() => {
+    setRequestedFields(request.requestedFields);
+    setFilters({
+      activities: request.filterActivities,
+      provinces: request.filterProvinces,
+      communes: request.filterCommunes,
+    });
+    setAdminComment(request.adminComment ?? "");
+  }, [request]);
+
+  const toggleField = (key: CartographieInfoFieldKey, checked: boolean) => {
+    setRequestedFields((prev) => {
+      if (checked) return prev.includes(key) ? prev : [...prev, key];
+      return prev.filter((k) => k !== key);
+    });
+  };
+
   return (
     <AccordionItem value={request.id}>
       <AccordionTrigger className="px-1 text-left hover:no-underline">
@@ -80,14 +125,6 @@ function RequestRow({
             <p>{request.etablissement || "—"}</p>
           </div>
           <div className="sm:col-span-2">
-            <p className="text-xs font-semibold text-muted-foreground">Éléments demandés</p>
-            <ul className="mt-1 list-inside list-disc">
-              {request.requestedFields.map((key) => (
-                <li key={key}>{labelForInfoField(key)}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="sm:col-span-2">
             <p className="text-xs font-semibold text-muted-foreground">Description de l&apos;usage</p>
             <p className="mt-1 whitespace-pre-wrap">{request.usageDescription || "—"}</p>
           </div>
@@ -108,14 +145,111 @@ function RequestRow({
           ) : null}
         </div>
 
-        {request.status === "pending" ? (
+        <Accordion type="multiple" defaultValue={["filters", "elements"]} className="rounded-lg border border-border">
+          <AccordionItem value="filters" className="px-3">
+            <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+              Filtres
+            </AccordionTrigger>
+            <AccordionContent className="pb-4">
+              {isPending ? (
+                <CartographieRequestFiltersFields
+                  idPrefix={`admin-${request.id}`}
+                  value={filters}
+                  onChange={setFilters}
+                  disabled={busy}
+                />
+              ) : (
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Activité</p>
+                    <p>{listOrDash(request.filterActivities)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Province</p>
+                    <p>{listOrDash(request.filterProvinces)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Commune</p>
+                    <p>{listOrDash(request.filterCommunes)}</p>
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="elements" className="border-b-0 px-3">
+            <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+              Éléments d&apos;information
+            </AccordionTrigger>
+            <AccordionContent className="pb-4">
+              {isPending ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {CARTOGRAPHIE_INFO_FIELD_OPTIONS.map((opt) => {
+                    const checked = requestedFields.includes(opt.key);
+                    const id = `admin-field-${request.id}-${opt.key}`;
+                    return (
+                      <label
+                        key={opt.key}
+                        htmlFor={id}
+                        className="flex cursor-pointer items-start gap-2 rounded-md border border-border/80 px-3 py-2 text-sm hover:bg-muted/40"
+                      >
+                        <Checkbox
+                          id={id}
+                          checked={checked}
+                          disabled={busy}
+                          onCheckedChange={(v) => toggleField(opt.key, v === true)}
+                          className="mt-0.5"
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <ul className="list-inside list-disc text-sm">
+                  {request.requestedFields.map((key) => (
+                    <li key={key}>{labelForInfoField(key)}</li>
+                  ))}
+                </ul>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        {isPending ? (
+          <div className="space-y-2">
+            <Label htmlFor={`admin-comment-${request.id}`}>Commentaire (inclus dans l&apos;e-mail)</Label>
+            <Textarea
+              id={`admin-comment-${request.id}`}
+              rows={3}
+              disabled={busy}
+              placeholder="Ajoutez un commentaire pour le demandeur…"
+              value={adminComment}
+              onChange={(e) => setAdminComment(e.target.value)}
+            />
+          </div>
+        ) : request.adminComment ? (
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
+            <p className="text-xs font-semibold text-muted-foreground">Commentaire envoyé</p>
+            <p className="mt-1 whitespace-pre-wrap">{request.adminComment}</p>
+          </div>
+        ) : null}
+
+        {isPending ? (
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               className="gap-1.5"
               disabled={busy}
-              onClick={() => onApprove(request.id)}
+              onClick={() =>
+                onApprove({
+                  requestId: request.id,
+                  requestedFields,
+                  filters,
+                  adminComment,
+                })
+              }
             >
               <Check className="h-4 w-4" aria-hidden />
               Approuver et envoyer l&apos;Excel
@@ -147,7 +281,12 @@ function RequestList({
 }: {
   requests: CartographieInfoRequest[];
   emptyLabel: string;
-  onApprove: (id: string) => void;
+  onApprove: (payload: {
+    requestId: string;
+    requestedFields: CartographieInfoFieldKey[];
+    filters: CartographieInfoRequestFilters;
+    adminComment: string;
+  }) => void;
   onReject: (id: string) => void;
   busyId: string | null;
 }) {
@@ -184,7 +323,7 @@ export default function CartographieInfoRequestsPage() {
 
   const approveMutation = useMutation({
     mutationFn: approveCartographieInfoRequest,
-    onMutate: (id) => setBusyId(id),
+    onMutate: (input) => setBusyId(input.requestId),
     onSettled: () => setBusyId(null),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ["cartographie-info-requests"] });
@@ -205,13 +344,33 @@ export default function CartographieInfoRequestsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
+  const handleApprove = (payload: {
+    requestId: string;
+    requestedFields: CartographieInfoFieldKey[];
+    filters: CartographieInfoRequestFilters;
+    adminComment: string;
+  }) => {
+    if (payload.requestedFields.length === 0) {
+      toast.error("Sélectionnez au moins un élément d'information.");
+      return;
+    }
+    approveMutation.mutate({
+      requestId: payload.requestId,
+      requestedFields: payload.requestedFields,
+      filterActivities: payload.filters.activities,
+      filterProvinces: payload.filters.provinces,
+      filterCommunes: payload.filters.communes,
+      adminComment: payload.adminComment,
+    });
+  };
+
   return (
     <div className="min-h-full bg-background p-6 md:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Demandes d&apos;information</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Demandes d&apos;export des données cartographie. L&apos;approbation envoie un fichier Excel
-          des éléments initiaux demandés au demandeur.
+          Revoyez les filtres et éléments demandés, ajoutez un commentaire, puis approuvez pour
+          envoyer l&apos;Excel filtré au demandeur.
         </p>
       </div>
 
@@ -233,7 +392,7 @@ export default function CartographieInfoRequestsPage() {
             <RequestList
               requests={pending}
               emptyLabel="Aucune demande en attente."
-              onApprove={(id) => approveMutation.mutate(id)}
+              onApprove={handleApprove}
               onReject={(id) => rejectMutation.mutate(id)}
               busyId={busyId}
             />
@@ -242,7 +401,7 @@ export default function CartographieInfoRequestsPage() {
             <RequestList
               requests={approved}
               emptyLabel="Aucune demande approuvée."
-              onApprove={(id) => approveMutation.mutate(id)}
+              onApprove={handleApprove}
               onReject={(id) => rejectMutation.mutate(id)}
               busyId={busyId}
             />
@@ -251,7 +410,7 @@ export default function CartographieInfoRequestsPage() {
             <RequestList
               requests={rejected}
               emptyLabel="Aucune demande rejetée."
-              onApprove={(id) => approveMutation.mutate(id)}
+              onApprove={handleApprove}
               onReject={(id) => rejectMutation.mutate(id)}
               busyId={busyId}
             />
@@ -260,7 +419,7 @@ export default function CartographieInfoRequestsPage() {
             <RequestList
               requests={requests}
               emptyLabel="Aucune demande."
-              onApprove={(id) => approveMutation.mutate(id)}
+              onApprove={handleApprove}
               onReject={(id) => rejectMutation.mutate(id)}
               busyId={busyId}
             />

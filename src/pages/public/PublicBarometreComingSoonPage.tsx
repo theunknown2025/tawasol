@@ -1,24 +1,25 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Maximize2, Minimize2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicPageHero } from "@/components/public/PublicPageHero";
-import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import { BarometreChartPanel } from "@/pages/super-admin/LP_Manager/BarometreStats/BarometreChartPanel";
 import { fetchPublishedBarometreDatasets } from "@/pages/super-admin/LP_Manager/BarometreStats/barometreDatasetsApi";
-import type { BarometreDataset } from "@/pages/super-admin/LP_Manager/BarometreStats/barometreDatasetTypes";
 
-/** Courte accroche pour la liste latérale. */
-function shortDescription(text: string, maxChars = 90): string {
-  const t = text.replace(/\s+/g, " ").trim();
-  if (!t) return "";
-  if (t.length <= maxChars) return t;
-  const cut = t.slice(0, maxChars);
-  const softer = cut.replace(/\s+\S*$/, "").trim();
-  return `${softer || cut}…`;
+function chartAnchorId(id: string) {
+  return `barometre-chart-${id}`;
 }
+
+/** Distance from viewport top when the sidebar pins (≈ site header clearance). */
+const SIDEBAR_PIN_TOP_PX = 96;
 
 export default function PublicBarometreComingSoonPage() {
   const { data = [], isLoading, isError } = useQuery({
@@ -27,31 +28,64 @@ export default function PublicBarometreComingSoonPage() {
     staleTime: 60_000,
   });
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [fullWidth, setFullWidth] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [openNav, setOpenNav] = useState<string[]>([]);
+
+  const sidebarAnchorRef = useRef<HTMLElement>(null);
+  const sidebarInnerRef = useRef<HTMLDivElement>(null);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
+  const [sidebarBox, setSidebarBox] = useState({ left: 0, width: 280, height: 0 });
+
+  const updateSidebarPin = useCallback(() => {
+    const anchor = sidebarAnchorRef.current;
+    const inner = sidebarInnerRef.current;
+    if (!anchor || !inner) return;
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const shouldPin = anchorRect.top <= SIDEBAR_PIN_TOP_PX;
+
+    setSidebarBox({
+      left: anchorRect.left,
+      width: anchorRect.width,
+      height: inner.offsetHeight,
+    });
+    setSidebarPinned(shouldPin);
+  }, []);
 
   useEffect(() => {
-    if (data.length === 0) {
-      setSelectedId(null);
-      return;
-    }
-    setSelectedId((prev) => {
-      if (prev && data.some((d) => d.id === prev)) return prev;
-      return data[0]!.id;
-    });
-  }, [data]);
+    updateSidebarPin();
+    window.addEventListener("scroll", updateSidebarPin, { passive: true });
+    window.addEventListener("resize", updateSidebarPin);
+    return () => {
+      window.removeEventListener("scroll", updateSidebarPin);
+      window.removeEventListener("resize", updateSidebarPin);
+    };
+  }, [updateSidebarPin, data.length]);
 
-  const selected: BarometreDataset | null =
-    data.find((d) => d.id === selectedId) ?? data[0] ?? null;
+  const scrollToChart = useCallback((id: string) => {
+    setActiveId(id);
+    const el = document.getElementById(chartAnchorId(id));
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const onNavValueChange = (next: string[]) => {
+    const newlyOpened = next.find((id) => !openNav.includes(id));
+    setOpenNav(next);
+    if (newlyOpened) scrollToChart(newlyOpened);
+    // Accordion open/close changes height — refresh pin metrics next frame.
+    requestAnimationFrame(updateSidebarPin);
+  };
 
   return (
     <PublicShell>
       <PublicPageHero
         title="Baromètre"
         description="Indicateurs et statistiques du REMESS."
+        contentMaxWidthClassName="max-w-[1600px]"
       />
-      <main className="mx-auto flex w-full max-w-6xl flex-col px-4 py-8 md:px-8 md:py-10">
-        <div className="mb-8">
+      <main className="mx-auto flex w-full max-w-[100vw] flex-col px-3 py-8 sm:px-5 md:px-8 md:py-10 lg:px-10 xl:px-12">
+        <div className="mb-8 max-w-[1600px]">
           <PublicBreadcrumbs
             items={[
               { label: "Accueil", to: "/" },
@@ -69,106 +103,132 @@ export default function PublicBarometreComingSoonPage() {
           <p className="py-16 text-center text-sm text-muted-foreground">
             Les indicateurs ne sont pas disponibles pour le moment.
           </p>
-        ) : data.length === 0 || !selected ? (
+        ) : data.length === 0 ? (
           <p className="py-16 text-center text-sm text-muted-foreground">
             Aucun graphique publié pour le moment.
           </p>
         ) : (
-          <div
-            className={cn(
-              "grid gap-8 lg:gap-10",
-              fullWidth
-                ? "grid-cols-1"
-                : "grid-cols-1 lg:grid-cols-[minmax(0,4fr)_minmax(0,1fr)]",
-            )}
-          >
-            <section className="min-w-0">
-              <h2 className="text-lg font-semibold text-foreground sm:text-xl">
-                {selected.name}
-              </h2>
-              {selected.description ? (
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  {selected.description}
-                </p>
-              ) : null}
-
-              <div className="mt-4">
-                <BarometreChartPanel
-                  key={selected.id}
-                  title={selected.name}
-                  columns={selected.columns}
-                  rows={selected.rows}
-                  xColumnId={selected.x_column_id}
-                  yColumnIds={selected.y_column_ids}
-                  chartType={selected.chart_type}
-                  height={fullWidth ? 480 : 400}
-                  filtersBehindGear
-                  toolbarExtra={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setFullWidth((v) => !v)}
-                      aria-label={
-                        fullWidth
-                          ? "Réduire l’affichage du graphique"
-                          : "Afficher le graphique en pleine largeur"
+          <div className="grid w-full gap-8 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:gap-10 xl:gap-12">
+            <aside
+              ref={sidebarAnchorRef}
+              className="relative min-w-0"
+              style={
+                sidebarPinned
+                  ? { height: sidebarBox.height || undefined }
+                  : undefined
+              }
+            >
+              <div
+                ref={sidebarInnerRef}
+                className={cn(
+                  "max-h-[calc(100vh-7rem)] overflow-y-auto",
+                  sidebarPinned && "fixed z-10",
+                )}
+                style={
+                  sidebarPinned
+                    ? {
+                        top: SIDEBAR_PIN_TOP_PX,
+                        left: sidebarBox.left,
+                        width: sidebarBox.width,
                       }
-                      title={fullWidth ? "Réduire" : "Plein écran (100 %)"}
-                    >
-                      {fullWidth ? (
-                        <Minimize2 className="h-4 w-4" aria-hidden />
-                      ) : (
-                        <Maximize2 className="h-4 w-4" aria-hidden />
-                      )}
-                    </Button>
-                  }
-                />
-              </div>
-            </section>
-
-            {!fullWidth ? (
-              <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Graphiques
-                </p>
-                <ul className="divide-y divide-border border-y border-border">
-                  {data.map((dataset) => {
-                    const active = dataset.id === selected.id;
-                    const teaser = shortDescription(dataset.description);
-                    return (
-                      <li key={dataset.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedId(dataset.id)}
-                          className={cn(
-                            "w-full py-3 text-left transition-colors",
-                            active
-                              ? "text-foreground"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
+                    : undefined
+                }
+              >
+                <div className="pr-2 sm:pr-4">
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Graphiques
+                  </p>
+                  <Accordion
+                    type="multiple"
+                    value={openNav}
+                    onValueChange={onNavValueChange}
+                    className="w-full"
+                  >
+                    {data.map((dataset) => {
+                      const isActive = dataset.id === activeId;
+                      return (
+                        <AccordionItem
+                          key={dataset.id}
+                          value={dataset.id}
+                          className="border-border/60"
                         >
-                          <span
+                          <AccordionTrigger
                             className={cn(
-                              "block text-sm leading-snug",
-                              active ? "font-semibold" : "font-medium",
+                              "py-3 text-left text-sm hover:no-underline",
+                              isActive
+                                ? "font-semibold text-foreground"
+                                : "font-medium text-muted-foreground hover:text-foreground",
                             )}
+                            onClick={() => scrollToChart(dataset.id)}
                           >
-                            {dataset.name}
-                          </span>
-                          {teaser ? (
-                            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-                              {teaser}
-                            </span>
-                          ) : null}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </aside>
-            ) : null}
+                            <span className="pr-2 leading-snug">{dataset.name}</span>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-3">
+                            {dataset.description ? (
+                              <p className="text-xs leading-relaxed text-muted-foreground">
+                                {dataset.description}
+                              </p>
+                            ) : (
+                              <p className="text-xs italic text-muted-foreground/80">
+                                Aucune description.
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              className="mt-2 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                              onClick={() => scrollToChart(dataset.id)}
+                            >
+                              Voir le graphique
+                            </button>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </div>
+              </div>
+            </aside>
+
+            <div className="flex w-full min-w-0 flex-col gap-14 md:gap-16">
+              {data.map((dataset, index) => (
+                <section
+                  key={dataset.id}
+                  id={chartAnchorId(dataset.id)}
+                  className="scroll-mt-24"
+                  onMouseEnter={() => setActiveId(dataset.id)}
+                  onFocusCapture={() => setActiveId(dataset.id)}
+                >
+                  <header className="mb-5 flex flex-col gap-1 sm:mb-6">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                        {dataset.name}
+                      </h2>
+                    </div>
+                    {dataset.description ? (
+                      <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:pl-9">
+                        {dataset.description}
+                      </p>
+                    ) : null}
+                  </header>
+
+                  <BarometreChartPanel
+                    title={dataset.name}
+                    columns={dataset.columns}
+                    rows={dataset.rows}
+                    xColumnId={dataset.x_column_id}
+                    yColumnIds={dataset.y_column_ids}
+                    chartType={dataset.chart_type}
+                    height={420}
+                    filtersBehindGear
+                    filtersPlacement="aside"
+                    downloadIconOnly
+                  />
+                </section>
+              ))}
+            </div>
           </div>
         )}
       </main>

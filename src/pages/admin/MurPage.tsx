@@ -246,7 +246,7 @@ export default function MurPage() {
               {/* Actions */}
               <div className="flex items-center gap-2 border-t border-border pt-3">
                 <Button variant="ghost" size="sm" onClick={() => handleLike(pub.id)} className="gap-1.5">
-                  <Heart size={16} className={pub.likes > 0 ? "fill-destructive text-destructive" : ""} />
+                  <Heart size={16} className={pub.likedByMe ? "fill-destructive text-destructive" : ""} />
                   {pub.likes > 0 && pub.likes}
                 </Button>
                 {canManage && (
@@ -360,7 +360,7 @@ export default function MurPage() {
                         onClick={() => handleLike(pub.id)}
                         className="gap-2 -ml-2"
                       >
-                        <Heart size={18} className={pub.likes > 0 ? "fill-destructive text-destructive" : ""} />
+                        <Heart size={18} className={pub.likedByMe ? "fill-destructive text-destructive" : ""} />
                         <span>{pub.likes} j'aime</span>
                       </Button>
                     </div>

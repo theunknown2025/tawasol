@@ -56,6 +56,7 @@ export default function EditEvenementPage() {
         initialDeadlineInscription={event.deadlineInscription}
         initialLiens={event.liens}
         initialRegistrationFormId={event.registrationFormId}
+        initialIsPublic={event.isPublic}
         existingBannerUrl={event.bannerUrl}
         existingFileNames={event.files.map((f) => f.name)}
         submitLabel="Enregistrer les modifications"
@@ -70,6 +71,7 @@ export default function EditEvenementPage() {
             deadlineInscription: payload.deadlineInscription,
             liens: payload.liens,
             registrationFormId: payload.registrationFormId,
+            isPublic: payload.isPublic,
             banner: payload.banner,
             newFiles: payload.files,
           });

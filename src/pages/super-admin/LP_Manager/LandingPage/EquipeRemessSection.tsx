@@ -173,7 +173,12 @@ function FeaturedMember({ member }: { member: EquipeMember }) {
           )}
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4 p-5 sm:p-6 lg:w-[45%] lg:flex-none lg:p-7">
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col gap-4 p-5 sm:p-6 lg:p-7",
+            skills.length > 0 ? "lg:w-[45%] lg:flex-none" : "lg:w-[70%]",
+          )}
+        >
           <header className="space-y-3 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h3 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
@@ -213,20 +218,18 @@ function FeaturedMember({ member }: { member: EquipeMember }) {
           </p>
         </div>
 
-        <div className="flex w-full flex-col justify-center gap-4 bg-muted/20 p-5 sm:p-6 lg:w-[35%] lg:p-7">
-          <p className="pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Compétences
-          </p>
-          {skills.length > 0 ? (
+        {skills.length > 0 ? (
+          <div className="flex w-full flex-col justify-center gap-4 bg-muted/20 p-5 sm:p-6 lg:w-[35%] lg:p-7">
+            <p className="pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Compétences
+            </p>
             <ul className="space-y-3" role="list">
               {skills.map((skill) => (
                 <SkillBanner key={skill.name} skill={skill} />
               ))}
             </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Aucune compétence renseignée.</p>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );

@@ -86,13 +86,13 @@ export default function SuiviCandidaturesPage() {
             return (
               <div key={field.id}>
                 <p className="text-xs font-semibold text-muted-foreground">{field.label}</p>
-                <p className="text-sm">
+                <div className="text-sm">
                   {file ? (
                     <ApplicationFileLink path={file.path} fileName={file.fileName} />
                   ) : (
-                    answer || "—"
+                    <p>{answer || "—"}</p>
                   )}
-                </p>
+                </div>
               </div>
             );
           })}

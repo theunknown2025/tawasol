@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ChevronDown, ImageIcon, Menu, X } from "lucide-react";
 import {
   LANDING_PAGE_SECTION_ANCHOR_ID,
@@ -15,6 +15,8 @@ import {
   type LandingSectionVisibilityMap,
 } from "@/lib/lpLandingSectionVisibility";
 import { usePublicLpSectionVisibility } from "@/hooks/usePublicLpSectionVisibility";
+import { useAuth } from "@/contexts/AuthContext";
+import { getDashboardPath } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 type HeaderSectionProps = {
@@ -293,51 +295,47 @@ function navLabelShort(label: LandingPageSectionLabel): string {
   return label;
 }
 
-function AuthButtons({
-  loginLabel,
-  signLabel,
-  loginHref,
-  signHref,
+function MemberSpaceButton({
   layout,
   className,
+  hrefWhenLoggedOut = "/auth",
 }: {
-  loginLabel: string;
-  signLabel: string;
-  loginHref: string;
-  signHref: string;
   layout: NavLayout;
   className?: string;
+  hrefWhenLoggedOut?: string;
 }) {
+  const { user, profile, loading } = useAuth();
   const stacked = layout === "stacked";
+  const isLoggedIn = Boolean(user && profile && profile.is_active !== false);
+  const displayName =
+    profile?.full_name?.trim() ||
+    user?.email?.trim() ||
+    null;
+  const label =
+    !loading && isLoggedIn && displayName ? displayName : "Espace Membre";
+  const href = isLoggedIn && profile ? getDashboardPath(profile.role) : hrefWhenLoggedOut;
+
   return (
     <nav
       className={cn(
         "flex shrink-0",
         stacked
           ? "flex-col items-stretch gap-2"
-          : "items-center justify-center gap-2 sm:justify-end sm:gap-3 md:ml-auto md:pl-2",
+          : "items-center justify-center gap-2 sm:justify-end md:ml-auto md:pl-2",
         className,
       )}
-      aria-label="Actions de connexion"
+      aria-label="Espace membre"
     >
-      <a
-        href={loginHref}
+      <Link
+        to={href}
         className={cn(
-          "inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4",
-          stacked && "w-full",
+          "inline-flex h-9 max-w-[14rem] items-center justify-center truncate rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4",
+          stacked && "w-full max-w-none",
         )}
+        title={label}
       >
-        {loginLabel}
-      </a>
-      <a
-        href={signHref}
-        className={cn(
-          "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4",
-          stacked && "w-full",
-        )}
-      >
-        {signLabel}
-      </a>
+        {label}
+      </Link>
     </nav>
   );
 }
@@ -367,7 +365,7 @@ export function HeaderSection({
   sectionVisibility: sectionVisibilityProp,
 }: HeaderSectionProps) {
   const hasLogo = content.showLogo && content.logoUrl.trim().length > 0;
-  /** Sur le chrome public, toujours afficher Connexion / inscription (indépendamment du toggle CMS). */
+  /** Sur le chrome public, toujours afficher Espace Membre (indépendamment du toggle CMS). */
   const showAuth = showPublicSiteNav || content.showAuthButtons;
   const hasLeft = content.showLogo || content.showTitle;
   const hasRight = showAuth;
@@ -486,10 +484,10 @@ export function HeaderSection({
     };
   }, [menuOpen, accueilMenuOpen]);
 
-  const loginLabel = content.loginCta.label.trim() || "Connexion";
-  const signLabel = content.signInCta.label.trim() || "S'inscrire";
-  const loginHref = content.loginCta.href.trim() || "#";
-  const signHref = content.signInCta.href.trim() || "#";
+  const memberSpaceHref =
+    content.loginCta.href.trim() && content.loginCta.href.trim() !== "#"
+      ? content.loginCta.href.trim()
+      : "/auth";
   const closeMenu = () => setMenuOpen(false);
 
   if (!hasLeft && !hasRight && !hasNav && !showPublicSiteNav) {
@@ -607,11 +605,8 @@ export function HeaderSection({
         {sectionNav("inline", "hidden border-t-0 md:flex")}
 
         {showAuth ? (
-          <AuthButtons
-            loginLabel={loginLabel}
-            signLabel={signLabel}
-            loginHref={loginHref}
-            signHref={signHref}
+          <MemberSpaceButton
+            hrefWhenLoggedOut={memberSpaceHref}
             layout="inline"
             className={cn(showMobileBurger && "ml-auto md:ml-auto")}
           />

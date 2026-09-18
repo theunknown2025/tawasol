@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type { SelectedFile } from "./types";
 import { AdminEventPreviewPanel } from "./AdminEventPreviewPanel";
@@ -23,6 +24,7 @@ export type EvenementFormSubmitPayload = {
   liens: string[];
   files: { file: File; name: string; type: string }[];
   registrationFormId: string | null;
+  isPublic: boolean;
 };
 
 type FormProps = {
@@ -35,6 +37,7 @@ type FormProps = {
   initialDeadlineInscription?: string | null;
   initialLiens?: string[];
   initialRegistrationFormId?: string | null;
+  initialIsPublic?: boolean;
   /** Bannière actuelle (URL) en mode édition */
   existingBannerUrl?: string | null;
   /** Noms des fichiers déjà enregistrés (aperçu) */
@@ -55,6 +58,7 @@ export function EvenementEditorForm({
   initialDeadlineInscription = null,
   initialLiens,
   initialRegistrationFormId = null,
+  initialIsPublic = true,
   existingBannerUrl = null,
   existingFileNames = [],
   onSubmit,
@@ -66,6 +70,7 @@ export function EvenementEditorForm({
   const [description, setDescription] = useState(initialDescription);
   const [banner, setBanner] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     if (initialEventDateStart) {
       const from = parseIsoDateLocal(initialEventDateStart);
@@ -105,6 +110,7 @@ export function EvenementEditorForm({
     initialEventDateEnd,
     initialDeadlineInscription,
     initialRegistrationFormId,
+    initialIsPublic,
     existingBannerUrl,
     JSON.stringify(initialLiens ?? []),
   ].join("|");
@@ -113,6 +119,7 @@ export function EvenementEditorForm({
     cancelNewBanner();
     setTitre(initialTitre);
     setDescription(initialDescription);
+    setIsPublic(initialIsPublic);
     if (initialEventDateStart) {
       const from = parseIsoDateLocal(initialEventDateStart);
       const to = initialEventDateEnd ? parseIsoDateLocal(initialEventDateEnd) : undefined;
@@ -192,6 +199,7 @@ export function EvenementEditorForm({
     setTitre("");
     setDescription("");
     cancelNewBanner();
+    setIsPublic(true);
     setDateRange(undefined);
     setDeadline(undefined);
     setLiens([""]);
@@ -212,6 +220,7 @@ export function EvenementEditorForm({
       liens: liens.filter((l) => l.trim()),
       files: selectedFiles.map(({ file, name, type }) => ({ file, name, type })),
       registrationFormId: registrationFormId === "none" ? null : registrationFormId,
+      isPublic,
     });
     if (mode === "create") {
       resetForm();
@@ -227,6 +236,31 @@ export function EvenementEditorForm({
         <h2 className="text-lg font-semibold text-foreground">
           {mode === "create" ? "Nouvel événement" : "Modifier l’événement"}
         </h2>
+
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
+          <div className="min-w-0 space-y-0.5">
+            <Label htmlFor="evenement-public" className="text-sm font-medium">
+              Événement public
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {isPublic
+                ? "Oui — visible sur la landing, la page événements et dans Tawasol."
+                : "Non — visible uniquement dans Tawasol (pas sur la landing ni /events)."}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className={cn("text-xs font-medium", !isPublic && "text-muted-foreground")}>
+              Non
+            </span>
+            <Switch
+              id="evenement-public"
+              checked={isPublic}
+              onCheckedChange={setIsPublic}
+              aria-label="Événement public"
+            />
+            <span className={cn("text-xs font-medium", isPublic && "text-foreground")}>Oui</span>
+          </div>
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="titre">Titre</Label>

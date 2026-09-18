@@ -10,6 +10,8 @@ import {
   useSubscriptionsForMyEvents,
 } from "@/hooks/useEventSubscriptions";
 import { useEventFormRegistrationsForMyEvents } from "@/hooks/useEventFormRegistrations";
+import { useAuth } from "@/contexts/AuthContext";
+import { ROLES } from "@/lib/supabase";
 import { toast } from "sonner";
 
 import { EventPreview } from "./EventPreview";
@@ -20,6 +22,8 @@ import { MesInscriptions } from "./MesInscriptions";
 import type { EvenementFormSubmitPayload } from "./EvenementEditorForm";
 
 export default function EvenementsPage() {
+  const { profile } = useAuth();
+  const isSuperAdmin = profile?.role === ROLES.SUPER_ADMIN;
   const { evenements: allEvents, isLoading: loadingAll } = useEvenements("all");
   const { evenements: myEvents, isLoading: loadingMine } = useEvenements("mine");
   const {
@@ -61,10 +65,21 @@ export default function EvenementsPage() {
     if (t === "tous" || t === "mine" || t === "inscriptions" || t === "nouveau") setTab(t);
   }, [searchParams]);
 
+  const isAdmin = profile?.role === ROLES.ADMIN;
+  const canSeeUnpublished = isSuperAdmin || isAdmin;
+
   const publishedEvents = useMemo(
     () => allEvents.filter((e) => e.status === "published"),
     [allEvents],
   );
+
+  /** Super admin + admin see drafts (yellow). Members / others only see published. */
+  const tousEvents = useMemo(
+    () => (canSeeUnpublished ? allEvents : publishedEvents),
+    [canSeeUnpublished, allEvents, publishedEvents],
+  );
+
+  const tousBadgeCount = canSeeUnpublished ? allEvents.length : publishedEvents.length;
 
   const handleDelete = async (id: string) => {
     try {
@@ -113,6 +128,7 @@ export default function EvenementsPage() {
       titre: data.titre,
       description: data.description,
       status: "published",
+      isPublic: data.isPublic,
       banner: data.banner,
       eventDateStart: data.eventDateStart,
       eventDateEnd: data.eventDateEnd,
@@ -148,7 +164,7 @@ export default function EvenementsPage() {
           <TabsTrigger value="tous">
             Tous les événements
             <Badge variant="secondary" className="ml-2 text-xs">
-              {publishedEvents.length}
+              {tousBadgeCount}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="mine">
@@ -171,10 +187,14 @@ export default function EvenementsPage() {
 
         <TabsContent value="tous" className="mt-0">
           <AllEvents
-            events={publishedEvents}
+            events={tousEvents}
             isLoading={loadingAll}
             onView={setViewEvt}
             onSubscribe={handleSubscribe}
+            onPublish={isSuperAdmin ? handlePublish : undefined}
+            onUnpublish={isSuperAdmin ? handleUnpublish : undefined}
+            canManagePublish={isSuperAdmin}
+            isUpdatingStatus={isUpdating}
           />
         </TabsContent>
 

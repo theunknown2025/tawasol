@@ -251,71 +251,30 @@ export function HeaderManager({ value, onChange }: HeaderManagerProps) {
         <>
           <Separator />
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Actions
+            Espace membre
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label className="text-sm font-medium">Connexion (Login)</Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="hdr-login-lbl" className="text-xs text-muted-foreground">
-                    Libellé
-                  </Label>
-                  <Input
-                    id="hdr-login-lbl"
-                    value={value.loginCta.label}
-                    onChange={(e) =>
-                      patch({ loginCta: { ...value.loginCta, label: e.target.value } })
-                    }
-                    placeholder="Connexion"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="hdr-login-href" className="text-xs text-muted-foreground">
-                    Lien
-                  </Label>
-                  <Input
-                    id="hdr-login-href"
-                    value={value.loginCta.href}
-                    onChange={(e) =>
-                      patch({ loginCta: { ...value.loginCta, href: e.target.value } })
-                    }
-                    placeholder="/auth"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label className="text-sm font-medium">Inscription (Sign up)</Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="hdr-sign-lbl" className="text-xs text-muted-foreground">
-                    Libellé
-                  </Label>
-                  <Input
-                    id="hdr-sign-lbl"
-                    value={value.signInCta.label}
-                    onChange={(e) =>
-                      patch({ signInCta: { ...value.signInCta, label: e.target.value } })
-                    }
-                    placeholder="S'inscrire"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="hdr-sign-href" className="text-xs text-muted-foreground">
-                    Lien
-                  </Label>
-                  <Input
-                    id="hdr-sign-href"
-                    value={value.signInCta.href}
-                    onChange={(e) =>
-                      patch({ signInCta: { ...value.signInCta, href: e.target.value } })
-                    }
-                    placeholder="/auth"
-                  />
-                </div>
-              </div>
-            </div>
+          <p className="text-xs text-muted-foreground">
+            Un seul bouton est affiché : « Espace Membre » si l’utilisateur n’est pas connecté,
+            sinon son nom. Le lien ci-dessous s’applique aux visiteurs non connectés.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="hdr-login-href" className="text-xs text-muted-foreground">
+              Lien (non connecté)
+            </Label>
+            <Input
+              id="hdr-login-href"
+              value={value.loginCta.href}
+              onChange={(e) =>
+                patch({
+                  loginCta: {
+                    ...value.loginCta,
+                    label: "Espace Membre",
+                    href: e.target.value,
+                  },
+                })
+              }
+              placeholder="/auth"
+            />
           </div>
         </>
       )}

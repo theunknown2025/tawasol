@@ -1,18 +1,14 @@
-/** Champs exportables des coopératives (éléments initiaux). */
+/** Champs exportables des coopératives (éléments d'information). */
 export const CARTOGRAPHIE_INFO_FIELD_OPTIONS = [
   { key: "nom", label: "Nom de la coopérative" },
   { key: "description", label: "Description" },
-  { key: "secteur", label: "Secteur d'activité" },
   { key: "sous_secteur", label: "Sous-secteur" },
-  { key: "province", label: "Province" },
-  { key: "commune", label: "Commune" },
   { key: "adresse", label: "Adresse" },
   { key: "coordonnees", label: "Coordonnées (longitude / latitude)" },
   { key: "temps_de_travail", label: "Temps de travail" },
   { key: "facebook", label: "Facebook" },
   { key: "instagram", label: "Instagram" },
   { key: "liens", label: "Liens" },
-  { key: "image_url", label: "Image (URL)" },
 ] as const;
 
 export type CartographieInfoFieldKey = (typeof CARTOGRAPHIE_INFO_FIELD_OPTIONS)[number]["key"];
@@ -23,6 +19,12 @@ export const CARTOGRAPHIE_INFO_FIELD_KEYS = CARTOGRAPHIE_INFO_FIELD_OPTIONS.map(
 
 export type CartographieInfoRequestStatus = "pending" | "approved" | "rejected";
 
+export type CartographieInfoRequestFilters = {
+  activities: string[];
+  provinces: string[];
+  communes: string[];
+};
+
 export type CartographieInfoRequest = {
   id: string;
   fullName: string;
@@ -31,7 +33,11 @@ export type CartographieInfoRequest = {
   fonction: string;
   etablissement: string;
   requestedFields: CartographieInfoFieldKey[];
+  filterActivities: string[];
+  filterProvinces: string[];
+  filterCommunes: string[];
   usageDescription: string;
+  adminComment: string | null;
   status: CartographieInfoRequestStatus;
   reviewedAt: string | null;
   reviewedBy: string | null;
@@ -54,4 +60,16 @@ export function isCartographieInfoFieldKey(value: string): value is Cartographie
 export function labelForInfoField(key: string): string {
   const found = CARTOGRAPHIE_INFO_FIELD_OPTIONS.find((o) => o.key === key);
   return found?.label ?? key;
+}
+
+export function normalizeStringList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const t = item.trim();
+    if (!t || out.includes(t)) continue;
+    out.push(t);
+  }
+  return out;
 }

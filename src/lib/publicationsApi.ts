@@ -32,6 +32,7 @@ export interface Publication {
   createdAt: Date;
   publishedAt?: Date;
   likes: number;
+  likedByMe: boolean;
   clicks: number;
   comments: PublicationComment[];
 }
@@ -66,7 +67,11 @@ async function getSignedFileUrl(bucket: string, path: string): Promise<string> {
   return data.signedUrl;
 }
 
-function mapDbToPublication(db: DbPublication, fileUrls?: Map<string, string>): Publication {
+function mapDbToPublication(
+  db: DbPublication,
+  fileUrls?: Map<string, string>,
+  likedIds?: Set<string>
+): Publication {
   const files: PublicationFile[] = (db.publication_files ?? []).map((f) => {
     const key = `${f.bucket}/${f.storage_path}`;
     const url =
@@ -100,9 +105,26 @@ function mapDbToPublication(db: DbPublication, fileUrls?: Map<string, string>): 
     createdAt: new Date(db.created_at),
     publishedAt: db.published_at ? new Date(db.published_at) : undefined,
     likes: db.likes,
+    likedByMe: likedIds?.has(db.id) ?? false,
     clicks: db.clicks,
     comments,
   };
+}
+
+/** Publication IDs the current user has liked */
+async function fetchMyLikedPublicationIds(): Promise<Set<string>> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return new Set();
+
+  const { data, error } = await supabase
+    .from("publication_likes")
+    .select("publication_id")
+    .eq("user_id", user.id);
+
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.publication_id as string));
 }
 
 /** Load signed URLs for private (PDF) files */
@@ -147,9 +169,12 @@ export async function fetchPublications(): Promise<Publication[]> {
       .filter((f: { bucket: string }) => f.bucket === BUCKET_FILES)
       .map((f: { bucket: string; storage_path: string }) => ({ bucket: f.bucket, storage_path: f.storage_path }))
   );
-  const signedUrls = await loadSignedUrls(privateFiles);
+  const [signedUrls, likedIds] = await Promise.all([
+    loadSignedUrls(privateFiles),
+    fetchMyLikedPublicationIds(),
+  ]);
 
-  return rows.map((d) => mapDbToPublication(d as unknown as DbPublication, signedUrls));
+  return rows.map((d) => mapDbToPublication(d as unknown as DbPublication, signedUrls, likedIds));
 }
 
 /** Fetch only publications by the current authenticated user (for Liste Publication) */
@@ -186,9 +211,12 @@ export async function fetchMyPublications(): Promise<Publication[]> {
       .filter((f: { bucket: string }) => f.bucket === BUCKET_FILES)
       .map((f: { bucket: string; storage_path: string }) => ({ bucket: f.bucket, storage_path: f.storage_path }))
   );
-  const signedUrls = await loadSignedUrls(privateFiles);
+  const [signedUrls, likedIds] = await Promise.all([
+    loadSignedUrls(privateFiles),
+    fetchMyLikedPublicationIds(),
+  ]);
 
-  return rows.map((d) => mapDbToPublication(d as unknown as DbPublication, signedUrls));
+  return rows.map((d) => mapDbToPublication(d as unknown as DbPublication, signedUrls, likedIds));
 }
 
 export interface CreatePublicationInput {
@@ -284,22 +312,18 @@ export async function deletePublication(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function toggleLike(id: string): Promise<void> {
-  const { data, error } = await supabase
-    .from("publications")
-    .select("likes")
-    .eq("id", id)
-    .single();
+export async function toggleLike(id: string): Promise<{ likes: number; liked: boolean }> {
+  const { data, error } = await supabase.rpc("toggle_publication_like", {
+    p_publication_id: id,
+  });
 
   if (error) throw error;
-  const current = (data as { likes: number }).likes;
 
-  const { error: updateError } = await supabase
-    .from("publications")
-    .update({ likes: current + 1, updated_at: new Date().toISOString() })
-    .eq("id", id);
-
-  if (updateError) throw updateError;
+  const result = data as { likes: number; liked: boolean } | null;
+  if (!result || typeof result.likes !== "number" || typeof result.liked !== "boolean") {
+    throw new Error("Réponse like invalide");
+  }
+  return result;
 }
 
 export async function incrementClicks(id: string): Promise<void> {

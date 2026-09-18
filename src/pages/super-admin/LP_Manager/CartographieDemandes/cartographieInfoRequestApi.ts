@@ -2,6 +2,7 @@ import { FunctionsHttpError, FunctionsRelayError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import {
   isCartographieInfoFieldKey,
+  normalizeStringList,
   type CartographieInfoFieldKey,
   type CartographieInfoRequest,
   type CartographieInfoRequestStatus,
@@ -15,7 +16,11 @@ type DbRow = {
   fonction: string;
   etablissement: string;
   requested_fields: unknown;
+  filter_activities: unknown;
+  filter_provinces: unknown;
+  filter_communes: unknown;
   usage_description: string;
+  admin_comment: string | null;
   status: string;
   reviewed_at: string | null;
   reviewed_by: string | null;
@@ -50,7 +55,11 @@ function mapRow(row: DbRow): CartographieInfoRequest {
     fonction: row.fonction ?? "",
     etablissement: row.etablissement ?? "",
     requestedFields: parseRequestedFields(row.requested_fields),
+    filterActivities: normalizeStringList(row.filter_activities),
+    filterProvinces: normalizeStringList(row.filter_provinces),
+    filterCommunes: normalizeStringList(row.filter_communes),
     usageDescription: row.usage_description ?? "",
+    adminComment: row.admin_comment?.trim() ? row.admin_comment.trim() : null,
     status: parseStatus(row.status),
     reviewedAt: row.reviewed_at,
     reviewedBy: row.reviewed_by,
@@ -68,6 +77,9 @@ export type SubmitCartographieInfoRequestInput = {
   fonction: string;
   etablissement: string;
   requestedFields: CartographieInfoFieldKey[];
+  filterActivities: string[];
+  filterProvinces: string[];
+  filterCommunes: string[];
   usageDescription: string;
 };
 
@@ -81,9 +93,22 @@ export async function submitCartographieInfoRequest(
   const etablissement = input.etablissement.trim();
   const usageDescription = input.usageDescription.trim();
   const requestedFields = input.requestedFields.filter(isCartographieInfoFieldKey);
+  const filterActivities = normalizeStringList(input.filterActivities);
+  const filterProvinces = normalizeStringList(input.filterProvinces);
+  const filterCommunes = normalizeStringList(input.filterCommunes);
 
   if (!fullName || !phone || !email || !usageDescription || requestedFields.length === 0) {
     throw new Error("Veuillez remplir tous les champs obligatoires et sélectionner au moins un élément.");
+  }
+
+  if (
+    filterActivities.length === 0 &&
+    filterProvinces.length === 0 &&
+    filterCommunes.length === 0
+  ) {
+    throw new Error(
+      "Veuillez sélectionner au moins un filtre (activité, province ou commune).",
+    );
   }
 
   const { error } = await supabase.from("cartographie_info_requests").insert({
@@ -93,6 +118,9 @@ export async function submitCartographieInfoRequest(
     fonction,
     etablissement,
     requested_fields: requestedFields,
+    filter_activities: filterActivities,
+    filter_provinces: filterProvinces,
+    filter_communes: filterCommunes,
     usage_description: usageDescription,
     status: "pending",
   });
@@ -148,6 +176,15 @@ async function readErrorPayload(error: unknown): Promise<Record<string, unknown>
   return null;
 }
 
+export type ApproveCartographieInfoRequestInput = {
+  requestId: string;
+  requestedFields: CartographieInfoFieldKey[];
+  filterActivities: string[];
+  filterProvinces: string[];
+  filterCommunes: string[];
+  adminComment: string;
+};
+
 export type ApproveCartographieInfoRequestResult = {
   ok: boolean;
   message?: string;
@@ -156,11 +193,23 @@ export type ApproveCartographieInfoRequestResult = {
 
 /** Approuve la demande et envoie l'e-mail Excel via Edge Function. */
 export async function approveCartographieInfoRequest(
-  id: string,
+  input: ApproveCartographieInfoRequestInput,
 ): Promise<ApproveCartographieInfoRequestResult> {
+  const requestedFields = input.requestedFields.filter(isCartographieInfoFieldKey);
+  if (requestedFields.length === 0) {
+    return { ok: false, error: "Sélectionnez au moins un élément d'information." };
+  }
+
   try {
     const { data, error } = await supabase.functions.invoke("approve-cartographie-info-request", {
-      body: { request_id: id },
+      body: {
+        request_id: input.requestId,
+        requested_fields: requestedFields,
+        filter_activities: normalizeStringList(input.filterActivities),
+        filter_provinces: normalizeStringList(input.filterProvinces),
+        filter_communes: normalizeStringList(input.filterCommunes),
+        admin_comment: input.adminComment.trim(),
+      },
       timeout: 60_000,
     });
 

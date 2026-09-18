@@ -15,6 +15,9 @@ const QUERY_KEY_MINE = ["evenements", "mine"] as const;
 function invalidateAll(queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: QUERY_KEY_ALL });
   queryClient.invalidateQueries({ queryKey: QUERY_KEY_MINE });
+  queryClient.invalidateQueries({ queryKey: ["landing", "nos-evenements"] });
+  queryClient.invalidateQueries({ queryKey: ["public-events"] });
+  queryClient.invalidateQueries({ queryKey: ["hero", "latest-publications"] });
 }
 
 export type EvenementsScope = "all" | "mine";

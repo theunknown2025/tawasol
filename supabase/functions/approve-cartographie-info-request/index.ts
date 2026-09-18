@@ -1,6 +1,6 @@
 /**
  * Approve a cartographie info request and email an Excel of published cooperatives
- * (columns = requested fields).
+ * (columns = requested fields, rows filtered by activité / province / commune).
  *
  * Secrets: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS,
  *   SMTP_FROM, SMTP_FROM_NAME (same as notify-smtp-published)
@@ -31,10 +31,23 @@ const FIELD_LABELS: Record<string, string> = {
   facebook: "Facebook",
   instagram: "Instagram",
   liens: "Liens",
-  image_url: "Image (URL)",
 };
 
-const ALLOWED_FIELDS = new Set(Object.keys(FIELD_LABELS));
+/** Colonnes choisies dans le formulaire (hors filtres déjà sélectionnés). */
+const REQUESTABLE_FIELDS = new Set([
+  "nom",
+  "description",
+  "sous_secteur",
+  "adresse",
+  "coordonnees",
+  "temps_de_travail",
+  "facebook",
+  "instagram",
+  "liens",
+]);
+
+/** Toujours inclus dans l'Excel car issus des filtres Activité / Province / Commune. */
+const FILTER_DERIVED_FIELDS = ["secteur", "province", "commune"] as const;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -60,6 +73,18 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function normalizeStringList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const t = item.trim();
+    if (!t || out.includes(t)) continue;
+    out.push(t);
+  }
+  return out;
 }
 
 function parseLinks(raw: unknown): string {
@@ -93,7 +118,6 @@ type CoopRow = {
   instagram_url: string | null;
   links: unknown;
   liens: unknown;
-  image_url: string | null;
 };
 
 function cellForField(coop: CoopRow, key: string): string {
@@ -126,8 +150,6 @@ function cellForField(coop: CoopRow, key: string): string {
       return String(coop.instagram_url ?? "").trim();
     case "liens":
       return parseLinks(coop.links ?? coop.liens);
-    case "image_url":
-      return String(coop.image_url ?? "").trim();
     default:
       return "";
   }
@@ -141,6 +163,32 @@ function buildWorkbook(coops: CoopRow[], fields: string[]): Uint8Array {
   XLSX.utils.book_append_sheet(book, sheet, "Cooperatives");
   const out = XLSX.write(book, { bookType: "xlsx", type: "array" }) as ArrayBuffer | Uint8Array;
   return out instanceof Uint8Array ? out : new Uint8Array(out);
+}
+
+function normKey(s: string): string {
+  return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function matchesAny(value: string, selected: string[]): boolean {
+  if (selected.length === 0) return true;
+  const key = normKey(value);
+  if (!key) return false;
+  return selected.some((s) => normKey(s) === key);
+}
+
+function filterCoops(
+  coops: CoopRow[],
+  filters: { activities: string[]; provinces: string[]; communes: string[] },
+): CoopRow[] {
+  return coops.filter((c) => {
+    const activity = String(c.secteur ?? c.activite ?? c.secteur_activite ?? "");
+    const province = String(c.province_name ?? "");
+    const commune = String(c.commune_name ?? "");
+    if (!matchesAny(activity, filters.activities)) return false;
+    if (!matchesAny(province, filters.provinces)) return false;
+    if (!matchesAny(commune, filters.communes)) return false;
+    return true;
+  });
 }
 
 async function requireSuperAdmin(req: Request): Promise<
@@ -183,7 +231,10 @@ async function sendExcelEmail(params: {
   to: string;
   fullName: string;
   fields: string[];
+  filters: { activities: string[]; provinces: string[]; communes: string[] };
+  adminComment: string;
   xlsx: Uint8Array;
+  rowCount: number;
 }): Promise<void> {
   const host = requireEnv("SMTP_HOST");
   const port = Number.parseInt(optionalEnv("SMTP_PORT") ?? "587", 10);
@@ -194,20 +245,45 @@ async function sendExcelEmail(params: {
   const fromName = optionalEnv("SMTP_FROM_NAME") ?? "REMESS";
 
   const fieldList = params.fields.map((k) => FIELD_LABELS[k] ?? k).join(", ");
+  const filterLines = [
+    params.filters.activities.length
+      ? `Activité : ${params.filters.activities.join(", ")}`
+      : null,
+    params.filters.provinces.length
+      ? `Province : ${params.filters.provinces.join(", ")}`
+      : null,
+    params.filters.communes.length
+      ? `Commune : ${params.filters.communes.join(", ")}`
+      : null,
+  ].filter(Boolean) as string[];
+  const filterText = filterLines.length > 0 ? filterLines.join("\n") : "Aucun filtre (toutes les coopératives publiées)";
+  const commentBlock = params.adminComment.trim();
+
   const subject = "REMESS — Données cartographie des coopératives";
   const text =
     `Bonjour ${params.fullName},\n\n` +
     `Votre demande d'information cartographie a été approuvée.\n` +
-    `Vous trouverez en pièce jointe un fichier Excel contenant les éléments demandés : ${fieldList}.\n\n` +
+    `Vous trouverez en pièce jointe un fichier Excel (${params.rowCount} ligne(s)) contenant les éléments : ${fieldList}.\n\n` +
+    `Filtres appliqués :\n${filterText}\n\n` +
+    (commentBlock ? `Commentaire :\n${commentBlock}\n\n` : "") +
     `Cordialement,\nREMESS\n`;
+
   const html = `<!DOCTYPE html>
 <html>
 <body style="font-family:Arial,sans-serif;line-height:1.5;color:#222;max-width:640px;margin:0 auto;padding:24px">
   <h2 style="margin:0 0 16px;font-size:18px">Demande d'information approuvée</h2>
   <p style="margin:0 0 12px">Bonjour ${escapeHtml(params.fullName)},</p>
   <p style="margin:0 0 12px">Votre demande d'information cartographie a été approuvée.</p>
-  <p style="margin:0 0 12px">Le fichier Excel joint contient les éléments demandés&nbsp;:</p>
+  <p style="margin:0 0 12px">Le fichier Excel joint contient <strong>${params.rowCount}</strong> ligne(s) avec les éléments&nbsp;:</p>
   <p style="margin:0 0 16px;padding:12px 14px;background:#f6f6f6;border-radius:8px">${escapeHtml(fieldList)}</p>
+  <p style="margin:0 0 8px;font-weight:600">Filtres appliqués</p>
+  <p style="margin:0 0 16px;padding:12px 14px;background:#f6f6f6;border-radius:8px;white-space:pre-wrap">${escapeHtml(filterText)}</p>
+  ${
+    commentBlock
+      ? `<p style="margin:0 0 8px;font-weight:600">Commentaire</p>
+  <p style="margin:0 0 16px;padding:12px 14px;background:#f0f7ff;border-radius:8px;white-space:pre-wrap">${escapeHtml(commentBlock)}</p>`
+      : ""
+  }
   <p style="margin:0">Cordialement,<br/>REMESS</p>
 </body>
 </html>`;
@@ -236,6 +312,15 @@ async function sendExcelEmail(params: {
   });
 }
 
+type ApproveBody = {
+  request_id?: string;
+  requested_fields?: unknown;
+  filter_activities?: unknown;
+  filter_provinces?: unknown;
+  filter_communes?: unknown;
+  admin_comment?: unknown;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -249,7 +334,7 @@ Deno.serve(async (req) => {
     const auth = await requireSuperAdmin(req);
     if (!auth.ok) return auth.response;
 
-    const body = (await req.json().catch(() => null)) as { request_id?: string } | null;
+    const body = (await req.json().catch(() => null)) as ApproveBody | null;
     const requestId = String(body?.request_id ?? "").trim();
     if (!requestId) {
       return json({ ok: false, error: "request_id requis" }, 400);
@@ -269,31 +354,66 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "Cette demande a déjà été rejetée." }, 400);
     }
 
-    const rawFields = Array.isArray(request.requested_fields) ? request.requested_fields : [];
-    const fields = rawFields
-      .filter((k): k is string => typeof k === "string" && ALLOWED_FIELDS.has(k));
-    if (fields.length === 0) {
+    const overrideFields = normalizeStringList(body?.requested_fields);
+    const rawFields =
+      overrideFields.length > 0
+        ? overrideFields
+        : Array.isArray(request.requested_fields)
+          ? request.requested_fields
+          : [];
+    const requestedOnly = rawFields.filter(
+      (k): k is string => typeof k === "string" && REQUESTABLE_FIELDS.has(k),
+    );
+    if (requestedOnly.length === 0) {
       return json({ ok: false, error: "Aucun élément d'information valide dans la demande." }, 400);
     }
+    const fields = [
+      ...FILTER_DERIVED_FIELDS.filter((k) => !requestedOnly.includes(k)),
+      ...requestedOnly,
+    ];
+
+    const filters = {
+      activities:
+        body?.filter_activities !== undefined
+          ? normalizeStringList(body.filter_activities)
+          : normalizeStringList(request.filter_activities),
+      provinces:
+        body?.filter_provinces !== undefined
+          ? normalizeStringList(body.filter_provinces)
+          : normalizeStringList(request.filter_provinces),
+      communes:
+        body?.filter_communes !== undefined
+          ? normalizeStringList(body.filter_communes)
+          : normalizeStringList(request.filter_communes),
+    };
+
+    const adminComment =
+      typeof body?.admin_comment === "string"
+        ? body.admin_comment.trim()
+        : String(request.admin_comment ?? "").trim();
 
     const { data: coops, error: cErr } = await auth.admin
       .from("barometre_cooperatives")
       .select(
-        "nom, description, secteur, activite, secteur_activite, sous_secteur, province_name, commune_name, adresse, longitude, latitude, temps_de_travail, facebook_url, instagram_url, links, liens, image_url",
+        "nom, description, secteur, activite, secteur_activite, sous_secteur, province_name, commune_name, adresse, longitude, latitude, temps_de_travail, facebook_url, instagram_url, links, liens",
       )
       .eq("is_published", true)
       .order("nom", { ascending: true });
 
     if (cErr) throw cErr;
 
-    const xlsx = buildWorkbook((coops ?? []) as CoopRow[], fields);
+    const filtered = filterCoops((coops ?? []) as CoopRow[], filters);
+    const xlsx = buildWorkbook(filtered, fields);
 
     try {
       await sendExcelEmail({
         to: String(request.email).trim(),
         fullName: String(request.full_name ?? "").trim() || "Madame, Monsieur",
         fields,
+        filters,
+        adminComment,
         xlsx,
+        rowCount: filtered.length,
       });
     } catch (mailErr) {
       const msg = mailErr instanceof Error ? mailErr.message : String(mailErr);
@@ -303,6 +423,11 @@ Deno.serve(async (req) => {
           status: "approved",
           reviewed_at: new Date().toISOString(),
           reviewed_by: auth.userId,
+          requested_fields: fields,
+          filter_activities: filters.activities,
+          filter_provinces: filters.provinces,
+          filter_communes: filters.communes,
+          admin_comment: adminComment || null,
           email_error: msg,
         })
         .eq("id", requestId);
@@ -318,6 +443,11 @@ Deno.serve(async (req) => {
         status: "approved",
         reviewed_at: new Date().toISOString(),
         reviewed_by: auth.userId,
+        requested_fields: fields,
+        filter_activities: filters.activities,
+        filter_provinces: filters.provinces,
+        filter_communes: filters.communes,
+        admin_comment: adminComment || null,
         email_sent_at: new Date().toISOString(),
         email_error: null,
       })
@@ -327,7 +457,7 @@ Deno.serve(async (req) => {
 
     return json({
       ok: true,
-      message: `Demande approuvée. Excel envoyé à ${String(request.email).trim()}.`,
+      message: `Demande approuvée. Excel (${filtered.length} ligne(s)) envoyé à ${String(request.email).trim()}.`,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

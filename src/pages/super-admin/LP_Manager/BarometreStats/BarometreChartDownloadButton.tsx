@@ -17,18 +17,40 @@ type Props = {
   columns: BarometreColumn[];
   rows: BarometreDataRow[];
   disabled?: boolean;
+  /** Affiche uniquement l’icône (tooltip via title / aria-label). */
+  iconOnly?: boolean;
 };
 
-export function BarometreChartDownloadButton({ fileName, columns, rows, disabled }: Props) {
+export function BarometreChartDownloadButton({
+  fileName,
+  columns,
+  rows,
+  disabled,
+  iconOnly = false,
+}: Props) {
   const canDownload = !disabled && columns.length > 0 && rows.length > 0;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" disabled={!canDownload}>
-          <Download className="mr-2 h-4 w-4" />
-          Télécharger les données
-        </Button>
+        {iconOnly ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            disabled={!canDownload}
+            aria-label="Télécharger les données"
+            title="Télécharger les données"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" size="sm" disabled={!canDownload}>
+            <Download className="mr-2 h-4 w-4" />
+            Télécharger les données
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem

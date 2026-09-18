@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   CalendarDays,
@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -25,11 +26,67 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import type { Evenement } from "@/hooks/useEvenements";
 import type { EventSubscription } from "@/hooks/useEventSubscriptions";
 import type { EventFormRegistration } from "@/hooks/useEventFormRegistrations";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SignedStorageFileAccess } from "@/components/files/SignedStorageFileAccess";
+import { getEventRegistrationFileSignedUrl } from "@/lib/eventsApi";
 import { formatEventDateRange } from "./eventDates";
+
+function looksLikeFakePath(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  return /fakepath/i.test(value) || /^[A-Za-z]:\\/.test(value);
+}
+
+function RegistrationAnswers({
+  reg,
+  getSignedUrl,
+}: {
+  reg: EventFormRegistration;
+  getSignedUrl: (path: string) => Promise<string>;
+}) {
+  const keys = [
+    ...new Set([...Object.keys(reg.answers), ...Object.keys(reg.fileUploads ?? {})]),
+  ];
+
+  if (keys.length === 0) {
+    return <p className="text-sm text-muted-foreground">Aucune réponse.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {keys.map((key) => {
+        const file = reg.fileUploads?.[key];
+        const value = reg.answers[key];
+        return (
+          <div key={key} className="rounded-md border border-border bg-background p-3">
+            <p className="mb-1 text-xs font-medium text-muted-foreground">{key}</p>
+            {file?.path ? (
+              <SignedStorageFileAccess
+                path={file.path}
+                fileName={file.fileName || String(value || "document")}
+                getSignedUrl={getSignedUrl}
+                inlinePreview
+              />
+            ) : looksLikeFakePath(value) ? (
+              <p className="text-sm text-destructive">
+                Fichier non téléversé (inscription ancienne) — demandez une nouvelle soumission.
+              </p>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">{String(value ?? "—")}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface MyEventsProps {
   events: Evenement[];
@@ -69,7 +126,10 @@ export function MyEvents({
   isUpdatingRegistrations,
 }: MyEventsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [registrationDetails, setRegistrationDetails] = useState<EventFormRegistration | null>(null);
+  const getSignedUrl = useCallback(
+    (path: string) => getEventRegistrationFileSignedUrl(path),
+    []
+  );
 
   if (isLoading) {
     return (
@@ -95,7 +155,14 @@ export function MyEvents({
         const isExpanded = expandedId === evt.id;
 
         return (
-          <Card key={evt.id} className="overflow-hidden">
+          <Card
+            key={evt.id}
+            className={cn(
+              "overflow-hidden",
+              evt.status !== "published" &&
+                "border-amber-400 bg-amber-50/80 dark:border-amber-500/60 dark:bg-amber-950/30",
+            )}
+          >
             <div className="p-4 flex flex-wrap items-center gap-4">
               <div
                 className="flex-1 min-w-0 cursor-pointer"
@@ -125,9 +192,13 @@ export function MyEvents({
               </div>
               <Badge
                 variant={evt.status === "published" ? "default" : "secondary"}
-                className="shrink-0"
+                className={cn(
+                  "shrink-0",
+                  evt.status !== "published" &&
+                    "border-0 bg-amber-400 text-amber-950 hover:bg-amber-400",
+                )}
               >
-                {evt.status === "published" ? "Publié" : "Brouillon"}
+                {evt.status === "published" ? "Publié" : "Non publié"}
               </Badge>
               <div className="flex items-center gap-1 shrink-0">
                 <Button variant="ghost" size="icon" asChild title="Modifier">
@@ -210,63 +281,74 @@ export function MyEvents({
                   <div className="px-4 pb-4 border-t">
                     {regs.length > 0 && (
                       <div className="py-4">
-                        <h4 className="font-medium mb-2">Reponses du formulaire</h4>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Nom</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Statut</TableHead>
-                              <TableHead className="w-[220px] text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {regs.map((reg) => (
-                              <TableRow key={reg.id}>
-                                <TableCell className="font-medium">{reg.applicantName}</TableCell>
-                                <TableCell>{reg.applicantEmail}</TableCell>
-                                <TableCell className="text-muted-foreground text-sm">
-                                  {reg.createdAt.toLocaleDateString("fr-FR")}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant={reg.status === "approved" ? "default" : reg.status === "rejected" ? "destructive" : "secondary"}>
-                                    {reg.status === "approved" ? "Accepte" : reg.status === "rejected" ? "Rejete" : "En attente"}
+                        <h4 className="mb-3 font-medium">Réponses du formulaire</h4>
+                        <Accordion type="single" collapsible className="space-y-2">
+                          {regs.map((reg) => (
+                            <AccordionItem
+                              key={reg.id}
+                              value={reg.id}
+                              className="rounded-lg border border-border px-3"
+                            >
+                              <AccordionTrigger className="hover:no-underline py-3">
+                                <div className="flex flex-1 flex-wrap items-center gap-2 pr-3 text-left">
+                                  <span className="font-medium">{reg.applicantName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {reg.applicantEmail}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {reg.createdAt.toLocaleDateString("fr-FR")}
+                                  </span>
+                                  <Badge
+                                    variant={
+                                      reg.status === "approved"
+                                        ? "default"
+                                        : reg.status === "rejected"
+                                          ? "destructive"
+                                          : "secondary"
+                                    }
+                                    className="ml-auto"
+                                  >
+                                    {reg.status === "approved"
+                                      ? "Accepté"
+                                      : reg.status === "rejected"
+                                        ? "Rejeté"
+                                        : "En attente"}
                                   </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button variant="ghost" size="sm" onClick={() => setRegistrationDetails(reg)}>
-                                      Voir reponses
-                                    </Button>
-                                    {reg.status === "pending" && (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-green-600"
-                                          disabled={isUpdatingRegistrations}
-                                          onClick={() => onApproveRegistration(reg.id)}
-                                        >
-                                          <Check size={16} />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-destructive"
-                                          disabled={isUpdatingRegistrations}
-                                          onClick={() => onRejectRegistration(reg.id)}
-                                        >
-                                          <XCircle size={16} />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="pb-4">
+                                <div className="space-y-4 border-t border-border pt-3">
+                                  <RegistrationAnswers reg={reg} getSignedUrl={getSignedUrl} />
+                                  {reg.status === "pending" && (
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        className="gap-1.5"
+                                        disabled={isUpdatingRegistrations}
+                                        onClick={() => onApproveRegistration(reg.id)}
+                                      >
+                                        <Check size={16} />
+                                        Accepter
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        className="gap-1.5"
+                                        disabled={isUpdatingRegistrations}
+                                        onClick={() => onRejectRegistration(reg.id)}
+                                      >
+                                        <XCircle size={16} />
+                                        Rejeter
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
                       </div>
                     )}
 
@@ -343,33 +425,6 @@ export function MyEvents({
           </Card>
         );
       })}
-
-      <Dialog open={!!registrationDetails} onOpenChange={() => setRegistrationDetails(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Reponses du formulaire</DialogTitle>
-          </DialogHeader>
-          {registrationDetails && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {registrationDetails.applicantName} - {registrationDetails.applicantEmail}
-              </p>
-              {Object.entries(registrationDetails.answers).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune reponse.</p>
-              ) : (
-                <div className="space-y-2">
-                  {Object.entries(registrationDetails.answers).map(([key, value]) => (
-                    <div key={key} className="rounded-md border border-border p-2">
-                      <p className="text-xs text-muted-foreground">{key}</p>
-                      <p className="text-sm">{String(value)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

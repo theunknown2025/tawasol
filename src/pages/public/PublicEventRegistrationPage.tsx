@@ -7,7 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { fetchPublicEventBySlug, submitPublicEventRegistration } from "@/lib/eventsApi";
+import {
+  fetchPublicEventBySlug,
+  submitPublicEventRegistration,
+  uploadEventRegistrationFile,
+  type EventRegistrationFileUpload,
+} from "@/lib/eventsApi";
 import { formatEventDateRange, formatFrDate } from "@/lib/eventDates";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
@@ -21,6 +26,7 @@ export default function PublicEventRegistrationPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ["public-event", slug],
@@ -29,13 +35,43 @@ export default function PublicEventRegistrationPage() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: submitPublicEventRegistration,
+    mutationFn: async () => {
+      if (!data) throw new Error("Événement introuvable");
+
+      const fileFields = (data.form?.fields ?? []).filter((f) => f.type === "file");
+      for (const field of fileFields) {
+        if (field.required && !pendingFiles[field.label]) {
+          throw new Error(`Le fichier « ${field.label} » est requis`);
+        }
+      }
+
+      const fileUploads: Record<string, EventRegistrationFileUpload> = {};
+      const nextAnswers: Record<string, string | number | boolean> = { ...answers };
+
+      for (const [fieldLabel, file] of Object.entries(pendingFiles)) {
+        fileUploads[fieldLabel] = await uploadEventRegistrationFile(
+          data.event.id,
+          fieldLabel,
+          file
+        );
+        nextAnswers[fieldLabel] = file.name;
+      }
+
+      await submitPublicEventRegistration({
+        eventId: data.event.id,
+        applicantName: name.trim(),
+        applicantEmail: email.trim(),
+        answers: nextAnswers,
+        fileUploads,
+      });
+    },
     onSuccess: () => {
       toast.success("Inscription envoyée");
       setOpen(false);
       setName("");
       setEmail("");
       setAnswers({});
+      setPendingFiles({});
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Erreur d'inscription");
@@ -187,13 +223,44 @@ export default function PublicEventRegistrationPage() {
                   {field.type === "textarea" ? (
                     <Textarea
                       value={value}
-                      onChange={(e) => setAnswers((prev) => ({ ...prev, [field.label]: e.target.value }))}
+                      onChange={(e) =>
+                        setAnswers((prev) => ({ ...prev, [field.label]: e.target.value }))
+                      }
                     />
+                  ) : field.type === "file" ? (
+                    <div className="space-y-1">
+                      <Input
+                        type="file"
+                        accept=".pdf,.doc,.docx,image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          setPendingFiles((prev) => {
+                            const next = { ...prev };
+                            if (file) next[field.label] = file;
+                            else delete next[field.label];
+                            return next;
+                          });
+                          setAnswers((prev) => {
+                            const next = { ...prev };
+                            if (file) next[field.label] = file.name;
+                            else delete next[field.label];
+                            return next;
+                          });
+                        }}
+                      />
+                      {pendingFiles[field.label] && (
+                        <p className="text-xs text-muted-foreground">
+                          Sélectionné : {pendingFiles[field.label].name}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <Input
                       type={field.type === "checkbox" ? "text" : field.type}
                       value={value}
-                      onChange={(e) => setAnswers((prev) => ({ ...prev, [field.label]: e.target.value }))}
+                      onChange={(e) =>
+                        setAnswers((prev) => ({ ...prev, [field.label]: e.target.value }))
+                      }
                       placeholder={field.placeholder}
                     />
                   )}
@@ -201,17 +268,10 @@ export default function PublicEventRegistrationPage() {
               );
             })}
             <Button
-              onClick={() =>
-                submitMutation.mutate({
-                  eventId: event.id,
-                  applicantName: name.trim(),
-                  applicantEmail: email.trim(),
-                  answers,
-                })
-              }
+              onClick={() => submitMutation.mutate()}
               disabled={submitMutation.isPending || !name.trim() || !email.trim()}
             >
-              Envoyer l'inscription
+              {submitMutation.isPending ? "Envoi…" : "Envoyer l'inscription"}
             </Button>
           </div>
         </DialogContent>

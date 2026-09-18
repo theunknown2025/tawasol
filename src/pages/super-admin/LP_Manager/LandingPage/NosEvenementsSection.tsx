@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { CalendarDays } from "lucide-react";
-import { fetchPublishedEvenementsForPublic } from "@/lib/eventsApi";
+import { fetchLandingEvenements } from "@/lib/eventsApi";
 import { Button } from "@/components/ui/button";
 
 export function NosEvenementsSection() {
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["landing", "nos-evenements", "published"],
-    queryFn: fetchPublishedEvenementsForPublic,
+    queryKey: ["landing", "nos-evenements", "public"],
+    queryFn: fetchLandingEvenements,
     staleTime: 60_000,
   });
 

@@ -56,7 +56,42 @@ export function usePublications(scope: PublicationsScope = "all") {
 
   const likeMutation = useMutation({
     mutationFn: (id: string) => toggleLike(id),
-    onSuccess: () => invalidateAll(queryClient),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY_ALL });
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY_MINE });
+
+      const previousAll = queryClient.getQueryData<Publication[]>(QUERY_KEY_ALL);
+      const previousMine = queryClient.getQueryData<Publication[]>(QUERY_KEY_MINE);
+
+      const optimistic = (list: Publication[] | undefined) =>
+        list?.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                likedByMe: !p.likedByMe,
+                likes: Math.max(0, p.likes + (p.likedByMe ? -1 : 1)),
+              }
+            : p
+        );
+
+      queryClient.setQueryData(QUERY_KEY_ALL, optimistic(previousAll));
+      queryClient.setQueryData(QUERY_KEY_MINE, optimistic(previousMine));
+
+      return { previousAll, previousMine };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousAll) queryClient.setQueryData(QUERY_KEY_ALL, context.previousAll);
+      if (context?.previousMine) queryClient.setQueryData(QUERY_KEY_MINE, context.previousMine);
+    },
+    onSuccess: (result, id) => {
+      const sync = (list: Publication[] | undefined) =>
+        list?.map((p) =>
+          p.id === id ? { ...p, likes: result.likes, likedByMe: result.liked } : p
+        );
+      queryClient.setQueryData(QUERY_KEY_ALL, (old: Publication[] | undefined) => sync(old));
+      queryClient.setQueryData(QUERY_KEY_MINE, (old: Publication[] | undefined) => sync(old));
+    },
+    onSettled: () => invalidateAll(queryClient),
   });
 
   const clicksMutation = useMutation({
