@@ -3,10 +3,12 @@ import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
+  BarometreChartStyle,
   BarometreChartType,
   BarometreColumn,
   BarometreDataRow,
 } from "./barometreDatasetTypes";
+import { createDefaultChartStyle } from "./barometreDatasetTypes";
 import {
   applyBarometreChartFilters,
   buildDefaultChartFilters,
@@ -23,6 +25,8 @@ type Props = {
   xColumnId: string | null;
   yColumnIds: string[];
   chartType: BarometreChartType;
+  chartStyle?: BarometreChartStyle | null;
+  /** Override chart height; defaults to `chartStyle.chartHeight` when set. */
   height?: number;
   className?: string;
   /** Masque les filtres (ex. carte compacte landing). */
@@ -48,7 +52,8 @@ export function BarometreChartPanel({
   xColumnId,
   yColumnIds,
   chartType,
-  height = 280,
+  chartStyle,
+  height,
   className,
   hideFilters = false,
   filtersBehindGear = false,
@@ -57,6 +62,8 @@ export function BarometreChartPanel({
   downloadIconOnly = false,
   toolbarExtra,
 }: Props) {
+  const style = chartStyle ?? createDefaultChartStyle();
+  const resolvedHeight = height ?? style.chartHeight;
   const [filters, setFilters] = useState<BarometreChartFilterState>(() =>
     buildDefaultChartFilters(columns, rows, yColumnIds),
   );
@@ -92,6 +99,7 @@ export function BarometreChartPanel({
       rows={rows}
       filters={filters}
       onChange={setFilters}
+      xFilterColorMode={style.xFilterColorMode}
       variant={filtersPlacement === "aside" ? "aside" : "grid"}
       className={
         filtersPlacement === "aside"
@@ -141,14 +149,15 @@ export function BarometreChartPanel({
               : "grid-cols-1",
           )}
         >
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-visible">
             <BarometreFlexibleChart
               columns={columns}
               rows={filteredRows}
               xColumnId={xColumnId}
               yColumnIds={activeYColumnIds}
               chartType={chartType}
-              height={height}
+              chartStyle={style}
+              height={resolvedHeight}
             />
           </div>
           {filtersNode ? (
@@ -171,7 +180,8 @@ export function BarometreChartPanel({
         xColumnId={xColumnId}
         yColumnIds={activeYColumnIds}
         chartType={chartType}
-        height={height}
+        chartStyle={style}
+        height={resolvedHeight}
       />
     </div>
   );

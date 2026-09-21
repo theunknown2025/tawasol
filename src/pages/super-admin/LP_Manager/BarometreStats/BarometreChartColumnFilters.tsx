@@ -8,7 +8,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import type { BarometreColumn, BarometreDataRow } from "./barometreDatasetTypes";
+import type {
+  BarometreColumn,
+  BarometreDataRow,
+  BarometreXFilterColorMode,
+} from "./barometreDatasetTypes";
+import { resolveXFilterLegendColor } from "./barometreDatasetTypes";
 import {
   distinctTextValues,
   type BarometreChartFilterState,
@@ -25,7 +30,30 @@ type Props = {
    * `aside` — colonnes en accordéons à droite du graphique.
    */
   variant?: "grid" | "aside";
+  /** Color mode for X (text) filter legends. */
+  xFilterColorMode?: BarometreXFilterColorMode;
 };
+
+function FilterValueLabel({
+  label,
+  color,
+}: {
+  label: string;
+  color: string | null;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      {color ? (
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden
+        />
+      ) : null}
+      <span className="break-words">{label}</span>
+    </span>
+  );
+}
 
 export function BarometreChartColumnFilters({
   columns,
@@ -34,8 +62,12 @@ export function BarometreChartColumnFilters({
   onChange,
   className,
   variant = "grid",
+  xFilterColorMode = "multiple",
 }: Props) {
   if (columns.length === 0) return null;
+
+  const legendColor = (index: number) =>
+    resolveXFilterLegendColor(xFilterColorMode, index);
 
   const setTextValue = (colId: string, value: string, checked: boolean) => {
     const current = filters.textSelected[colId] ?? [];
@@ -105,7 +137,10 @@ export function BarometreChartColumnFilters({
                             setTextValue(col.id, values[0]!, c === true)
                           }
                         />
-                        <span className="truncate">{values[0]}</span>
+                        <FilterValueLabel
+                          label={values[0]!}
+                          color={legendColor(0)}
+                        />
                       </label>
                     )}
                   </div>
@@ -144,7 +179,7 @@ export function BarometreChartColumnFilters({
                       </Button>
                     </div>
                     <ul className="max-h-52 space-y-2 overflow-y-auto pr-1">
-                      {values.map((v) => (
+                      {values.map((v, i) => (
                         <li key={v}>
                           <label className="flex cursor-pointer items-start gap-2 text-sm leading-snug">
                             <Checkbox
@@ -154,7 +189,7 @@ export function BarometreChartColumnFilters({
                                 setTextValue(col.id, v, c === true)
                               }
                             />
-                            <span className="break-words">{v}</span>
+                            <FilterValueLabel label={v} color={legendColor(i)} />
                           </label>
                         </li>
                       ))}
@@ -226,14 +261,14 @@ export function BarometreChartColumnFilters({
                   </div>
                 </div>
                 <ul className="space-y-1.5">
-                  {values.map((v) => (
+                  {values.map((v, i) => (
                     <li key={v}>
                       <label className="flex cursor-pointer items-center gap-2 text-sm">
                         <Checkbox
                           checked={selected.has(v)}
                           onCheckedChange={(c) => setTextValue(col.id, v, c === true)}
                         />
-                        <span className="truncate">{v}</span>
+                        <FilterValueLabel label={v} color={legendColor(i)} />
                       </label>
                     </li>
                   ))}

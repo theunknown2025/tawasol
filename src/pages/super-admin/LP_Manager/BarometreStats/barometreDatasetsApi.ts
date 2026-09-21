@@ -6,6 +6,7 @@ import type {
   BarometreDataset,
   BarometreDatasetInput,
 } from "./barometreDatasetTypes";
+import { normalizeChartStyle } from "./barometreDatasetTypes";
 
 function asColumns(raw: unknown): BarometreColumn[] {
   if (!Array.isArray(raw)) return [];
@@ -54,6 +55,7 @@ function mapRow(row: Record<string, unknown>): BarometreDataset {
     x_column_id: row.x_column_id == null ? null : String(row.x_column_id),
     y_column_ids: asYIds(row.y_column_ids),
     chart_type: asChartType(row.chart_type),
+    chart_style: normalizeChartStyle(row.chart_style),
     is_published: row.is_published === true,
     display_order: typeof row.display_order === "number" ? row.display_order : 0,
     created_at: String(row.created_at ?? ""),
@@ -89,7 +91,19 @@ export async function fetchBarometreDataset(id: string): Promise<BarometreDatase
   return mapRow(data as Record<string, unknown>);
 }
 
+async function applyUniversalChartStyle(
+  style: BarometreDatasetInput["chart_style"],
+  exceptId?: string,
+): Promise<void> {
+  if (!style.isUniversal) return;
+  let query = supabase.from("barometre_datasets").update({ chart_style: style });
+  if (exceptId) query = query.neq("id", exceptId);
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+}
+
 export async function createBarometreDataset(input: BarometreDatasetInput): Promise<BarometreDataset> {
+  const chart_style = normalizeChartStyle(input.chart_style);
   const { data, error } = await supabase
     .from("barometre_datasets")
     .insert({
@@ -100,13 +114,16 @@ export async function createBarometreDataset(input: BarometreDatasetInput): Prom
       x_column_id: input.x_column_id,
       y_column_ids: input.y_column_ids,
       chart_type: input.chart_type,
+      chart_style,
       is_published: input.is_published,
       display_order: input.display_order ?? 0,
     })
     .select("*")
     .single();
   if (error) throw new Error(error.message);
-  return mapRow(data as Record<string, unknown>);
+  const created = mapRow(data as Record<string, unknown>);
+  await applyUniversalChartStyle(chart_style, created.id);
+  return { ...created, chart_style };
 }
 
 export async function updateBarometreDataset(
@@ -121,6 +138,7 @@ export async function updateBarometreDataset(
   if (input.x_column_id !== undefined) payload.x_column_id = input.x_column_id;
   if (input.y_column_ids !== undefined) payload.y_column_ids = input.y_column_ids;
   if (input.chart_type !== undefined) payload.chart_type = input.chart_type;
+  if (input.chart_style !== undefined) payload.chart_style = normalizeChartStyle(input.chart_style);
   if (input.is_published !== undefined) payload.is_published = input.is_published;
   if (input.display_order !== undefined) payload.display_order = input.display_order;
 
@@ -131,7 +149,11 @@ export async function updateBarometreDataset(
     .select("*")
     .single();
   if (error) throw new Error(error.message);
-  return mapRow(data as Record<string, unknown>);
+  const updated = mapRow(data as Record<string, unknown>);
+  if (input.chart_style !== undefined) {
+    await applyUniversalChartStyle(updated.chart_style, id);
+  }
+  return updated;
 }
 
 export async function deleteBarometreDataset(id: string): Promise<void> {

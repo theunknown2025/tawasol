@@ -1,8 +1,20 @@
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { BarometreDataset } from "./barometreDatasetTypes";
 import { NouveauBarometreTab } from "./NouveauBarometreTab";
 import { HistoriqueBarometreTab } from "./HistoriqueBarometreTab";
 
 export default function BarometreStatsPage() {
+  const [tab, setTab] = useState("nouveau");
+  const [editing, setEditing] = useState<BarometreDataset | null>(null);
+
+  const openEdit = (dataset: BarometreDataset) => {
+    setEditing(dataset);
+    setTab("nouveau");
+  };
+
+  const clearEditing = () => setEditing(null);
+
   return (
     <div className="min-h-full bg-background p-6 md:p-8">
       <div className="mb-8">
@@ -13,16 +25,29 @@ export default function BarometreStatsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="nouveau" className="w-full">
+      <Tabs
+        value={tab}
+        onValueChange={(value) => {
+          setTab(value);
+          if (value === "liste") clearEditing();
+        }}
+        className="w-full"
+      >
         <TabsList className="mb-6 grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="nouveau">Nouveau Baromètre</TabsTrigger>
+          <TabsTrigger value="nouveau">
+            {editing ? "Modifier le Baromètre" : "Nouveau Baromètre"}
+          </TabsTrigger>
           <TabsTrigger value="liste">Mes Baromètres</TabsTrigger>
         </TabsList>
         <TabsContent value="nouveau" className="mt-0">
-          <NouveauBarometreTab />
+          <NouveauBarometreTab
+            editing={editing}
+            onCancelEdit={clearEditing}
+            onSaved={(dataset) => setEditing(dataset)}
+          />
         </TabsContent>
         <TabsContent value="liste" className="mt-0">
-          <HistoriqueBarometreTab />
+          <HistoriqueBarometreTab onEdit={openEdit} />
         </TabsContent>
       </Tabs>
     </div>

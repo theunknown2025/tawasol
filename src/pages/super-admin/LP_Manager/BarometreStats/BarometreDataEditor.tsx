@@ -14,6 +14,7 @@ import {
   inferAxisDefaults,
   newColumnId,
   newRowId,
+  type BarometreChartStyle,
   type BarometreChartType,
   type BarometreColumn,
   type BarometreDataRow,
@@ -21,6 +22,7 @@ import {
 } from "./barometreDatasetTypes";
 import { BarometreExcelUploadControl } from "./BarometreExcelUploadControl";
 import { BarometreChartPanel } from "./BarometreChartPanel";
+import { BarometreGestionGraphiqueAccordion } from "./BarometreGestionGraphiqueAccordion";
 
 type Props = {
   columns: BarometreColumn[];
@@ -28,11 +30,13 @@ type Props = {
   xColumnId: string | null;
   yColumnIds: string[];
   chartType: BarometreChartType;
+  chartStyle: BarometreChartStyle;
   onColumnsChange: (columns: BarometreColumn[]) => void;
   onRowsChange: (rows: BarometreDataRow[]) => void;
   onXColumnIdChange: (id: string | null) => void;
   onYColumnIdsChange: (ids: string[]) => void;
   onChartTypeChange: (t: BarometreChartType) => void;
+  onChartStyleChange: (style: BarometreChartStyle) => void;
 };
 
 function emptyCells(columns: BarometreColumn[]): Record<string, string | number | null> {
@@ -45,11 +49,13 @@ export function BarometreDataEditor({
   xColumnId,
   yColumnIds,
   chartType,
+  chartStyle,
   onColumnsChange,
   onRowsChange,
   onXColumnIdChange,
   onYColumnIdsChange,
   onChartTypeChange,
+  onChartStyleChange,
 }: Props) {
   const addColumn = (type: BarometreColumn["type"]) => {
     const col: BarometreColumn = {
@@ -310,17 +316,26 @@ export function BarometreDataEditor({
 
         <div>
           <Label className="mb-2 block">Aperçu du graphique</Label>
-          <BarometreChartPanel
-            title="Aperçu baromètre"
-            columns={columns}
-            rows={rows}
-            xColumnId={xColumnId}
-            yColumnIds={yColumnIds}
-            chartType={chartType}
-            height={300}
-          />
+          <div className="max-h-[min(70vh,800px)] overflow-auto rounded-lg border border-border/60 p-2">
+            <BarometreChartPanel
+              title="Aperçu baromètre"
+              columns={columns}
+              rows={rows}
+              xColumnId={xColumnId}
+              yColumnIds={yColumnIds}
+              chartType={chartType}
+              chartStyle={chartStyle}
+              height={chartStyle.chartHeight}
+            />
+          </div>
         </div>
       </div>
+
+      <BarometreGestionGraphiqueAccordion
+        chartStyle={chartStyle}
+        onChartStyleChange={onChartStyleChange}
+        activeChartType={chartType}
+      />
     </div>
   );
 }

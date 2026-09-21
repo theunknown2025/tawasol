@@ -62,6 +62,7 @@ export function BarometreChartCard({ dataset, className, compact = false }: Prop
           xColumnId={dataset.x_column_id}
           yColumnIds={dataset.y_column_ids}
           chartType={dataset.chart_type}
+          chartStyle={dataset.chart_style}
           height={compact ? 160 : 220}
         />
       </article>
@@ -81,6 +82,7 @@ export function BarometreChartCard({ dataset, className, compact = false }: Prop
             xColumnId={dataset.x_column_id}
             yColumnIds={dataset.y_column_ids}
             chartType={dataset.chart_type}
+            chartStyle={dataset.chart_style}
             height={420}
           />
         </DialogContent>

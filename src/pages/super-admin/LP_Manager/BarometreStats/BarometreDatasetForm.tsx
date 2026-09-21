@@ -13,6 +13,7 @@ import {
 } from "./barometreDatasetsApi";
 import {
   createEmptyDatasetDraft,
+  type BarometreChartStyle,
   type BarometreChartType,
   type BarometreColumn,
   type BarometreDataRow,
@@ -23,9 +24,10 @@ type Props = {
   /** If set, form edits this dataset; otherwise creates a new one. */
   initial?: BarometreDataset | null;
   onSaved?: (dataset: BarometreDataset) => void;
+  onCancel?: () => void;
 };
 
-export function BarometreDatasetForm({ initial = null, onSaved }: Props) {
+export function BarometreDatasetForm({ initial = null, onSaved, onCancel }: Props) {
   const queryClient = useQueryClient();
   const draft = createEmptyDatasetDraft();
 
@@ -37,6 +39,9 @@ export function BarometreDatasetForm({ initial = null, onSaved }: Props) {
   const [yColumnIds, setYColumnIds] = useState<string[]>(initial?.y_column_ids ?? draft.y_column_ids);
   const [chartType, setChartType] = useState<BarometreChartType>(
     initial?.chart_type ?? draft.chart_type,
+  );
+  const [chartStyle, setChartStyle] = useState<BarometreChartStyle>(
+    initial?.chart_style ?? draft.chart_style,
   );
 
   const saveMut = useMutation({
@@ -54,6 +59,7 @@ export function BarometreDatasetForm({ initial = null, onSaved }: Props) {
         x_column_id: xColumnId,
         y_column_ids: yColumnIds,
         chart_type: chartType,
+        chart_style: chartStyle,
         is_published: publish,
       };
 
@@ -63,7 +69,15 @@ export function BarometreDatasetForm({ initial = null, onSaved }: Props) {
       return createBarometreDataset(payload);
     },
     onSuccess: async (dataset, publish) => {
-      toast.success(publish ? "Baromètre enregistré et publié." : "Baromètre enregistré.");
+      toast.success(
+        publish
+          ? chartStyle.isUniversal
+            ? "Baromètre publié. Layout appliqué à tous les graphiques."
+            : "Baromètre enregistré et publié."
+          : chartStyle.isUniversal
+            ? "Baromètre enregistré. Layout appliqué à tous les graphiques."
+            : "Baromètre enregistré.",
+      );
       await queryClient.invalidateQueries({ queryKey: ["barometre-datasets"] });
       await queryClient.invalidateQueries({ queryKey: ["barometre-datasets-published"] });
       onSaved?.(dataset);
@@ -76,6 +90,7 @@ export function BarometreDatasetForm({ initial = null, onSaved }: Props) {
         setXColumnId(next.x_column_id);
         setYColumnIds(next.y_column_ids);
         setChartType(next.chart_type);
+        setChartStyle(next.chart_style);
       }
     },
     onError: (e: Error) => toast.error(e.message),
@@ -111,14 +126,21 @@ export function BarometreDatasetForm({ initial = null, onSaved }: Props) {
         xColumnId={xColumnId}
         yColumnIds={yColumnIds}
         chartType={chartType}
+        chartStyle={chartStyle}
         onColumnsChange={setColumns}
         onRowsChange={setRows}
         onXColumnIdChange={setXColumnId}
         onYColumnIdsChange={setYColumnIds}
         onChartTypeChange={setChartType}
+        onChartStyleChange={setChartStyle}
       />
 
       <div className="flex flex-wrap gap-3">
+        {onCancel ? (
+          <Button type="button" variant="ghost" disabled={saveMut.isPending} onClick={onCancel}>
+            Annuler
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="outline"

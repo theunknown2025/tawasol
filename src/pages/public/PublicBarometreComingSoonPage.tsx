@@ -41,6 +41,12 @@ export default function PublicBarometreComingSoonPage() {
     const inner = sidebarInnerRef.current;
     if (!anchor || !inner) return;
 
+    // Sidebar is hidden below lg — never pin on narrow viewports.
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setSidebarPinned(false);
+      return;
+    }
+
     const anchorRect = anchor.getBoundingClientRect();
     const shouldPin = anchorRect.top <= SIDEBAR_PIN_TOP_PX;
 
@@ -111,7 +117,7 @@ export default function PublicBarometreComingSoonPage() {
           <div className="grid w-full gap-8 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:gap-10 xl:gap-12">
             <aside
               ref={sidebarAnchorRef}
-              className="relative min-w-0"
+              className="relative hidden min-w-0 lg:block"
               style={
                 sidebarPinned
                   ? { height: sidebarBox.height || undefined }
@@ -221,7 +227,7 @@ export default function PublicBarometreComingSoonPage() {
                     xColumnId={dataset.x_column_id}
                     yColumnIds={dataset.y_column_ids}
                     chartType={dataset.chart_type}
-                    height={420}
+                    chartStyle={dataset.chart_style}
                     filtersBehindGear
                     filtersPlacement="aside"
                     downloadIconOnly
